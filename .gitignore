@@ -1,0 +1,18 @@
+# Data outputs (large JSON files)
+**/output/
+combined-dataset/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Logs
+**/logs/
+
+# OS
+.DS_Store
+
+# Local claude settings
+.claude/settings.local.json

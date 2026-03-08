@@ -1,0 +1,1315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>adjacency</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300;1,400;1,500&display=swap" rel="stylesheet">
+  <script src="https://w.soundcloud.com/player/api.js"></script>
+  <style>
+    /* ═══════════════════════════════════════════
+       Design Tokens
+       ═══════════════════════════════════════════ */
+    :root {
+      /* Background */
+      --bg: #FAFAF7;
+      --card-bg: #FFFFFF;
+      --card-border: #E8E4DF;
+
+      /* Text */
+      --text-primary: #2D2D2D;
+      --text-secondary: #6B6560;
+
+      /* Connections */
+      --connection-stroke: #C4917B;
+      --connection-highlight: #B5705A;
+      --connection-width: 2.5;
+
+      /* Card sizes */
+      --card-root-width: 280px;
+      --card-r1-width: 180px;
+      --card-r2-width: 155px;
+
+      /* Art sizes */
+      --art-root: 240px;
+      --art-r1: 150px;
+      --art-r2: 125px;
+
+      /* Radius */
+      --card-radius: 14px;
+      --art-radius: 8px;
+
+      /* Shadows */
+      --card-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.06);
+      --card-hover-shadow: 0 4px 12px rgba(0,0,0,0.08), 0 1px 3px rgba(0,0,0,0.06);
+
+      /* Font */
+      --font: 'DM Mono', monospace;
+    }
+
+    /* ═══════════════════════════════════════════
+       Reset & Base
+       ═══════════════════════════════════════════ */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background: var(--bg);
+      font-family: var(--font);
+      color: var(--text-primary);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      overflow: hidden;
+    }
+
+    /* ═══════════════════════════════════════════
+       Graph Container
+       ═══════════════════════════════════════════ */
+    #graph-container {
+      position: relative;
+      width: 1200px;
+      height: 900px;
+    }
+
+    #connections-layer {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 1;
+      pointer-events: none;
+    }
+
+    #nodes-layer {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 2;
+    }
+
+    /* ═══════════════════════════════════════════
+       Node Cards
+       ═══════════════════════════════════════════ */
+    .node-card {
+      position: absolute;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: var(--card-radius);
+      box-shadow: var(--card-shadow);
+      padding: 14px;
+      cursor: default;
+      transition: box-shadow 0.25s ease, transform 0.25s ease;
+      transform: translateY(0);
+
+      /* fade in */
+      opacity: 0;
+      animation: fadeInUp 0.6s ease forwards;
+    }
+
+    .node-card:hover {
+      box-shadow: var(--card-hover-shadow);
+      transform: translateY(-3px);
+    }
+
+    /* Rank sizing */
+    .node-card[data-rank="root"] {
+      width: var(--card-root-width);
+      animation-delay: 0.05s;
+    }
+    .node-card[data-rank="1"] {
+      width: var(--card-r1-width);
+      animation-delay: 0.25s;
+    }
+    .node-card[data-rank="2"] {
+      width: var(--card-r2-width);
+      animation-delay: 0.45s;
+    }
+
+    /* Album art */
+    .node-card .album-art {
+      display: block;
+      border-radius: var(--art-radius);
+      aspect-ratio: 1;
+      object-fit: cover;
+      background: #EDE9E4;
+      margin-bottom: 10px;
+    }
+
+    .node-card[data-rank="root"] .album-art {
+      width: var(--art-root);
+      height: var(--art-root);
+    }
+    .node-card[data-rank="1"] .album-art {
+      width: var(--art-r1);
+      height: var(--art-r1);
+    }
+    .node-card[data-rank="2"] .album-art {
+      width: var(--art-r2);
+      height: var(--art-r2);
+    }
+
+    /* Text */
+    .node-card .track-title {
+      display: block;
+      font-weight: 500;
+      line-height: 1.35;
+      margin-bottom: 2px;
+    }
+    .node-card .artist-name {
+      display: block;
+      font-weight: 300;
+      color: var(--text-secondary);
+      line-height: 1.35;
+    }
+
+    .node-card[data-rank="root"] .track-title { font-size: 15px; }
+    .node-card[data-rank="root"] .artist-name { font-size: 13px; }
+    .node-card[data-rank="1"] .track-title { font-size: 13px; }
+    .node-card[data-rank="1"] .artist-name { font-size: 11px; }
+    .node-card[data-rank="2"] .track-title { font-size: 12px; }
+    .node-card[data-rank="2"] .artist-name { font-size: 11px; }
+
+    .node-card .dj-line {
+      display: block;
+      font-weight: 300;
+      color: var(--text-secondary);
+      line-height: 1.35;
+      margin-top: 2px;
+    }
+    .node-card[data-rank="root"] .dj-line { font-size: 12px; }
+    .node-card[data-rank="1"] .dj-line { font-size: 10px; }
+    .node-card[data-rank="2"] .dj-line { font-size: 9px; }
+
+    .dj-line a {
+      color: var(--text-secondary);
+      text-decoration: underline;
+      text-underline-offset: 2px;
+      text-decoration-color: var(--card-border);
+      transition: color 0.15s ease, text-decoration-color 0.15s ease;
+    }
+    .dj-line a:hover {
+      color: var(--text-primary);
+      text-decoration-color: var(--text-secondary);
+    }
+
+    /* ═══════════════════════════════════════════
+       Connection Paths
+       ═══════════════════════════════════════════ */
+    .connection-path {
+      fill: none;
+      stroke: var(--connection-stroke);
+      stroke-width: var(--connection-width);
+      stroke-linecap: round;
+      opacity: 0.45;
+      transition: opacity 0.25s ease, stroke 0.25s ease;
+
+      /* draw-in animation */
+      stroke-dasharray: 2000;
+      stroke-dashoffset: 2000;
+      animation: drawLine 1s ease forwards;
+      animation-delay: 0.3s;
+    }
+
+    .connection-path.highlighted {
+      opacity: 0.85;
+      stroke: var(--connection-highlight);
+    }
+
+    /* ═══════════════════════════════════════════
+       Play Button & Audio State
+       ═══════════════════════════════════════════ */
+    .art-wrap {
+      position: relative;
+      display: inline-block;
+      margin-bottom: 10px;
+    }
+
+    .art-wrap .album-art {
+      margin-bottom: 0;
+    }
+
+    .play-btn {
+      position: absolute;
+      bottom: 6px;
+      right: 6px;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: rgba(45, 45, 45, 0.75);
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      transition: opacity 0.2s ease, background 0.15s ease;
+      padding: 0;
+    }
+
+    .art-wrap:hover .play-btn,
+    .node-card.playing .play-btn {
+      opacity: 1;
+    }
+
+    .play-btn:hover {
+      background: rgba(45, 45, 45, 0.9);
+    }
+
+    .play-btn svg {
+      width: 14px;
+      height: 14px;
+      fill: #fff;
+    }
+
+    .node-card.playing {
+      border-color: var(--connection-highlight);
+      box-shadow: 0 0 0 2px var(--connection-highlight), var(--card-shadow);
+    }
+
+    .node-card.playing:hover {
+      box-shadow: 0 0 0 2px var(--connection-highlight), var(--card-hover-shadow);
+    }
+
+    .album-art.no-art {
+      background: #DDD8D2;
+    }
+
+    /* Source badge (SoundCloud logo) */
+    .source-badge {
+      position: absolute;
+      bottom: 6px;
+      left: 6px;
+      width: 20px;
+      height: 20px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+    }
+    .source-badge svg {
+      width: 100%;
+      height: 100%;
+      fill: #fff;
+      filter: drop-shadow(0 1px 2px rgba(0,0,0,0.4));
+    }
+    .node-card.playing[data-source="soundcloud"] .source-badge {
+      opacity: 1;
+    }
+    .node-card.playing[data-source="set"] .source-badge {
+      opacity: 1;
+    }
+    .node-card.playing[data-source="set"] .source-badge svg {
+      display: none;
+    }
+    .node-card.playing[data-source="set"] .source-badge::after {
+      content: 'from set';
+      font-family: var(--font);
+      font-size: 9px;
+      color: #fff;
+      white-space: nowrap;
+      text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+    }
+    .node-card.playing[data-source="deezer"] .source-badge {
+      opacity: 1;
+    }
+    .node-card.playing[data-source="deezer"] .source-badge svg {
+      display: none;
+    }
+    .node-card.playing[data-source="deezer"] .source-badge::after {
+      content: '30s';
+      font-family: var(--font);
+      font-size: 9px;
+      color: #fff;
+      text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+    }
+
+    /* ═══════════════════════════════════════════
+       Tooltip
+       ═══════════════════════════════════════════ */
+    .node-card .rank-tooltip {
+      position: absolute;
+      top: -32px;
+      left: 50%;
+      transform: translateX(-50%) translateY(4px);
+      background: #1a1a1a;
+      color: #fff;
+      font-family: var(--font);
+      font-size: 10px;
+      font-weight: 400;
+      letter-spacing: 0.03em;
+      padding: 4px 10px;
+      border-radius: 6px;
+      white-space: nowrap;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.15s ease, transform 0.15s ease;
+    }
+
+    .node-card .rank-tooltip::after {
+      content: '';
+      position: absolute;
+      top: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      border: 4px solid transparent;
+      border-top-color: #1a1a1a;
+    }
+
+    .node-card:hover .rank-tooltip {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    /* ═══════════════════════════════════════════
+       Shuffle Button
+       ═══════════════════════════════════════════ */
+    #shuffle-btn {
+      position: absolute;
+      top: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 10;
+      font-family: var(--font);
+      font-size: 12px;
+      font-weight: 400;
+      color: var(--text-secondary);
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 20px;
+      padding: 7px 18px;
+      cursor: pointer;
+      box-shadow: var(--card-shadow);
+      transition: box-shadow 0.2s ease, color 0.2s ease, transform 0.2s ease;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      letter-spacing: 0.02em;
+    }
+
+    #shuffle-btn:hover {
+      box-shadow: var(--card-hover-shadow);
+      color: var(--text-primary);
+      transform: translateX(-50%) translateY(-1px);
+    }
+
+    #shuffle-btn:active {
+      transform: translateX(-50%) translateY(0);
+    }
+
+    #shuffle-btn svg {
+      width: 13px;
+      height: 13px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    /* ═══════════════════════════════════════════
+       Animations
+       ═══════════════════════════════════════════ */
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(12px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes drawLine {
+      to {
+        stroke-dashoffset: 0;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="graph-container">
+    <button id="shuffle-btn">
+      <svg viewBox="0 0 24 24"><path d="M16 3h5v5"/><path d="M4 20L21 3"/><path d="M21 16v5h-5"/><path d="M15 15l6 6"/><path d="M4 4l5 5"/></svg>
+      shuffle
+    </button>
+    <svg id="connections-layer" xmlns="http://www.w3.org/2000/svg"></svg>
+    <div id="nodes-layer"></div>
+  </div>
+
+  <audio id="audio-player" preload="none"></audio>
+  <iframe id="sc-widget" src="about:blank" style="position:absolute;width:0;height:0;border:0;overflow:hidden;" allow="autoplay"></iframe>
+  <iframe id="mc-widget" src="about:blank" style="position:absolute;width:0;height:0;border:0;overflow:hidden;" allow="autoplay"></iframe>
+  <script src="https://widget.mixcloud.com/media/js/widgetApi.js"></script>
+
+  <script>
+    // ═══════════════════════════════════════════
+    // Data — loaded from combined_graph.json
+    // ═══════════════════════════════════════════
+    let graphNodes = {};    // full graph: { "artist:::title": { title, artist, edges: [...] } }
+    let audioCache = {};    // { "artist:::title": { source, scTrackUrl, previewUrl, setUrl, ... } }
+    let candidates = [];    // node IDs with 3+ edges
+    let nodes = [];
+    let edges = [];
+    let nodeMap = {};
+
+    const cardDims = {
+      'root': { w: 280, h: 310 },
+      '1':    { w: 180, h: 210 },
+      '2':    { w: 155, h: 185 },
+    };
+
+    // ═══════════════════════════════════════════
+    // SVG icons
+    // ═══════════════════════════════════════════
+    const PLAY_SVG = '<svg viewBox="0 0 24 24"><polygon points="6,3 20,12 6,21"/></svg>';
+    const PAUSE_SVG = '<svg viewBox="0 0 24 24"><rect x="5" y="3" width="4" height="18"/><rect x="15" y="3" width="4" height="18"/></svg>';
+    const SC_BADGE_SVG = '<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M1 18V15C1 14.45 1.196 13.979 1.588 13.587C1.98 13.195 2.45 12.999 3 12.999C3.55 12.999 4.021 13.195 4.413 13.587C4.805 13.979 5.001 14.45 5.001 15V18H1ZM6.001 18V12C6.001 11.45 6.197 10.979 6.589 10.587C6.981 10.195 7.451 9.999 8.001 9.999C8.551 9.999 9.022 10.195 9.414 10.587C9.806 10.979 10.002 11.45 10.002 12V18H6.001ZM11.002 18V9C11.002 8.45 11.198 7.979 11.59 7.587C11.982 7.195 12.452 6.999 13.002 6.999C13.552 6.999 14.023 7.195 14.415 7.587C14.807 7.979 15.003 8.45 15.003 9V18H11.002ZM16.003 18V6C16.003 5.45 16.199 4.979 16.591 4.587C16.983 4.195 17.453 3.999 18.003 3.999C18.553 3.999 19.024 4.195 19.416 4.587C19.808 4.979 20.004 5.45 20.004 6V18H16.003ZM21.004 18V3C21.004 2.45 21.2 1.979 21.592 1.587C21.984 1.195 22.45 1 23 1C23 1 24 1 24 3V18C24 18.55 23.804 19.021 23.412 19.413C23.02 19.805 22.55 20.001 22 20.001H3C2.45 20.001 1.98 19.805 1.588 19.413C1.196 19.021 1 18.55 1 18"/></svg>';
+
+    // ═══════════════════════════════════════════
+    // Playback state machine
+    // ═══════════════════════════════════════════
+    let currentlyPlayingId = null;
+    let currentBackend = null; // "html5" | "sc" | "mc" | null
+    const audioEl = document.getElementById('audio-player');
+    let scWidget = null;
+    let scWidgetReady = false;
+    let mcWidget = null;
+
+    function initSCWidget() {
+      if (scWidget) return true;
+      try {
+        if (typeof SC === 'undefined' || !SC.Widget) return false;
+        const iframe = document.getElementById('sc-widget');
+        scWidget = SC.Widget(iframe);
+        return true;
+      } catch (e) {
+        console.warn('SC Widget init failed:', e);
+        return false;
+      }
+    }
+
+    function resetCardUI(nodeId) {
+      const card = document.querySelector(`.node-card[data-node-id="${nodeId}"]`);
+      if (card) {
+        card.classList.remove('playing');
+        card.removeAttribute('data-source');
+        const btn = card.querySelector('.play-btn');
+        if (btn) btn.innerHTML = PLAY_SVG;
+      }
+    }
+
+    function stopCurrentPlayback() {
+      if (!currentlyPlayingId) return;
+      if (currentBackend === 'html5') {
+        audioEl.pause();
+        audioEl.removeAttribute('src');
+      } else if (currentBackend === 'sc' && scWidget) {
+        try { scWidget.pause(); } catch (e) {}
+      } else if (currentBackend === 'mc' && mcWidget) {
+        try { mcWidget.pause(); } catch (e) {}
+      }
+      resetCardUI(currentlyPlayingId);
+      currentlyPlayingId = null;
+      currentBackend = null;
+    }
+
+    function onPlaybackEnded() {
+      if (currentlyPlayingId) {
+        resetCardUI(currentlyPlayingId);
+        currentlyPlayingId = null;
+        currentBackend = null;
+      }
+    }
+
+    function playHTML5(nodeId, previewUrl) {
+      const card = document.querySelector(`.node-card[data-node-id="${nodeId}"]`);
+      const btn = card ? card.querySelector('.play-btn') : null;
+
+      currentlyPlayingId = nodeId;
+      currentBackend = 'html5';
+      audioEl.src = previewUrl;
+      audioEl.play();
+      if (btn) btn.innerHTML = PAUSE_SVG;
+      if (card) {
+        card.classList.add('playing');
+        card.setAttribute('data-source', 'deezer');
+      }
+    }
+
+    function playSC(nodeId, trackUrl) {
+      if (!initSCWidget()) {
+        // SC API unavailable — try Deezer fallback
+        const node = nodeMap[nodeId];
+        if (node && node.previewUrl) {
+          playHTML5(nodeId, node.previewUrl);
+        }
+        return;
+      }
+
+      const card = document.querySelector(`.node-card[data-node-id="${nodeId}"]`);
+      const btn = card ? card.querySelector('.play-btn') : null;
+
+      currentlyPlayingId = nodeId;
+      currentBackend = 'sc';
+      if (btn) btn.innerHTML = PAUSE_SVG;
+      if (card) {
+        card.classList.add('playing');
+        card.setAttribute('data-source', 'soundcloud');
+      }
+
+      const widgetUrl = `https://w.soundcloud.com/player/?url=${encodeURIComponent(trackUrl)}&auto_play=true&show_artwork=false`;
+      const iframe = document.getElementById('sc-widget');
+      iframe.src = widgetUrl;
+
+      // Re-init widget after src change
+      scWidget = SC.Widget(iframe);
+      scWidgetReady = false;
+
+      scWidget.bind(SC.Widget.Events.READY, () => {
+        scWidgetReady = true;
+        scWidget.play();
+      });
+      scWidget.bind(SC.Widget.Events.FINISH, onPlaybackEnded);
+      scWidget.bind(SC.Widget.Events.ERROR, () => {
+        // SC track dead — try Deezer fallback, then set fallback
+        resetCardUI(nodeId);
+        currentlyPlayingId = null;
+        currentBackend = null;
+        const node = nodeMap[nodeId];
+        if (node && node.previewUrl) {
+          playHTML5(nodeId, node.previewUrl);
+        } else if (node && node.setUrl) {
+          playSet(nodeId);
+        }
+      });
+    }
+
+    function playSCSet(nodeId, setUrl, offsetSec) {
+      if (!initSCWidget()) return;
+
+      const card = document.querySelector(`.node-card[data-node-id="${nodeId}"]`);
+      const btn = card ? card.querySelector('.play-btn') : null;
+
+      currentlyPlayingId = nodeId;
+      currentBackend = 'sc';
+      if (btn) btn.innerHTML = PAUSE_SVG;
+      if (card) {
+        card.classList.add('playing');
+        card.setAttribute('data-source', 'set');
+      }
+
+      const widgetUrl = `https://w.soundcloud.com/player/?url=${encodeURIComponent(setUrl)}&auto_play=true&show_artwork=false`;
+      const iframe = document.getElementById('sc-widget');
+      iframe.src = widgetUrl;
+
+      scWidget = SC.Widget(iframe);
+      scWidgetReady = false;
+
+      scWidget.bind(SC.Widget.Events.READY, () => {
+        scWidgetReady = true;
+        if (offsetSec) {
+          scWidget.seekTo(offsetSec * 1000); // SC seeks in ms
+        }
+        scWidget.play();
+      });
+      scWidget.bind(SC.Widget.Events.FINISH, onPlaybackEnded);
+      scWidget.bind(SC.Widget.Events.ERROR, onPlaybackEnded);
+    }
+
+    function playMixcloud(nodeId, mixcloudUrl, offsetSec) {
+      const card = document.querySelector(`.node-card[data-node-id="${nodeId}"]`);
+      const btn = card ? card.querySelector('.play-btn') : null;
+
+      currentlyPlayingId = nodeId;
+      currentBackend = 'mc';
+      if (btn) btn.innerHTML = PAUSE_SVG;
+      if (card) {
+        card.classList.add('playing');
+        card.setAttribute('data-source', 'set');
+      }
+
+      // Mixcloud widget needs the path, not the full URL
+      const mcPath = mixcloudUrl.replace(/^https?:\/\/(www\.)?mixcloud\.com/, '');
+      const iframe = document.getElementById('mc-widget');
+      iframe.src = `https://www.mixcloud.com/widget/iframe/?feed=${encodeURIComponent(mcPath)}&autoplay=1`;
+
+      try {
+        mcWidget = Mixcloud.PlayerWidget(iframe);
+        mcWidget.ready.then(() => {
+          if (offsetSec) {
+            mcWidget.seek(offsetSec);
+          }
+          mcWidget.play();
+        });
+      } catch (e) {
+        console.warn('Mixcloud widget failed:', e);
+        onPlaybackEnded();
+      }
+    }
+
+    function playSet(nodeId) {
+      const node = nodeMap[nodeId];
+      if (!node || !node.setUrl) return false;
+
+      if (node.setSource === 'mixcloud') {
+        playMixcloud(nodeId, node.setUrl, node.setOffsetSec);
+      } else {
+        playSCSet(nodeId, node.setUrl, node.setOffsetSec);
+      }
+      return true;
+    }
+
+    function togglePlay(nodeId) {
+      const node = nodeMap[nodeId];
+      if (!node) return;
+
+      const hasAudio = node.scTrackUrl || node.previewUrl || node.setUrl;
+      if (!hasAudio) return;
+
+      const card = document.querySelector(`.node-card[data-node-id="${nodeId}"]`);
+      const btn = card ? card.querySelector('.play-btn') : null;
+
+      // Same track — toggle pause/play
+      if (currentlyPlayingId === nodeId) {
+        if (currentBackend === 'html5') {
+          if (audioEl.paused) {
+            audioEl.play();
+            if (btn) btn.innerHTML = PAUSE_SVG;
+            if (card) card.classList.add('playing');
+          } else {
+            audioEl.pause();
+            if (btn) btn.innerHTML = PLAY_SVG;
+            if (card) card.classList.remove('playing');
+          }
+        } else if (currentBackend === 'sc' && scWidget) {
+          scWidget.isPaused(paused => {
+            if (paused) {
+              scWidget.play();
+              if (btn) btn.innerHTML = PAUSE_SVG;
+              if (card) card.classList.add('playing');
+            } else {
+              scWidget.pause();
+              if (btn) btn.innerHTML = PLAY_SVG;
+              if (card) card.classList.remove('playing');
+            }
+          });
+        } else if (currentBackend === 'mc' && mcWidget) {
+          mcWidget.getIsPaused().then(paused => {
+            if (paused) {
+              mcWidget.play();
+              if (btn) btn.innerHTML = PAUSE_SVG;
+              if (card) card.classList.add('playing');
+            } else {
+              mcWidget.pause();
+              if (btn) btn.innerHTML = PLAY_SVG;
+              if (card) card.classList.remove('playing');
+            }
+          });
+        }
+        return;
+      }
+
+      // Different track — stop current, start new
+      stopCurrentPlayback();
+
+      if (node.scTrackUrl) {
+        playSC(nodeId, node.scTrackUrl);
+      } else if (node.previewUrl) {
+        playHTML5(nodeId, node.previewUrl);
+      } else if (node.setUrl) {
+        playSet(nodeId);
+      }
+    }
+
+    // HTML5 audio ended
+    audioEl.addEventListener('ended', onPlaybackEnded);
+    audioEl.addEventListener('error', () => {
+      if (currentBackend === 'html5') onPlaybackEnded();
+    });
+
+    // ═══════════════════════════════════════════
+    // Seeded random (deterministic per-connection)
+    // ═══════════════════════════════════════════
+    function hashStr(s) {
+      let h = 0;
+      for (let i = 0; i < s.length; i++) {
+        h = ((h << 5) - h) + s.charCodeAt(i);
+        h |= 0;
+      }
+      return h;
+    }
+
+    function seededRand(seed) {
+      const x = Math.sin(seed) * 10000;
+      return x - Math.floor(x);
+    }
+
+    // ═══════════════════════════════════════════
+    // Client-side cluster generation (BFS)
+    // ═══════════════════════════════════════════
+    function shuffleArray(arr) {
+      for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+      return arr;
+    }
+
+    function getNeighbors(nodeId, exclude) {
+      const node = graphNodes[nodeId];
+      if (!node) return [];
+      return node.edges
+        .map(e => e.node)
+        .filter(id => id in graphNodes && !exclude.has(id));
+    }
+
+    function getEdgeContext(fromId, toId) {
+      const node = graphNodes[fromId];
+      if (!node) return null;
+      for (const edge of node.edges) {
+        if (edge.node === toId && edge.contexts && edge.contexts.length > 0) {
+          const ctx = edge.contexts[0];
+          return {
+            dj: ctx.dj || '',
+            episodeUrl: ctx.episode_url || '',
+            date: ctx.date || '',
+          };
+        }
+      }
+      return null;
+    }
+
+    function collectDjs(graphId) {
+      const n = graphNodes[graphId];
+      if (!n) return [];
+      const seen = new Set();
+      const djs = [];
+      for (const edge of n.edges) {
+        for (const ctx of (edge.contexts || [])) {
+          const name = (ctx.dj || '').trim();
+          if (name && !seen.has(name)) {
+            seen.add(name);
+            djs.push({ name, episodeUrl: ctx.episode_url || '' });
+          }
+        }
+      }
+      return djs;
+    }
+
+    function enrichFromCache(clusterNodes) {
+      let found = 0;
+      for (const node of clusterNodes) {
+        const cached = audioCache[node.graphId];
+        if (cached && cached.source && cached.source !== 'not_found') {
+          node.source = cached.source;
+          node.scTrackUrl = cached.scTrackUrl || null;
+          node.artUrl = cached.artUrl || null;
+          node.previewUrl = cached.previewUrl || null;
+          node.setUrl = cached.setUrl || null;
+          node.setSource = cached.setSource || null;
+          node.setOffsetSec = cached.setOffsetSec || null;
+          node.setDj = cached.setDj || null;
+          found++;
+        } else {
+          node.artUrl = null;
+          node.previewUrl = null;
+          node.scTrackUrl = null;
+          node.setUrl = null;
+          node.setSource = null;
+          node.setOffsetSec = null;
+          node.setDj = null;
+          node.source = 'not_found';
+        }
+      }
+      return found;
+    }
+
+    function selectCluster(rootId, r1Count, r2PerR1) {
+      r1Count = r1Count || 2;
+      r2PerR1 = r2PerR1 || 2;
+
+      const rootNode = graphNodes[rootId];
+      const clusterNodes = [];
+      const clusterEdges = [];
+      const usedIds = new Set([rootId]);
+
+      function makeNode(localId, graphId, rank) {
+        usedIds.add(graphId);
+        const n = graphNodes[graphId];
+        return {
+          id: localId,
+          graphId: graphId,
+          rank: rank,
+          title: n.title,
+          artist: n.artist,
+          djs: collectDjs(graphId),
+        };
+      }
+
+      function makeEdge(fromLocal, toLocal, fromGraphId, toGraphId) {
+        const edge = { from: fromLocal, to: toLocal };
+        const ctx = getEdgeContext(fromGraphId, toGraphId);
+        if (ctx) edge.context = ctx;
+        return edge;
+      }
+
+      // Root
+      clusterNodes.push(makeNode('root', rootId, 'root'));
+
+      // R1: prefer nodes with children (not dead-ends)
+      const r1All = getNeighbors(rootId, usedIds);
+      const r1ChildCount = (cid) => getNeighbors(cid, new Set([...usedIds, rootId])).length;
+      const viable = r1All.filter(c => r1ChildCount(c) >= 1);
+      const rich = viable.filter(c => r1ChildCount(c) >= r2PerR1);
+      const okay = viable.filter(c => r1ChildCount(c) < r2PerR1);
+      shuffleArray(rich);
+      shuffleArray(okay);
+      const r1Selected = [...rich, ...okay].slice(0, r1Count);
+
+      for (let i = 0; i < r1Selected.length; i++) {
+        const r1GraphId = r1Selected[i];
+        const r1Local = `r1_${i}`;
+        clusterNodes.push(makeNode(r1Local, r1GraphId, '1'));
+        clusterEdges.push(makeEdge('root', r1Local, rootId, r1GraphId));
+
+        // R2
+        const r2Candidates = getNeighbors(r1GraphId, usedIds);
+        shuffleArray(r2Candidates);
+        const r2Selected = r2Candidates.slice(0, r2PerR1);
+
+        const r2LocalIds = [];
+        for (let j = 0; j < r2Selected.length; j++) {
+          const r2GraphId = r2Selected[j];
+          const r2Local = `r2_${i}_${j}`;
+          clusterNodes.push(makeNode(r2Local, r2GraphId, '2'));
+          clusterEdges.push(makeEdge(r1Local, r2Local, r1GraphId, r2GraphId));
+          r2LocalIds.push({ local: r2Local, graphId: r2GraphId });
+        }
+
+        // R3 backfill if R2 slots unfilled
+        let filled = r2Selected.length;
+        if (filled < r2PerR1 && filled > 0) {
+          let needed = r2PerR1 - filled;
+          for (const { local: r2Local, graphId: r2GraphId } of r2LocalIds) {
+            if (needed <= 0) break;
+            const r3Candidates = getNeighbors(r2GraphId, usedIds);
+            shuffleArray(r3Candidates);
+            for (let k = 0; k < Math.min(r3Candidates.length, needed); k++) {
+              const r3GraphId = r3Candidates[k];
+              const r3Local = `r3_${i}_${k}`;
+              clusterNodes.push(makeNode(r3Local, r3GraphId, '2'));
+              clusterEdges.push(makeEdge(r2Local, r3Local, r2GraphId, r3GraphId));
+              needed--;
+            }
+          }
+        }
+      }
+
+      // Enrich from cache
+      const found = enrichFromCache(clusterNodes);
+
+      return {
+        meta: {
+          root_id: rootId,
+          found: found,
+          not_found: clusterNodes.length - found,
+        },
+        nodes: clusterNodes,
+        edges: clusterEdges,
+      };
+    }
+
+    // ═══════════════════════════════════════════
+    // Bezier path computation
+    // ═══════════════════════════════════════════
+    const EDGE_PAD = 10;
+
+    function getNodeCenter(node) {
+      const dims = cardDims[node.rank];
+      return {
+        x: node.x + dims.w / 2,
+        y: node.y + dims.h / 2,
+      };
+    }
+
+    function getEdgePoint(center, target, halfW, halfH, pad) {
+      const dx = target.x - center.x;
+      const dy = target.y - center.y;
+
+      if (dx === 0 && dy === 0) return { x: center.x, y: center.y };
+
+      let t = Infinity;
+
+      if (dx !== 0) {
+        const tx = (dx > 0 ? halfW : -halfW) / dx;
+        if (tx > 0) t = Math.min(t, tx);
+      }
+      if (dy !== 0) {
+        const ty = (dy > 0 ? halfH : -halfH) / dy;
+        if (ty > 0) t = Math.min(t, ty);
+      }
+
+      const edgeX = center.x + dx * t;
+      const edgeY = center.y + dy * t;
+
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      return {
+        x: edgeX + (dx / dist) * pad,
+        y: edgeY + (dy / dist) * pad,
+      };
+    }
+
+    function computePath(fromNode, toNode, edgeIndex) {
+      const cA = getNodeCenter(fromNode);
+      const cB = getNodeCenter(toNode);
+      const dA = cardDims[fromNode.rank];
+      const dB = cardDims[toNode.rank];
+
+      const a = getEdgePoint(cA, cB, dA.w / 2, dA.h / 2, EDGE_PAD);
+      const b = getEdgePoint(cB, cA, dB.w / 2, dB.h / 2, EDGE_PAD);
+
+      const dx = b.x - a.x;
+      const dy = b.y - a.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+
+      if (dist === 0) return `M${a.x},${a.y} L${b.x},${b.y}`;
+
+      const perpX = -dy / dist;
+      const perpY = dx / dist;
+
+      const seed = hashStr(fromNode.id + toNode.id);
+      const sagBase = dist * 0.25;
+      const sagJitter = (seededRand(seed) - 0.5) * 25;
+      const sagAmount = sagBase + sagJitter;
+
+      const slideJitter = (seededRand(seed + 1) - 0.5) * 15;
+
+      const cpX = a.x + dx / 2 + perpX * sagAmount + (dx / dist) * slideJitter;
+      const cpY = a.y + dy / 2 + perpY * sagAmount + (dy / dist) * slideJitter;
+
+      return `M${a.x},${a.y} Q${cpX},${cpY} ${b.x},${b.y}`;
+    }
+
+    // ═══════════════════════════════════════════
+    // Render
+    // ═══════════════════════════════════════════
+    function renderCards() {
+      const layer = document.getElementById('nodes-layer');
+
+      nodes.forEach(node => {
+        const card = document.createElement('div');
+        card.className = 'node-card';
+        card.dataset.rank = node.rank;
+        card.dataset.nodeId = node.id;
+        card.style.left = node.x + 'px';
+        card.style.top = node.y + 'px';
+
+        const hasArt = node.artUrl && node.source !== 'not_found';
+        const hasAudio = !!(node.scTrackUrl || node.previewUrl || node.setUrl);
+        const artClass = hasArt ? 'album-art' : 'album-art no-art';
+        const imgTag = hasArt
+          ? `<img class="${artClass}" src="${node.artUrl}" alt="${node.title} by ${node.artist}" loading="lazy">`
+          : `<div class="${artClass}"></div>`;
+
+        const playBtn = hasAudio
+          ? `<button class="play-btn" aria-label="Play">${PLAY_SVG}</button>`
+          : '';
+
+        const sourceBadge = `<span class="source-badge">${SC_BADGE_SVG}</span>`;
+
+        const rankLabel = node.rank === 'root' ? 'root' : `rank ${node.rank}`;
+
+        // DJ line: "Mixed by DJ1, DJ2" with links (cap at 2 for small cards)
+        const maxDjs = node.rank === 'root' ? 3 : 2;
+        const djs = (node.djs || []).slice(0, maxDjs);
+        let djLine = '';
+        if (djs.length > 0) {
+          const links = djs.map(d =>
+            d.episodeUrl
+              ? `<a href="${d.episodeUrl}" target="_blank" rel="noopener">${d.name}</a>`
+              : d.name
+          ).join(', ');
+          djLine = `<span class="dj-line">Mixed by ${links}</span>`;
+        }
+
+        card.innerHTML = `
+          <span class="rank-tooltip">${rankLabel}</span>
+          <div class="art-wrap">
+            ${imgTag}
+            ${playBtn}
+            ${sourceBadge}
+          </div>
+          <span class="track-title">${node.title}</span>
+          <span class="artist-name">${node.artist}</span>
+          ${djLine}
+        `;
+
+        // Wire up play button
+        if (hasAudio) {
+          const btn = card.querySelector('.play-btn');
+          btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            togglePlay(node.id);
+          });
+        }
+
+        layer.appendChild(card);
+      });
+    }
+
+    function renderConnections() {
+      const svg = document.getElementById('connections-layer');
+
+      edges.forEach((edge, i) => {
+        const fromNode = nodeMap[edge.from];
+        const toNode = nodeMap[edge.to];
+        if (!fromNode || !toNode) return;
+
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        path.setAttribute('d', computePath(fromNode, toNode, i));
+        path.setAttribute('class', 'connection-path');
+        path.dataset.from = edge.from;
+        path.dataset.to = edge.to;
+
+        svg.appendChild(path);
+        const len = path.getTotalLength();
+        path.style.strokeDasharray = len;
+        path.style.strokeDashoffset = len;
+      });
+    }
+
+    function setupHovers() {
+      document.querySelectorAll('.node-card').forEach(card => {
+        const nodeId = card.dataset.nodeId;
+
+        card.addEventListener('mouseenter', () => {
+          document.querySelectorAll(
+            `.connection-path[data-from="${nodeId}"], .connection-path[data-to="${nodeId}"]`
+          ).forEach(p => p.classList.add('highlighted'));
+        });
+
+        card.addEventListener('mouseleave', () => {
+          document.querySelectorAll('.connection-path.highlighted')
+            .forEach(p => p.classList.remove('highlighted'));
+        });
+      });
+    }
+
+    // ═══════════════════════════════════════════
+    // Auto-layout engine
+    // ═══════════════════════════════════════════
+    function computeLayout() {
+      const W = 1200, H = 900;
+
+      const root = nodes.find(n => n.rank === 'root');
+      if (!root) return;
+      const r1Nodes = nodes.filter(n => n.rank === '1');
+
+      // Build adjacency: for each node, collect its children (from edges)
+      const childrenOf = {};
+      nodes.forEach(n => childrenOf[n.id] = []);
+      edges.forEach(e => {
+        const child = nodes.find(n => n.id === e.to);
+        if (child && childrenOf[e.from] !== undefined) {
+          childrenOf[e.from].push(child);
+        }
+      });
+
+      // Collect the full subtree under each R1 (all rank "2" descendants)
+      function collectLeaves(nodeId) {
+        const leaves = [];
+        const direct = childrenOf[nodeId] || [];
+        direct.forEach(ch => {
+          leaves.push(ch);
+          // recurse for R3+ nodes attached to R2
+          collectLeaves(ch.id).forEach(l => leaves.push(l));
+        });
+        return leaves;
+      }
+
+      const rootD = cardDims['root'];
+      const r1D = cardDims['1'];
+      const r2D = cardDims['2'];
+      const hGap = 60;
+
+      // Root — center of container
+      root.x = (W - rootD.w) / 2;
+      root.y = (H - rootD.h) / 2;
+      const rootCY = root.y + rootD.h / 2;
+
+      // Split r1 nodes into left and right branches
+      const leftR1 = [];
+      const rightR1 = [];
+      r1Nodes.forEach((n, i) => {
+        if (i % 2 === 0) leftR1.push(n);
+        else rightR1.push(n);
+      });
+
+      // Place left R1 nodes
+      const leftR1X = root.x - hGap - r1D.w;
+      leftR1.forEach((n, i) => {
+        n.x = leftR1X;
+        const spread = r1D.h + 40;
+        const yOff = (i - (leftR1.length - 1) / 2) * spread;
+        n.y = rootCY - r1D.h / 2 + yOff + 25;
+      });
+
+      // Place right R1 nodes
+      const rightR1X = root.x + rootD.w + hGap;
+      rightR1.forEach((n, i) => {
+        n.x = rightR1X;
+        const spread = r1D.h + 40;
+        const yOff = (i - (rightR1.length - 1) / 2) * spread;
+        n.y = rootCY - r1D.h / 2 + yOff - 20;
+      });
+
+      // Place all rank-2 leaves — fan above/below their R1 ancestor
+      const leftR2X = Math.max(5, leftR1X - hGap - r2D.w);
+      const rightR2X = Math.min(W - r2D.w - 5, rightR1X + r1D.w + hGap);
+
+      r1Nodes.forEach(r1 => {
+        const allLeaves = collectLeaves(r1.id);
+        const isLeft = leftR1.includes(r1);
+        const r1CY = r1.y + r1D.h / 2;
+
+        allLeaves.forEach((n, i) => {
+          n.x = isLeft ? leftR2X : rightR2X;
+          const spread = r2D.h + 60;
+          const yOff = (i - (allLeaves.length - 1) / 2) * spread;
+          n.y = r1CY - r2D.h / 2 + yOff;
+        });
+      });
+
+      // Clamp within container
+      nodes.forEach(n => {
+        const d = cardDims[n.rank];
+        n.x = Math.max(5, Math.min(W - d.w - 5, n.x));
+        n.y = Math.max(5, Math.min(H - d.h - 5, n.y));
+      });
+    }
+
+    // ═══════════════════════════════════════════
+    // Clear & show cluster
+    // ═══════════════════════════════════════════
+    function clearGraph() {
+      stopCurrentPlayback();
+
+      // Remove cards and connections
+      document.getElementById('nodes-layer').innerHTML = '';
+      document.getElementById('connections-layer').innerHTML = '';
+    }
+
+    function logCluster(cluster) {
+      const root = cluster.nodes.find(n => n.rank === 'root');
+      // Find the DJ set context from the first edge (root -> r1)
+      const rootEdge = cluster.edges.find(e => e.from === 'root');
+      const ctx = rootEdge && rootEdge.context;
+
+      console.group(`%c${root.artist} — ${root.title}`, 'font-weight:bold;font-size:13px');
+      if (ctx) {
+        console.log(`DJ: ${ctx.dj}`);
+        console.log(`Set: ${ctx.episodeUrl}`);
+        console.log(`Date: ${ctx.date}`);
+      }
+      console.log(`Root ID: ${cluster.meta.root_id}`);
+      const sc = cluster.meta.soundcloud || 0;
+      const dz = cluster.meta.deezer || 0;
+      console.log(`Enriched: ${cluster.meta.found}/${cluster.nodes.length} tracks (SC:${sc} DZ:${dz})`);
+      console.log('');
+      console.log('Nodes:');
+      cluster.nodes.forEach(n => {
+        const rank = n.rank === 'root' ? 'root' : `rank ${n.rank}`;
+        const src = n.source === 'not_found' ? '(no art)' : `[${n.source}]`;
+        const audio = (n.scTrackUrl || n.previewUrl) ? '' : '(no audio)';
+        const flags = [src, audio].filter(Boolean).join(' ');
+        console.log(`  [${rank}] ${n.artist} — ${n.title} ${flags}`);
+      });
+      console.log('');
+      console.log('Edges:');
+      cluster.edges.forEach(e => {
+        const from = cluster.nodes.find(n => n.id === e.from);
+        const to = cluster.nodes.find(n => n.id === e.to);
+        const dj = e.context ? `  (${e.context.dj})` : '';
+        console.log(`  ${from.artist} → ${to.artist}${dj}`);
+      });
+      console.groupEnd();
+    }
+
+    function showCluster(cluster) {
+      clearGraph();
+      nodes = cluster.nodes;
+      edges = cluster.edges;
+      nodeMap = {};
+      nodes.forEach(n => nodeMap[n.id] = n);
+      logCluster(cluster);
+      computeLayout();
+      renderCards();
+      renderConnections();
+      setupHovers();
+    }
+
+    function shuffle() {
+      if (candidates.length === 0) return;
+      const rootId = candidates[Math.floor(Math.random() * candidates.length)];
+      const cluster = selectCluster(rootId);
+      showCluster(cluster);
+    }
+
+    // ═══════════════════════════════════════════
+    // Init — fetch graph + cache, then render
+    // ═══════════════════════════════════════════
+    document.addEventListener('DOMContentLoaded', async () => {
+      // Load graph (required)
+      try {
+        const resp = await fetch('output/combined_graph.json');
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        const data = await resp.json();
+        graphNodes = data.nodes;
+        const nodeCount = Object.keys(graphNodes).length;
+        console.log(`Graph loaded: ${nodeCount} nodes`);
+      } catch (err) {
+        console.error('Failed to load combined_graph.json:', err);
+        return;
+      }
+
+      // Load audio cache (optional — fail silently)
+      try {
+        const resp = await fetch('output/audio_cache.json');
+        if (resp.ok) {
+          audioCache = await resp.json();
+          console.log(`Audio cache loaded: ${Object.keys(audioCache).length} entries`);
+        }
+      } catch (e) {
+        // No cache — all nodes will show grey placeholders
+      }
+
+      // Compute candidates (3+ edges)
+      candidates = Object.keys(graphNodes).filter(
+        nid => (graphNodes[nid].edges || []).length >= 3
+      );
+      console.log(`${candidates.length} candidates with 3+ edges`);
+
+      if (candidates.length === 0) {
+        console.error('No candidates found in graph');
+        return;
+      }
+
+      // Generate and show first cluster
+      shuffle();
+
+      // Wire shuffle button
+      document.getElementById('shuffle-btn').addEventListener('click', shuffle);
+    });
+  </script>
+</body>
+</html>
