@@ -190,6 +190,17 @@
     .node-card[data-rank="1"] .dj-line { font-size: 10px; }
     .node-card[data-rank="2"] .dj-line { font-size: 9px; }
 
+    a.track-title {
+      color: inherit;
+      text-decoration: underline;
+      text-underline-offset: 2px;
+      text-decoration-color: var(--card-border);
+      transition: color 0.15s ease, text-decoration-color 0.15s ease;
+    }
+    a.track-title:hover {
+      text-decoration-color: var(--text-secondary);
+    }
+
     .dj-line a {
       color: var(--text-secondary);
       text-decoration: underline;
@@ -271,6 +282,17 @@
       fill: #fff;
     }
 
+    .node-card .loading-label {
+      position: absolute;
+      top: -22px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-family: var(--font);
+      font-size: 10px;
+      color: var(--text-secondary);
+      white-space: nowrap;
+    }
+
     .node-card.playing {
       border-color: var(--connection-highlight);
       box-shadow: 0 0 0 2px var(--connection-highlight), var(--card-shadow);
@@ -316,19 +338,6 @@
       font-size: 9px;
       color: #fff;
       white-space: nowrap;
-      text-shadow: 0 1px 2px rgba(0,0,0,0.5);
-    }
-    .node-card.playing[data-source="deezer"] .source-badge {
-      opacity: 1;
-    }
-    .node-card.playing[data-source="deezer"] .source-badge svg {
-      display: none;
-    }
-    .node-card.playing[data-source="deezer"] .source-badge::after {
-      content: '30s';
-      font-family: var(--font);
-      font-size: 9px;
-      color: #fff;
       text-shadow: 0 1px 2px rgba(0,0,0,0.5);
     }
 
@@ -415,6 +424,80 @@
       stroke-linejoin: round;
     }
 
+    #source-filter {
+      position: absolute;
+      top: 24px;
+      right: 24px;
+      z-index: 10;
+      font-family: var(--font);
+      font-size: 11px;
+      font-weight: 400;
+      color: var(--text-secondary);
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 20px;
+      padding: 7px 14px;
+      cursor: pointer;
+      box-shadow: var(--card-shadow);
+      appearance: none;
+      -webkit-appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%236B6560' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 12px center;
+      padding-right: 30px;
+    }
+
+    #source-filter:hover {
+      box-shadow: var(--card-hover-shadow);
+      color: var(--text-primary);
+    }
+
+    /* ═══════════════════════════════════════════
+       Mixcloud Mini-Player
+       ═══════════════════════════════════════════ */
+    #mc-player {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      z-index: 100;
+      background: #1c1c1e;
+      transform: translateY(100%);
+      transition: transform 0.3s ease;
+    }
+    #mc-player.visible {
+      transform: translateY(0);
+    }
+    #mc-player .mc-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 6px 16px;
+    }
+    #mc-player .mc-label {
+      font-family: var(--font);
+      font-size: 10px;
+      color: #aaa;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    #mc-player .mc-close {
+      background: none;
+      border: none;
+      color: #888;
+      font-size: 18px;
+      cursor: pointer;
+      padding: 0 4px;
+      flex-shrink: 0;
+      line-height: 1;
+    }
+    #mc-player .mc-close:hover { color: #fff; }
+    #mc-player iframe {
+      width: 100%;
+      height: 60px;
+      border: 0;
+    }
+
     /* ═══════════════════════════════════════════
        Animations
        ═══════════════════════════════════════════ */
@@ -442,13 +525,25 @@
       <svg viewBox="0 0 24 24"><path d="M16 3h5v5"/><path d="M4 20L21 3"/><path d="M21 16v5h-5"/><path d="M15 15l6 6"/><path d="M4 4l5 5"/></svg>
       shuffle
     </button>
+    <select id="source-filter">
+      <option value="none">no filter</option>
+      <option value="soundcloud">has soundcloud</option>
+      <option value="soundcloud_set">has soundcloud — full set</option>
+      <option value="lotradio">has lot radio set</option>
+      <option value="mixcloud">has mixcloud set</option>
+    </select>
     <svg id="connections-layer" xmlns="http://www.w3.org/2000/svg"></svg>
     <div id="nodes-layer"></div>
   </div>
 
-  <audio id="audio-player" preload="none"></audio>
   <iframe id="sc-widget" src="about:blank" style="position:absolute;width:0;height:0;border:0;overflow:hidden;" allow="autoplay"></iframe>
-  <iframe id="mc-widget" src="about:blank" style="position:absolute;width:0;height:0;border:0;overflow:hidden;" allow="autoplay"></iframe>
+  <div id="mc-player">
+    <div class="mc-bar">
+      <span class="mc-label">press play on the mixcloud widget to start</span>
+      <button class="mc-close" aria-label="Close">&times;</button>
+    </div>
+    <iframe id="mc-widget" src="about:blank" allow="autoplay"></iframe>
+  </div>
   <script src="https://widget.mixcloud.com/media/js/widgetApi.js"></script>
 
   <script>
@@ -456,7 +551,7 @@
     // Data — loaded from combined_graph.json
     // ═══════════════════════════════════════════
     let graphNodes = {};    // full graph: { "artist:::title": { title, artist, edges: [...] } }
-    let audioCache = {};    // { "artist:::title": { source, scTrackUrl, previewUrl, setUrl, ... } }
+    let audioCache = {};    // { "artist:::title": { source, scTrackUrl, setUrl, ... } }
     let candidates = [];    // node IDs with 3+ edges
     let nodes = [];
     let edges = [];
@@ -479,8 +574,7 @@
     // Playback state machine
     // ═══════════════════════════════════════════
     let currentlyPlayingId = null;
-    let currentBackend = null; // "html5" | "sc" | "mc" | null
-    const audioEl = document.getElementById('audio-player');
+    let currentBackend = null; // "sc" | "mc" | null
     let scWidget = null;
     let scWidgetReady = false;
     let mcWidget = null;
@@ -490,6 +584,8 @@
       try {
         if (typeof SC === 'undefined' || !SC.Widget) return false;
         const iframe = document.getElementById('sc-widget');
+        // Set a blank player URL so the widget can initialize
+        iframe.src = 'https://w.soundcloud.com/player/?url=&show_artwork=false';
         scWidget = SC.Widget(iframe);
         return true;
       } catch (e) {
@@ -498,10 +594,28 @@
       }
     }
 
+    function showLoading(card) {
+      if (!card) return;
+      let lbl = card.querySelector('.loading-label');
+      if (!lbl) {
+        lbl = document.createElement('span');
+        lbl.className = 'loading-label';
+        lbl.textContent = 'loading';
+        card.appendChild(lbl);
+      }
+    }
+
+    function hideLoading(card) {
+      if (!card) return;
+      const lbl = card.querySelector('.loading-label');
+      if (lbl) lbl.remove();
+    }
+
     function resetCardUI(nodeId) {
       const card = document.querySelector(`.node-card[data-node-id="${nodeId}"]`);
       if (card) {
         card.classList.remove('playing');
+        hideLoading(card);
         card.removeAttribute('data-source');
         const btn = card.querySelector('.play-btn');
         if (btn) btn.innerHTML = PLAY_SVG;
@@ -510,13 +624,10 @@
 
     function stopCurrentPlayback() {
       if (!currentlyPlayingId) return;
-      if (currentBackend === 'html5') {
-        audioEl.pause();
-        audioEl.removeAttribute('src');
-      } else if (currentBackend === 'sc' && scWidget) {
+      if (currentBackend === 'sc' && scWidget) {
         try { scWidget.pause(); } catch (e) {}
-      } else if (currentBackend === 'mc' && mcWidget) {
-        try { mcWidget.pause(); } catch (e) {}
+      } else if (currentBackend === 'mc') {
+        hideMcPlayer();
       }
       resetCardUI(currentlyPlayingId);
       currentlyPlayingId = null;
@@ -531,28 +642,10 @@
       }
     }
 
-    function playHTML5(nodeId, previewUrl) {
-      const card = document.querySelector(`.node-card[data-node-id="${nodeId}"]`);
-      const btn = card ? card.querySelector('.play-btn') : null;
-
-      currentlyPlayingId = nodeId;
-      currentBackend = 'html5';
-      audioEl.src = previewUrl;
-      audioEl.play();
-      if (btn) btn.innerHTML = PAUSE_SVG;
-      if (card) {
-        card.classList.add('playing');
-        card.setAttribute('data-source', 'deezer');
-      }
-    }
-
     function playSC(nodeId, trackUrl) {
       if (!initSCWidget()) {
-        // SC API unavailable — try Deezer fallback
         const node = nodeMap[nodeId];
-        if (node && node.previewUrl) {
-          playHTML5(nodeId, node.previewUrl);
-        }
+        if (node && node.setUrl) { playSet(nodeId); }
         return;
       }
 
@@ -563,35 +656,29 @@
       currentBackend = 'sc';
       if (btn) btn.innerHTML = PAUSE_SVG;
       if (card) {
-        card.classList.add('playing');
+        showLoading(card);
         card.setAttribute('data-source', 'soundcloud');
       }
 
-      const widgetUrl = `https://w.soundcloud.com/player/?url=${encodeURIComponent(trackUrl)}&auto_play=true&show_artwork=false`;
-      const iframe = document.getElementById('sc-widget');
-      iframe.src = widgetUrl;
-
-      // Re-init widget after src change
-      scWidget = SC.Widget(iframe);
       scWidgetReady = false;
+      scWidget.unbind(SC.Widget.Events.READY);
+      scWidget.unbind(SC.Widget.Events.FINISH);
+      scWidget.unbind(SC.Widget.Events.ERROR);
 
       scWidget.bind(SC.Widget.Events.READY, () => {
         scWidgetReady = true;
-        scWidget.play();
+        if (card) { hideLoading(card); card.classList.add('playing'); }
       });
       scWidget.bind(SC.Widget.Events.FINISH, onPlaybackEnded);
       scWidget.bind(SC.Widget.Events.ERROR, () => {
-        // SC track dead — try Deezer fallback, then set fallback
         resetCardUI(nodeId);
         currentlyPlayingId = null;
         currentBackend = null;
         const node = nodeMap[nodeId];
-        if (node && node.previewUrl) {
-          playHTML5(nodeId, node.previewUrl);
-        } else if (node && node.setUrl) {
-          playSet(nodeId);
-        }
+        if (node && node.setUrl) { playSet(nodeId); }
       });
+
+      scWidget.load(trackUrl, { auto_play: true, show_artwork: false });
     }
 
     function playSCSet(nodeId, setUrl, offsetSec) {
@@ -604,26 +691,38 @@
       currentBackend = 'sc';
       if (btn) btn.innerHTML = PAUSE_SVG;
       if (card) {
-        card.classList.add('playing');
+        showLoading(card);
         card.setAttribute('data-source', 'set');
       }
 
-      const widgetUrl = `https://w.soundcloud.com/player/?url=${encodeURIComponent(setUrl)}&auto_play=true&show_artwork=false`;
-      const iframe = document.getElementById('sc-widget');
-      iframe.src = widgetUrl;
-
-      scWidget = SC.Widget(iframe);
       scWidgetReady = false;
+      scWidget.unbind(SC.Widget.Events.READY);
+      scWidget.unbind(SC.Widget.Events.FINISH);
+      scWidget.unbind(SC.Widget.Events.ERROR);
 
       scWidget.bind(SC.Widget.Events.READY, () => {
         scWidgetReady = true;
+        if (card) { hideLoading(card); card.classList.add('playing'); }
         if (offsetSec) {
-          scWidget.seekTo(offsetSec * 1000); // SC seeks in ms
+          // Delay seek — widget reports READY before audio is seekable
+          setTimeout(() => scWidget.seekTo(offsetSec * 1000), 800);
         }
-        scWidget.play();
       });
       scWidget.bind(SC.Widget.Events.FINISH, onPlaybackEnded);
       scWidget.bind(SC.Widget.Events.ERROR, onPlaybackEnded);
+
+      scWidget.load(setUrl, { auto_play: true, show_artwork: false });
+    }
+
+    function showMcPlayer() {
+      document.getElementById('mc-player').classList.add('visible');
+    }
+
+    function hideMcPlayer() {
+      const player = document.getElementById('mc-player');
+      player.classList.remove('visible');
+      document.getElementById('mc-widget').src = 'about:blank';
+      mcWidget = null;
     }
 
     function playMixcloud(nodeId, mixcloudUrl, offsetSec) {
@@ -643,16 +742,35 @@
       const iframe = document.getElementById('mc-widget');
       iframe.src = `https://www.mixcloud.com/widget/iframe/?feed=${encodeURIComponent(mcPath)}&autoplay=1`;
 
+      showMcPlayer();
+
       try {
         mcWidget = Mixcloud.PlayerWidget(iframe);
         mcWidget.ready.then(() => {
+          mcWidget.events.play.on(() => {
+            if (btn) btn.innerHTML = PAUSE_SVG;
+            if (card) { hideLoading(card); card.classList.add('playing'); }
+          });
+          mcWidget.events.pause.on(() => {
+            if (btn) btn.innerHTML = PLAY_SVG;
+            if (card) card.classList.remove('playing');
+          });
+          // Seek after a delay to let the player buffer, then verify it stuck
           if (offsetSec) {
-            mcWidget.seek(offsetSec);
+            setTimeout(() => {
+              mcWidget.seek(offsetSec);
+              // Verify seek landed — retry if it reset to near 0
+              setTimeout(() => {
+                mcWidget.getPosition().then(pos => {
+                  if (pos < offsetSec * 0.5) mcWidget.seek(offsetSec);
+                });
+              }, 2000);
+            }, 1500);
           }
-          mcWidget.play();
         });
       } catch (e) {
         console.warn('Mixcloud widget failed:', e);
+        hideMcPlayer();
         onPlaybackEnded();
       }
     }
@@ -673,48 +791,30 @@
       const node = nodeMap[nodeId];
       if (!node) return;
 
-      const hasAudio = node.scTrackUrl || node.previewUrl || node.setUrl;
+      const hasAudio = node.scTrackUrl || node.setUrl;
       if (!hasAudio) return;
 
       const card = document.querySelector(`.node-card[data-node-id="${nodeId}"]`);
       const btn = card ? card.querySelector('.play-btn') : null;
 
-      // Same track — toggle pause/play
+      // Same track — toggle pause/play (or cancel loading)
       if (currentlyPlayingId === nodeId) {
-        if (currentBackend === 'html5') {
-          if (audioEl.paused) {
-            audioEl.play();
-            if (btn) btn.innerHTML = PAUSE_SVG;
-            if (card) card.classList.add('playing');
-          } else {
-            audioEl.pause();
-            if (btn) btn.innerHTML = PLAY_SVG;
-            if (card) card.classList.remove('playing');
-          }
-        } else if (currentBackend === 'sc' && scWidget) {
-          scWidget.isPaused(paused => {
-            if (paused) {
-              scWidget.play();
-              if (btn) btn.innerHTML = PAUSE_SVG;
-              if (card) card.classList.add('playing');
-            } else {
-              scWidget.pause();
-              if (btn) btn.innerHTML = PLAY_SVG;
-              if (card) card.classList.remove('playing');
-            }
-          });
-        } else if (currentBackend === 'mc' && mcWidget) {
-          mcWidget.getIsPaused().then(paused => {
-            if (paused) {
-              mcWidget.play();
-              if (btn) btn.innerHTML = PAUSE_SVG;
-              if (card) card.classList.add('playing');
-            } else {
-              mcWidget.pause();
-              if (btn) btn.innerHTML = PLAY_SVG;
-              if (card) card.classList.remove('playing');
-            }
-          });
+        const isLoading = card && card.querySelector('.loading-label');
+        if (isLoading) {
+          stopCurrentPlayback();
+          return;
+        }
+        const isPlaying = card && card.classList.contains('playing');
+        if (isPlaying) {
+          if (currentBackend === 'sc' && scWidget) try { scWidget.pause(); } catch(e) {}
+          else if (currentBackend === 'mc' && mcWidget) try { mcWidget.pause(); } catch(e) {}
+          if (btn) btn.innerHTML = PLAY_SVG;
+          if (card) card.classList.remove('playing');
+        } else {
+          if (currentBackend === 'sc' && scWidget) scWidget.play();
+          else if (currentBackend === 'mc' && mcWidget) mcWidget.play();
+          if (btn) btn.innerHTML = PAUSE_SVG;
+          if (card) card.classList.add('playing');
         }
         return;
       }
@@ -724,18 +824,10 @@
 
       if (node.scTrackUrl) {
         playSC(nodeId, node.scTrackUrl);
-      } else if (node.previewUrl) {
-        playHTML5(nodeId, node.previewUrl);
       } else if (node.setUrl) {
         playSet(nodeId);
       }
     }
-
-    // HTML5 audio ended
-    audioEl.addEventListener('ended', onPlaybackEnded);
-    audioEl.addEventListener('error', () => {
-      if (currentBackend === 'html5') onPlaybackEnded();
-    });
 
     // ═══════════════════════════════════════════
     // Seeded random (deterministic per-connection)
@@ -814,7 +906,6 @@
           node.source = cached.source;
           node.scTrackUrl = cached.scTrackUrl || null;
           node.artUrl = cached.artUrl || null;
-          node.previewUrl = cached.previewUrl || null;
           node.setUrl = cached.setUrl || null;
           node.setSource = cached.setSource || null;
           node.setOffsetSec = cached.setOffsetSec || null;
@@ -822,7 +913,6 @@
           found++;
         } else {
           node.artUrl = null;
-          node.previewUrl = null;
           node.scTrackUrl = null;
           node.setUrl = null;
           node.setSource = null;
@@ -1015,7 +1105,7 @@
         card.style.top = node.y + 'px';
 
         const hasArt = node.artUrl && node.source !== 'not_found';
-        const hasAudio = !!(node.scTrackUrl || node.previewUrl || node.setUrl);
+        const hasAudio = !!(node.scTrackUrl || node.setUrl);
         const artClass = hasArt ? 'album-art' : 'album-art no-art';
         const imgTag = hasArt
           ? `<img class="${artClass}" src="${node.artUrl}" alt="${node.title} by ${node.artist}" loading="lazy">`
@@ -1042,6 +1132,16 @@
           djLine = `<span class="dj-line">Mixed by ${links}</span>`;
         }
 
+        let trackLink = node.scTrackUrl || node.setUrl || null;
+        if (trackLink && trackLink === node.setUrl && node.setOffsetSec && node.setSource !== 'mixcloud') {
+          const m = Math.floor(node.setOffsetSec / 60);
+          const s = node.setOffsetSec % 60;
+          trackLink += `#t=${m}m${s}s`;
+        }
+        const titleTag = trackLink
+          ? `<a href="${trackLink}" class="track-title" target="_blank" rel="noopener">${node.title}</a>`
+          : `<span class="track-title">${node.title}</span>`;
+
         card.innerHTML = `
           <span class="rank-tooltip">${rankLabel}</span>
           <div class="art-wrap">
@@ -1049,7 +1149,7 @@
             ${playBtn}
             ${sourceBadge}
           </div>
-          <span class="track-title">${node.title}</span>
+          ${titleTag}
           <span class="artist-name">${node.artist}</span>
           ${djLine}
         `;
@@ -1223,14 +1323,13 @@
       }
       console.log(`Root ID: ${cluster.meta.root_id}`);
       const sc = cluster.meta.soundcloud || 0;
-      const dz = cluster.meta.deezer || 0;
-      console.log(`Enriched: ${cluster.meta.found}/${cluster.nodes.length} tracks (SC:${sc} DZ:${dz})`);
+      console.log(`Enriched: ${cluster.meta.found}/${cluster.nodes.length} tracks (SC:${sc})`);
       console.log('');
       console.log('Nodes:');
       cluster.nodes.forEach(n => {
         const rank = n.rank === 'root' ? 'root' : `rank ${n.rank}`;
         const src = n.source === 'not_found' ? '(no art)' : `[${n.source}]`;
-        const audio = (n.scTrackUrl || n.previewUrl) ? '' : '(no audio)';
+        const audio = (n.scTrackUrl || n.setUrl) ? '' : '(no audio)';
         const flags = [src, audio].filter(Boolean).join(' ');
         console.log(`  [${rank}] ${n.artist} — ${n.title} ${flags}`);
       });
@@ -1258,9 +1357,28 @@
       setupHovers();
     }
 
+    function matchesFilter(nodeId, filter) {
+      if (filter === 'none') return true;
+      const cached = audioCache[nodeId];
+      if (!cached) return false;
+      // Filter by what will actually play (respecting the waterfall)
+      const hasScTrack = !!cached.scTrackUrl;
+      if (filter === 'soundcloud') return hasScTrack;
+      if (filter === 'soundcloud_set') return !hasScTrack && cached.source === 'soundcloud_set';
+      if (filter === 'lotradio') return !hasScTrack && cached.setSource === 'soundcloud';
+      if (filter === 'mixcloud') return !hasScTrack && cached.setSource === 'mixcloud';
+      return true;
+    }
+
     function shuffle() {
       if (candidates.length === 0) return;
-      const rootId = candidates[Math.floor(Math.random() * candidates.length)];
+      const filter = document.getElementById('source-filter').value;
+      const pool = candidates.filter(id => matchesFilter(id, filter));
+      if (pool.length === 0) {
+        console.warn(`No candidates match filter "${filter}"`);
+        return;
+      }
+      const rootId = pool[Math.floor(Math.random() * pool.length)];
       const cluster = selectCluster(rootId);
       showCluster(cluster);
     }
@@ -1309,6 +1427,11 @@
 
       // Wire shuffle button
       document.getElementById('shuffle-btn').addEventListener('click', shuffle);
+
+      // Wire Mixcloud close button
+      document.querySelector('#mc-player .mc-close').addEventListener('click', () => {
+        stopCurrentPlayback();
+      });
     });
   </script>
 </body>

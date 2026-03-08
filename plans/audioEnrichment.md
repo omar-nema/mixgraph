@@ -46,11 +46,16 @@ With the full waterfall, **100% of tracks get some form of audio**:
 
 ```
 1. SoundCloud individual track  (full song, best UX)
-2. Deezer                       (30s preview + album art)
-3. DJ set at timestamp           (full song in context, but loads entire mix)
-     - NTS  -> Mixcloud embed
-     - Lot Radio -> SoundCloud embed (thelotradio account)
+2. SoundCloud DJ set at timestamp (NTS SC accounts or thelotradio)
+3. Mixcloud DJ set at timestamp  (NTS only, last resort fallback)
 ```
+
+### NTS SoundCloud Accounts
+- NTS Latest: user-202286394-991268468 (5,727 tracks)
+- NTS 2024-2025: user-643553014 (16,176 tracks)
+- NTS 2023: user-612196404 (4,922 tracks)
+- NTS 2020: nts-latest (1,368 tracks)
+- Search by show name (stripped of dates) with `filter.duration=epic`, match by user ID
 
 ### Cache Schema: `output/audio_cache.json`
 
@@ -177,16 +182,39 @@ Rewrite to produce the new `audio_cache.json` format:
 
 ## File Changes Summary
 
-| File | Change |
-|---|---|
-| `graph.py` | Add `timestamp` to edge contexts |
-| `enrich.py` | Rewrite: SC track + Deezer + DJ set lookup, output `audio_cache.json` |
-| `index.html` | Load new cache format, add Mixcloud widget, update play waterfall |
-| `cluster.py` | No changes (search functions reused as-is) |
+| File | Change | Status |
+|---|---|---|
+| `graph.py` | Add `timestamp` to edge contexts | Done |
+| `enrich.py` | Rewrite: SC track + SC/MC set lookup, output `audio_cache.json` | Done |
+| `index.html` | Load new cache, SC/Mixcloud widget playback, source filters | Done |
+| `cluster.py` | No changes (search functions reused as-is) | N/A |
 
-## Open Questions
+## Implementation Status (2026-03-08)
 
-1. **Cache size:** 45K entries with URLs could be 15-30MB. May want to gzip or split by source.
-2. **SC client_id stability:** The extracted client_id may rotate. If it stops working mid-run, the script should re-extract it.
-3. **Mixcloud widget limitations:** Mixcloud's widget API may have restrictions on seeking or autoplay. Need to test.
-4. **Album art for set-only tracks:** If a track is only playable via DJ set, we have no album art. Could use the show artwork or leave blank.
+- **Phase 1 (graph):** Complete — 68,218 nodes, 140,884 edges with timestamps
+- **Phase 2 (enrichment):** Running — ~32K/68K cached so far
+  - Deezer reprocessing: Done (0 entries, already cleaned up)
+  - Mixcloud→SC upgrade: Done (3,508 entries processed)
+  - Full enrichment: In progress (~39K remaining)
+- **Phase 3 (frontend):** Complete
+  - SC widget + Mixcloud widget playback working
+  - SC set seek fix (800ms delay after READY)
+  - Mixcloud seek fix (1.5s delay + 2s retry verification)
+  - Source filter dropdown: soundcloud, soundcloud — full set, lot radio set, mixcloud set
+  - Mixcloud links don't get `#t=` suffix (not supported by Mixcloud)
+
+## Current Cache Breakdown
+
+| Source | Count | % |
+|---|---|---|
+| SoundCloud (individual track) | ~20,900 | 65% |
+| SoundCloud (DJ set) | ~10,400 | 33% |
+| Mixcloud (DJ set) | ~670 | 2% |
+| Not found | ~75 | <1% |
+
+## Resolved Questions
+
+1. **Cache size:** ~32K entries so far, manageable as single JSON
+2. **SC client_id stability:** Works fine, extracted from JS bundles at runtime
+3. **Mixcloud widget limitations:** `seek()` works but unreliable (~30% success) due to autoplay policy. No URL timestamp support.
+4. **Album art for set-only tracks:** Left blank (grey placeholder)
