@@ -1,6 +1,7 @@
 # Data outputs (large JSON files)
 **/output/
-combined-dataset/
+sandbox/
+sandbox2-character/
 
 # Python
 __pycache__/

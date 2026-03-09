@@ -5,34 +5,41 @@ Music discovery app. Scrapes DJ set tracklists from radio stations (Lot Radio, N
 ## Project structure
 
 ```
-web-app/             # Frontend
-  index.html         # Single-file vanilla HTML/CSS/JS app
-  output/            # Symlink -> lot-radio-scraper/output/
-lot-radio-scraper/   # Lot Radio pipeline + data processing
-  discover.py        # Episode URL discovery
-  scraper.py         # Main scrape orchestrator
-  parse.py           # Episode page parser
-  adjacency.py       # Generates adjacency pairs
-  graph.py           # Builds the graph from adjacencies (supports multi-source input)
-  enrich.py          # Audio enrichment: SC track -> SC set -> Mixcloud set
-  cluster.py         # Cluster selection logic + SC/Deezer search functions
-  output/            # JSON data (graph, cache, episodes)
-nts-scraper/         # NTS pipeline (same pattern)
-plans/               # Implementation plans and docs
+web-app/                # Frontend
+  index.html            # Single-file vanilla HTML/CSS/JS app
+  output/               # Symlink -> pipeline/output/
+scrapers/
+  lot-radio/            # Lot Radio scraper
+    discover.py         # Episode URL discovery
+    scraper.py          # Main scrape orchestrator
+    parse.py            # Episode page parser
+    adjacency.py        # Generates adjacency pairs
+    output/             # lot_radio_episodes.json, etc.
+  nts/                  # NTS scraper
+    discover.py         # Episode URL discovery
+    scraper.py          # Main scrape orchestrator
+    parse.py            # Episode page parser
+    output/             # nts_episodes.json, etc.
+pipeline/               # Data processing (shared across sources)
+  graph.py              # Builds adjacency graph from episode JSONs
+  enrich.py             # Audio enrichment: SC track -> SC set -> Mixcloud
+  cluster.py            # Cluster selection + SoundCloud search functions
+  output/               # combined_graph.json, audio_cache.json
+plans/                  # Implementation plans and docs
 ```
 
 ## Commands
 
 ```bash
 # Run scrapers
-cd lot-radio-scraper && python3 scraper.py
-cd nts-scraper && python3 scraper.py
+cd scrapers/lot-radio && python3 scraper.py
+cd scrapers/nts && python3 scraper.py
 
-# Build combined graph (both sources)
-cd lot-radio-scraper && python3 graph.py --input output/lot_radio_episodes.json ../nts-scraper/output/nts_episodes.json --output output/combined_graph.json
+# Build combined graph (both sources, defaults to both inputs)
+cd pipeline && python3 graph.py
 
 # Run audio enrichment (incremental, Ctrl-C safe)
-cd lot-radio-scraper && python3 enrich.py
+cd pipeline && python3 enrich.py
 
 # Serve frontend locally
 cd web-app && python3 -m http.server 8000

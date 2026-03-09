@@ -363,14 +363,17 @@ if __name__ == "__main__":
         "--input",
         type=str,
         nargs="+",
-        default=["output/lot_radio_episodes.json"],
-        help="Path(s) to input episodes JSON file(s) (default: output/lot_radio_episodes.json)",
+        default=[
+            "../scrapers/lot-radio/output/lot_radio_episodes.json",
+            "../scrapers/nts/output/nts_episodes.json",
+        ],
+        help="Path(s) to input episodes JSON files",
     )
     parser.add_argument(
         "--output",
         type=str,
-        default="output/lot_radio_graph.json",
-        help="Path to output graph JSON file (default: output/lot_radio_graph.json)",
+        default="output/combined_graph.json",
+        help="Path to output graph JSON file (default: output/combined_graph.json)",
     )
     parser.add_argument(
         "--pretty",
