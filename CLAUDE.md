@@ -5,18 +5,20 @@ Music discovery app. Scrapes DJ set tracklists from radio stations (Lot Radio, N
 ## Project structure
 
 ```
-lot-radio-scraper/   # Lot Radio pipeline + frontend
+web-app/             # Frontend
+  index.html         # Single-file vanilla HTML/CSS/JS app
+  output/            # Symlink -> lot-radio-scraper/output/
+lot-radio-scraper/   # Lot Radio pipeline + data processing
   discover.py        # Episode URL discovery
   scraper.py         # Main scrape orchestrator
   parse.py           # Episode page parser
   adjacency.py       # Generates adjacency pairs
-  graph.py           # Builds the graph from adjacencies
-  enrich.py          # Deezer art/preview enrichment
-  cluster.py         # Cluster selection logic
-  index.html         # Frontend — single-file vanilla HTML/CSS/JS
+  graph.py           # Builds the graph from adjacencies (supports multi-source input)
+  enrich.py          # Audio enrichment: SC track -> SC set -> Mixcloud set
+  cluster.py         # Cluster selection logic + SC/Deezer search functions
   output/            # JSON data (graph, cache, episodes)
 nts-scraper/         # NTS pipeline (same pattern)
-combined-dataset/    # Merged graph across all sources
+plans/               # Implementation plans and docs
 ```
 
 ## Commands
@@ -26,8 +28,14 @@ combined-dataset/    # Merged graph across all sources
 cd lot-radio-scraper && python3 scraper.py
 cd nts-scraper && python3 scraper.py
 
+# Build combined graph (both sources)
+cd lot-radio-scraper && python3 graph.py --input output/lot_radio_episodes.json ../nts-scraper/output/nts_episodes.json --output output/combined_graph.json
+
+# Run audio enrichment (incremental, Ctrl-C safe)
+cd lot-radio-scraper && python3 enrich.py
+
 # Serve frontend locally
-cd lot-radio-scraper && python3 -m http.server 8000
+cd web-app && python3 -m http.server 8000
 ```
 
 ## Frontend
@@ -35,7 +43,7 @@ cd lot-radio-scraper && python3 -m http.server 8000
 - **No build tools, no frameworks** — plain HTML/CSS/JS in a single file (`index.html`)
 - Uses CSS custom properties for theming (`:root` design tokens)
 - DM Mono font via Google Fonts CDN
-- SoundCloud widget API + HTML5 `<audio>` for playback
+- SoundCloud widget API for individual tracks + DJ sets, Mixcloud widget as fallback
 - Graph layout is hand-rolled (no D3) — keep it that way unless I say otherwise
 
 ## Backend (Python scrapers)
@@ -44,6 +52,13 @@ cd lot-radio-scraper && python3 -m http.server 8000
 - Rate limit: max 2 req/s — be respectful to community radio sites
 - Scrapers are idempotent (skip already-scraped episodes)
 - Don't touch existing output JSON files unless re-running a pipeline
+
+## Audio enrichment
+
+- Waterfall: SoundCloud individual track -> SoundCloud DJ set -> Mixcloud set (NO Deezer)
+- NTS sets on 4 SC accounts: NTS Latest, NTS 2024-2025, NTS 2023, NTS 2020
+- Lot Radio sets on `soundcloud.com/thelotradio`
+- enrich.py is incremental, crash-safe, saves every 500 tracks
 
 ## Style preferences
 

@@ -186,7 +186,7 @@ Rewrite to produce the new `audio_cache.json` format:
 |---|---|---|
 | `graph.py` | Add `timestamp` to edge contexts | Done |
 | `enrich.py` | Rewrite: SC track + SC/MC set lookup, output `audio_cache.json` | Done |
-| `index.html` | Load new cache, SC/Mixcloud widget playback, source filters | Done |
+| `web-app/index.html` | Load new cache, SC/Mixcloud widget playback, source filters | Done |
 | `cluster.py` | No changes (search functions reused as-is) | N/A |
 
 ## Implementation Status (2026-03-08)
