@@ -23,6 +23,7 @@ import sys
 import time
 import signal
 import socket
+import http.client
 import argparse
 import urllib.request
 import urllib.parse
@@ -434,7 +435,7 @@ def main():
             # Progress log
             src_tag = entry["source"][:2].upper()
             print(f"  [{i+1}/{len(to_enrich)}] {src_tag} {artist} — {title}")
-        except (socket.timeout, urllib.error.URLError, OSError) as e:
+        except (socket.timeout, urllib.error.URLError, OSError, http.client.IncompleteRead) as e:
             print(f"  [{i+1}/{len(to_enrich)}] !! {artist} — {title}: {e}")
             time.sleep(2)
             continue
