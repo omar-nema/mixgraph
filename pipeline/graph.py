@@ -88,6 +88,7 @@ def build_graph(episodes: List[Dict[str, Any]]) -> Dict[str, Any]:
         episode_url = episode.get("episode_url", "")
         dj = episode.get("artist_name", "")
         date = episode.get("date", "")
+        episode_genres = episode.get("genres", [])
 
         # First pass: build list of valid tracks for this episode
         valid_tracks: List[Tuple[str, str, str, int, Optional[str]]] = []  # (track_id, title, artist, position, timestamp)
@@ -117,9 +118,18 @@ def build_graph(episodes: List[Dict[str, Any]]) -> Dict[str, Any]:
             title_lower = title.lower().strip("[]() ")
             if title_lower in (
                 "no title available", "no title", "untitled",
-                "id", "id?", "unknown", "tba", "tbd", "n/a",
+                "id", "id?", "unknown", "unknown track",
+                "tba", "tbd", "n/a",
             ):
                 skip_counts["empty_title"] += 1
+                continue
+
+            artist_lower = artist.lower().strip()
+            if artist_lower in (
+                "unknown", "unknown artist", "various", "various artists",
+                "n/a", "tba", "tbd",
+            ):
+                skip_counts["missing_artist"] += 1
                 continue
 
             track_id = make_track_id(artist, title)
@@ -139,7 +149,10 @@ def build_graph(episodes: List[Dict[str, Any]]) -> Dict[str, Any]:
                     "first_episode_url": episode_url,
                     "first_timestamp": timestamp,
                     "edges": {},  # neighbor_id -> [context, ...]
+                    "genres": set(),
                 }
+            for g in episode_genres:
+                nodes[track_id]["genres"].add(g)
 
             valid_tracks.append((track_id, title, artist, position, timestamp))
 
@@ -189,6 +202,7 @@ def build_graph(episodes: List[Dict[str, Any]]) -> Dict[str, Any]:
             "artist": node["artist"],
             "first_episode_url": node.get("first_episode_url"),
             "first_timestamp": node.get("first_timestamp"),
+            "genres": sorted(node.get("genres", set())),
             "edges": edge_list,
         }
 

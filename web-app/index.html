@@ -251,20 +251,18 @@
 
     .play-btn {
       position: absolute;
-      bottom: 6px;
-      right: 6px;
-      width: 32px;
-      height: 32px;
-      border-radius: 50%;
-      background: rgba(45, 45, 45, 0.75);
+      inset: 0;
       border: none;
       cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
       opacity: 0;
-      transition: opacity 0.2s ease, background 0.15s ease;
+      transition: opacity 0.2s ease;
       padding: 0;
+      background: rgba(42, 37, 32, 0.0);
+      border-radius: var(--art-radius);
+      z-index: 3;
     }
 
     .art-wrap:hover .play-btn,
@@ -272,14 +270,16 @@
       opacity: 1;
     }
 
-    .play-btn:hover {
-      background: rgba(45, 45, 45, 0.9);
+    .play-btn svg {
+      width: 32px;
+      height: 32px;
+      fill: #fff;
+      filter: drop-shadow(0 1px 4px rgba(0,0,0,0.3));
+      transition: transform 0.15s ease;
     }
 
-    .play-btn svg {
-      width: 14px;
-      height: 14px;
-      fill: #fff;
+    .play-btn:hover svg {
+      transform: scale(1.1);
     }
 
     .node-card .loading-label {
@@ -294,12 +294,26 @@
     }
 
     .node-card.playing {
-      border-color: var(--connection-highlight);
-      box-shadow: 0 0 0 2px var(--connection-highlight), var(--card-shadow);
+      border-color: var(--glow-dark, var(--connection-highlight));
+      box-shadow:
+        0 4px 30px -4px color-mix(in srgb, var(--glow-a, var(--connection-highlight)) 35%, transparent),
+        0 8px 50px -4px color-mix(in srgb, var(--glow-b, var(--connection-highlight)) 20%, transparent);
+      transition: box-shadow 0.8s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.8s cubic-bezier(0.4, 0, 0.2, 1);
     }
 
     .node-card.playing:hover {
-      box-shadow: 0 0 0 2px var(--connection-highlight), var(--card-hover-shadow);
+      box-shadow:
+        0 4px 30px -4px color-mix(in srgb, var(--glow-a, var(--connection-highlight)) 45%, transparent),
+        0 8px 50px -4px color-mix(in srgb, var(--glow-b, var(--connection-highlight)) 30%, transparent);
+    }
+
+    .node-card.playing .art-wrap {
+      animation: art-breathe 3s ease-in-out infinite;
+    }
+
+    @keyframes art-breathe {
+      0%, 100% { transform: scale(1); }
+      50%      { transform: scale(1.012); }
     }
 
     .album-art.no-art {
@@ -424,10 +438,9 @@
       stroke-linejoin: round;
     }
 
-    #source-filter {
+    .filter-select {
       position: absolute;
       top: 24px;
-      right: 24px;
       z-index: 10;
       font-family: var(--font);
       font-size: 11px;
@@ -447,7 +460,9 @@
       padding-right: 30px;
     }
 
-    #source-filter:hover {
+    #source-filter { right: 24px; }
+
+    .filter-select:hover {
       box-shadow: var(--card-hover-shadow);
       color: var(--text-primary);
     }
@@ -525,12 +540,11 @@
       <svg viewBox="0 0 24 24"><path d="M16 3h5v5"/><path d="M4 20L21 3"/><path d="M21 16v5h-5"/><path d="M15 15l6 6"/><path d="M4 4l5 5"/></svg>
       shuffle
     </button>
-    <select id="source-filter">
+<select id="source-filter" class="filter-select">
       <option value="none">no filter</option>
       <option value="soundcloud">has soundcloud</option>
       <option value="soundcloud_set">has soundcloud — full set</option>
       <option value="lotradio">has lot radio set</option>
-      <option value="mixcloud">has mixcloud set</option>
     </select>
     <svg id="connections-layer" xmlns="http://www.w3.org/2000/svg"></svg>
     <div id="nodes-layer"></div>
@@ -569,6 +583,45 @@
     const PLAY_SVG = '<svg viewBox="0 0 24 24"><polygon points="6,3 20,12 6,21"/></svg>';
     const PAUSE_SVG = '<svg viewBox="0 0 24 24"><rect x="5" y="3" width="4" height="18"/><rect x="15" y="3" width="4" height="18"/></svg>';
     const SC_BADGE_SVG = '<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M1 18V15C1 14.45 1.196 13.979 1.588 13.587C1.98 13.195 2.45 12.999 3 12.999C3.55 12.999 4.021 13.195 4.413 13.587C4.805 13.979 5.001 14.45 5.001 15V18H1ZM6.001 18V12C6.001 11.45 6.197 10.979 6.589 10.587C6.981 10.195 7.451 9.999 8.001 9.999C8.551 9.999 9.022 10.195 9.414 10.587C9.806 10.979 10.002 11.45 10.002 12V18H6.001ZM11.002 18V9C11.002 8.45 11.198 7.979 11.59 7.587C11.982 7.195 12.452 6.999 13.002 6.999C13.552 6.999 14.023 7.195 14.415 7.587C14.807 7.979 15.003 8.45 15.003 9V18H11.002ZM16.003 18V6C16.003 5.45 16.199 4.979 16.591 4.587C16.983 4.195 17.453 3.999 18.003 3.999C18.553 3.999 19.024 4.195 19.416 4.587C19.808 4.979 20.004 5.45 20.004 6V18H16.003ZM21.004 18V3C21.004 2.45 21.2 1.979 21.592 1.587C21.984 1.195 22.45 1 23 1C23 1 24 1 24 3V18C24 18.55 23.804 19.021 23.412 19.413C23.02 19.805 22.55 20.001 22 20.001H3C2.45 20.001 1.98 19.805 1.588 19.413C1.196 19.021 1 18.55 1 18"/></svg>';
+
+    // ═══════════════════════════════════════════
+    // Glow palettes
+    // ═══════════════════════════════════════════
+    const glowPalettes = [
+      { a: '#e8a87c', b: '#d4726a', c: '#f4c694', dark: '#b8584a' },
+      { a: '#1a1a3e', b: '#c7883a', c: '#4a3060', dark: '#1a1a3e' },
+      { a: '#2d4a3e', b: '#c9a96e', c: '#5c7a6a', dark: '#2d4a3e' },
+      { a: '#c4868b', b: '#e8c4c8', c: '#8a6070', dark: '#8a6070' },
+      { a: '#9a8cbe', b: '#d4cce8', c: '#7a6a9a', dark: '#6a5a8a' },
+      { a: '#e6c4a8', b: '#d4928a', c: '#f0dcc8', dark: '#c07a6a' },
+      { a: '#5a8a8c', b: '#b8c4c0', c: '#3a6068', dark: '#3a6068' },
+      { a: '#b8864e', b: '#d4b896', c: '#8a6030', dark: '#7a5020' },
+      { a: '#6a7a9a', b: '#c4a0a8', c: '#4a5a7a', dark: '#4a5a7a' },
+      { a: '#d4a060', b: '#e8d0a0', c: '#c07848', dark: '#a06030' },
+      { a: '#8a9aaa', b: '#c0ccb8', c: '#6a7a88', dark: '#5a6a78' },
+      { a: '#c4a480', b: '#a07060', c: '#dcc4a0', dark: '#8a5848' },
+    ];
+    let lastPaletteIndex = -1;
+
+    function randomGlow() {
+      let idx;
+      do { idx = Math.floor(Math.random() * glowPalettes.length); } while (idx === lastPaletteIndex);
+      lastPaletteIndex = idx;
+      return glowPalettes[idx];
+    }
+
+    function applyGlow(card) {
+      const g = randomGlow();
+      card.style.setProperty('--glow-a', g.a);
+      card.style.setProperty('--glow-b', g.b);
+      card.style.setProperty('--glow-dark', g.dark);
+    }
+
+    function clearGlow(card) {
+      card.style.removeProperty('--glow-a');
+      card.style.removeProperty('--glow-b');
+      card.style.removeProperty('--glow-dark');
+    }
 
     // ═══════════════════════════════════════════
     // Playback state machine
@@ -615,6 +668,7 @@
       const card = document.querySelector(`.node-card[data-node-id="${nodeId}"]`);
       if (card) {
         card.classList.remove('playing');
+        clearGlow(card);
         hideLoading(card);
         card.removeAttribute('data-source');
         const btn = card.querySelector('.play-btn');
@@ -667,7 +721,7 @@
 
       scWidget.bind(SC.Widget.Events.READY, () => {
         scWidgetReady = true;
-        if (card) { hideLoading(card); card.classList.add('playing'); }
+        if (card) { hideLoading(card); card.classList.add('playing'); applyGlow(card); }
       });
       scWidget.bind(SC.Widget.Events.FINISH, onPlaybackEnded);
       scWidget.bind(SC.Widget.Events.ERROR, () => {
@@ -702,7 +756,7 @@
 
       scWidget.bind(SC.Widget.Events.READY, () => {
         scWidgetReady = true;
-        if (card) { hideLoading(card); card.classList.add('playing'); }
+        if (card) { hideLoading(card); card.classList.add('playing'); applyGlow(card); }
         if (offsetSec) {
           // Delay seek — widget reports READY before audio is seekable
           setTimeout(() => scWidget.seekTo(offsetSec * 1000), 800);
@@ -734,6 +788,7 @@
       if (btn) btn.innerHTML = PAUSE_SVG;
       if (card) {
         card.classList.add('playing');
+        applyGlow(card);
         card.setAttribute('data-source', 'set');
       }
 
@@ -749,7 +804,7 @@
         mcWidget.ready.then(() => {
           mcWidget.events.play.on(() => {
             if (btn) btn.innerHTML = PAUSE_SVG;
-            if (card) { hideLoading(card); card.classList.add('playing'); }
+            if (card) { hideLoading(card); card.classList.add('playing'); applyGlow(card); }
           });
           mcWidget.events.pause.on(() => {
             if (btn) btn.innerHTML = PLAY_SVG;
@@ -814,7 +869,7 @@
           if (currentBackend === 'sc' && scWidget) scWidget.play();
           else if (currentBackend === 'mc' && mcWidget) mcWidget.play();
           if (btn) btn.innerHTML = PAUSE_SVG;
-          if (card) card.classList.add('playing');
+          if (card) { card.classList.add('playing'); applyGlow(card); }
         }
         return;
       }
@@ -1366,7 +1421,6 @@
       if (filter === 'soundcloud') return hasScTrack;
       if (filter === 'soundcloud_set') return !hasScTrack && cached.source === 'soundcloud_set';
       if (filter === 'lotradio') return !hasScTrack && cached.setSource === 'soundcloud';
-      if (filter === 'mixcloud') return !hasScTrack && cached.setSource === 'mixcloud';
       return true;
     }
 
@@ -1411,11 +1465,17 @@
         // No cache — all nodes will show grey placeholders
       }
 
-      // Compute candidates (3+ edges)
-      candidates = Object.keys(graphNodes).filter(
-        nid => (graphNodes[nid].edges || []).length >= 3
+      // Compute candidates (3+ edges, no mixcloud-only neighbors)
+      const mcNodes = new Set(
+        Object.keys(audioCache).filter(nid => audioCache[nid].source === 'mixcloud_set')
       );
-      console.log(`${candidates.length} candidates with 3+ edges`);
+      candidates = Object.keys(graphNodes).filter(nid => {
+        const edges = graphNodes[nid].edges || [];
+        if (edges.length < 3) return false;
+        if (mcNodes.has(nid)) return false;
+        return !edges.some(e => mcNodes.has(e.node));
+      });
+      console.log(`${candidates.length} candidates (3+ edges, no mixcloud)`);
 
       if (candidates.length === 0) {
         console.error('No candidates found in graph');

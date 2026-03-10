@@ -26,6 +26,8 @@ pipeline/               # Data processing (shared across sources)
   cluster.py            # Cluster selection + SoundCloud search functions
   output/               # combined_graph.json, audio_cache.json
 plans/                  # Implementation plans and docs
+sandbox/                # Frontend experiments (prototyping)
+sandbox/                # Frontend experiments (prototyping)
 ```
 
 ## Commands
@@ -74,6 +76,14 @@ cd web-app && python3 -m http.server 8000
 - No TypeScript, no bundlers, no package.json for the frontend
 - When editing index.html, preserve the existing CSS token system and code organization
 - Concise comments only where logic isn't obvious
+
+## Sandbox
+
+`sandbox/` is for experimenting with frontend concepts (layouts, effects, interactions). When asked, port working experiments from sandbox into `web-app/index.html`.
+
+## Sandbox
+
+`sandbox/` is for experimenting with frontend concepts (layouts, effects, interactions). When asked, port working experiments from sandbox into `web-app/index.html`.
 
 ## Workflow habits
 
