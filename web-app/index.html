@@ -462,6 +462,73 @@
 
     #source-filter { right: 24px; }
 
+    /* ═══════════════════════════════════════════
+       Debug Bar
+       ═══════════════════════════════════════════ */
+    #debug-bar {
+      position: absolute;
+      top: 24px;
+      left: 24px;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-family: var(--font);
+      font-size: 11px;
+      color: var(--text-secondary);
+    }
+
+    #debug-bar .debug-id {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 20px;
+      padding: 7px 12px;
+      box-shadow: var(--card-shadow);
+      cursor: pointer;
+      user-select: all;
+      max-width: 180px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    #debug-bar .debug-id:hover {
+      box-shadow: var(--card-hover-shadow);
+      color: var(--text-primary);
+    }
+
+    #debug-bar input {
+      font-family: var(--font);
+      font-size: 11px;
+      color: var(--text-primary);
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 20px;
+      padding: 7px 12px;
+      width: 140px;
+      box-shadow: var(--card-shadow);
+      outline: none;
+    }
+
+    #debug-bar input::placeholder { color: var(--text-secondary); opacity: 0.6; }
+    #debug-bar input:focus { border-color: var(--connection-stroke); }
+
+    #freeze-btn {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 20px;
+      padding: 7px 12px;
+      cursor: pointer;
+      box-shadow: var(--card-shadow);
+      font-family: var(--font);
+      font-size: 11px;
+      color: var(--text-secondary);
+      transition: box-shadow 0.2s ease, color 0.2s ease;
+    }
+
+    #freeze-btn:hover { box-shadow: var(--card-hover-shadow); color: var(--text-primary); }
+    #freeze-btn.frozen { border-color: var(--connection-stroke); color: var(--connection-highlight); }
+
     .filter-select:hover {
       box-shadow: var(--card-hover-shadow);
       color: var(--text-primary);
@@ -536,6 +603,11 @@
 </head>
 <body>
   <div id="graph-container">
+    <div id="debug-bar">
+      <button id="freeze-btn">freeze</button>
+      <span class="debug-id" id="cluster-id" title="Click to copy">—</span>
+      <input id="cluster-input" type="text" placeholder="enter cluster id">
+    </div>
     <button id="shuffle-btn">
       <svg viewBox="0 0 24 24"><path d="M16 3h5v5"/><path d="M4 20L21 3"/><path d="M21 16v5h-5"/><path d="M15 15l6 6"/><path d="M4 4l5 5"/></svg>
       shuffle
@@ -567,6 +639,8 @@
     let graphNodes = {};    // full graph: { "artist:::title": { title, artist, edges: [...] } }
     let audioCache = {};    // { "artist:::title": { source, scTrackUrl, setUrl, ... } }
     let candidates = [];    // node IDs with 3+ edges
+    let currentRootId = null;
+    let frozen = false;
     let nodes = [];
     let edges = [];
     let nodeMap = {};
@@ -1405,6 +1479,8 @@
       edges = cluster.edges;
       nodeMap = {};
       nodes.forEach(n => nodeMap[n.id] = n);
+      currentRootId = cluster.nodes[0].graphId;
+      document.getElementById('cluster-id').textContent = currentRootId;
       logCluster(cluster);
       computeLayout();
       renderCards();
@@ -1425,7 +1501,7 @@
     }
 
     function shuffle() {
-      if (candidates.length === 0) return;
+      if (frozen || candidates.length === 0) return;
       const filter = document.getElementById('source-filter').value;
       const pool = candidates.filter(id => matchesFilter(id, filter));
       if (pool.length === 0) {
@@ -1434,6 +1510,16 @@
       }
       const rootId = pool[Math.floor(Math.random() * pool.length)];
       const cluster = selectCluster(rootId);
+      showCluster(cluster);
+    }
+
+    function loadClusterById(id) {
+      id = id.trim();
+      if (!graphNodes[id]) {
+        console.warn(`Node "${id}" not found in graph`);
+        return;
+      }
+      const cluster = selectCluster(id);
       showCluster(cluster);
     }
 
@@ -1487,6 +1573,27 @@
 
       // Wire shuffle button
       document.getElementById('shuffle-btn').addEventListener('click', shuffle);
+
+      // Debug bar
+      document.getElementById('freeze-btn').addEventListener('click', () => {
+        frozen = !frozen;
+        const btn = document.getElementById('freeze-btn');
+        btn.textContent = frozen ? 'frozen' : 'freeze';
+        btn.classList.toggle('frozen', frozen);
+        document.getElementById('shuffle-btn').style.opacity = frozen ? '0.3' : '1';
+        document.getElementById('shuffle-btn').style.pointerEvents = frozen ? 'none' : '';
+      });
+
+      document.getElementById('cluster-id').addEventListener('click', () => {
+        if (currentRootId) navigator.clipboard.writeText(currentRootId);
+      });
+
+      document.getElementById('cluster-input').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          loadClusterById(e.target.value);
+          e.target.value = '';
+        }
+      });
 
       // Wire Mixcloud close button
       document.querySelector('#mc-player .mc-close').addEventListener('click', () => {
