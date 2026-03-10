@@ -75,7 +75,7 @@
     #graph-container {
       position: relative;
       width: 1200px;
-      height: 900px;
+      min-height: 900px;
     }
 
     #connections-layer {
@@ -1053,9 +1053,8 @@
       return found;
     }
 
-    function selectCluster(rootId, r1Count, r2PerR1) {
-      r1Count = r1Count || 2;
-      r2PerR1 = r2PerR1 || 2;
+    function selectCluster(rootId) {
+      const r2PerR1 = 2;
 
       const rootNode = graphNodes[rootId];
       const clusterNodes = [];
@@ -1085,15 +1084,14 @@
       // Root
       clusterNodes.push(makeNode('root', rootId, 'root'));
 
-      // R1: prefer nodes with children (not dead-ends)
+      // R1: all neighbors, prefer nodes with children
       const r1All = getNeighbors(rootId, usedIds);
       const r1ChildCount = (cid) => getNeighbors(cid, new Set([...usedIds, rootId])).length;
-      const viable = r1All.filter(c => r1ChildCount(c) >= 1);
-      const rich = viable.filter(c => r1ChildCount(c) >= r2PerR1);
-      const okay = viable.filter(c => r1ChildCount(c) < r2PerR1);
-      shuffleArray(rich);
-      shuffleArray(okay);
-      const r1Selected = [...rich, ...okay].slice(0, r1Count);
+      const withKids = r1All.filter(c => r1ChildCount(c) >= 1);
+      const deadEnds = r1All.filter(c => r1ChildCount(c) === 0);
+      shuffleArray(withKids);
+      shuffleArray(deadEnds);
+      const r1Selected = [...withKids, ...deadEnds];
 
       for (let i = 0; i < r1Selected.length; i++) {
         const r1GraphId = r1Selected[i];
@@ -1101,36 +1099,16 @@
         clusterNodes.push(makeNode(r1Local, r1GraphId, '1'));
         clusterEdges.push(makeEdge('root', r1Local, rootId, r1GraphId));
 
-        // R2
+        // R2: max 2 per R1
         const r2Candidates = getNeighbors(r1GraphId, usedIds);
         shuffleArray(r2Candidates);
         const r2Selected = r2Candidates.slice(0, r2PerR1);
 
-        const r2LocalIds = [];
         for (let j = 0; j < r2Selected.length; j++) {
           const r2GraphId = r2Selected[j];
           const r2Local = `r2_${i}_${j}`;
           clusterNodes.push(makeNode(r2Local, r2GraphId, '2'));
           clusterEdges.push(makeEdge(r1Local, r2Local, r1GraphId, r2GraphId));
-          r2LocalIds.push({ local: r2Local, graphId: r2GraphId });
-        }
-
-        // R3 backfill if R2 slots unfilled
-        let filled = r2Selected.length;
-        if (filled < r2PerR1 && filled > 0) {
-          let needed = r2PerR1 - filled;
-          for (const { local: r2Local, graphId: r2GraphId } of r2LocalIds) {
-            if (needed <= 0) break;
-            const r3Candidates = getNeighbors(r2GraphId, usedIds);
-            shuffleArray(r3Candidates);
-            for (let k = 0; k < Math.min(r3Candidates.length, needed); k++) {
-              const r3GraphId = r3Candidates[k];
-              const r3Local = `r3_${i}_${k}`;
-              clusterNodes.push(makeNode(r3Local, r3GraphId, '2'));
-              clusterEdges.push(makeEdge(r2Local, r3Local, r2GraphId, r3GraphId));
-              needed--;
-            }
-          }
         }
       }
 
@@ -1338,8 +1316,6 @@
     // Auto-layout engine
     // ═══════════════════════════════════════════
     function computeLayout() {
-      const W = 1200, H = 900;
-
       const root = nodes.find(n => n.rank === 'root');
       if (!root) return;
       const r1Nodes = nodes.filter(n => n.rank === '1');
@@ -1354,15 +1330,12 @@
         }
       });
 
-      // Collect the full subtree under each R1 (all rank "2" descendants)
       function collectLeaves(nodeId) {
         const leaves = [];
-        const direct = childrenOf[nodeId] || [];
-        direct.forEach(ch => {
+        for (const ch of (childrenOf[nodeId] || [])) {
           leaves.push(ch);
-          // recurse for R3+ nodes attached to R2
           collectLeaves(ch.id).forEach(l => leaves.push(l));
-        });
+        }
         return leaves;
       }
 
@@ -1370,54 +1343,71 @@
       const r1D = cardDims['1'];
       const r2D = cardDims['2'];
       const hGap = 60;
+      const r1Spread = r1D.h + 40;
+      const r2Spread = r2D.h + 60;
 
-      // Root — center of container
+      // Split r1 into left/right
+      const leftR1 = [], rightR1 = [];
+      r1Nodes.forEach((n, i) => (i % 2 === 0 ? leftR1 : rightR1).push(n));
+
+      // Compute needed height: max vertical extent of either side
+      function sideHeight(r1List) {
+        let total = 0;
+        for (const r1 of r1List) {
+          const leafCount = collectLeaves(r1.id).length;
+          const r1SlotH = Math.max(r1Spread, leafCount * r2Spread);
+          total += r1SlotH;
+        }
+        return total;
+      }
+      const neededH = Math.max(sideHeight(leftR1), sideHeight(rightR1), rootD.h + 100);
+      const H = Math.max(900, neededH + 80);
+      const W = 1200;
+
+      // Resize container
+      const container = document.getElementById('graph-container');
+      container.style.height = H + 'px';
+
+      // Root — center
       root.x = (W - rootD.w) / 2;
       root.y = (H - rootD.h) / 2;
-      const rootCY = root.y + rootD.h / 2;
 
-      // Split r1 nodes into left and right branches
-      const leftR1 = [];
-      const rightR1 = [];
-      r1Nodes.forEach((n, i) => {
-        if (i % 2 === 0) leftR1.push(n);
-        else rightR1.push(n);
-      });
-
-      // Place left R1 nodes
-      const leftR1X = root.x - hGap - r1D.w;
-      leftR1.forEach((n, i) => {
-        n.x = leftR1X;
-        const spread = r1D.h + 40;
-        const yOff = (i - (leftR1.length - 1) / 2) * spread;
-        n.y = rootCY - r1D.h / 2 + yOff + 25;
-      });
-
-      // Place right R1 nodes
-      const rightR1X = root.x + rootD.w + hGap;
-      rightR1.forEach((n, i) => {
-        n.x = rightR1X;
-        const spread = r1D.h + 40;
-        const yOff = (i - (rightR1.length - 1) / 2) * spread;
-        n.y = rootCY - r1D.h / 2 + yOff - 20;
-      });
-
-      // Place all rank-2 leaves — fan above/below their R1 ancestor
-      const leftR2X = Math.max(5, leftR1X - hGap - r2D.w);
-      const rightR2X = Math.min(W - r2D.w - 5, rightR1X + r1D.w + hGap);
-
-      r1Nodes.forEach(r1 => {
-        const allLeaves = collectLeaves(r1.id);
-        const isLeft = leftR1.includes(r1);
-        const r1CY = r1.y + r1D.h / 2;
-
-        allLeaves.forEach((n, i) => {
-          n.x = isLeft ? leftR2X : rightR2X;
-          const spread = r2D.h + 60;
-          const yOff = (i - (allLeaves.length - 1) / 2) * spread;
-          n.y = r1CY - r2D.h / 2 + yOff;
+      // Place an R1 column
+      function placeR1Column(r1List, x) {
+        // Compute total height needed
+        const slots = r1List.map(r1 => {
+          const leafCount = collectLeaves(r1.id).length;
+          return Math.max(r1Spread, leafCount * r2Spread);
         });
-      });
+        const totalH = slots.reduce((s, h) => s + h, 0);
+        let y = (H - totalH) / 2;
+
+        r1List.forEach((r1, i) => {
+          const slotH = slots[i];
+          r1.x = x;
+          r1.y = y + (slotH - r1D.h) / 2;
+
+          const leaves = collectLeaves(r1.id);
+          const r1CY = r1.y + r1D.h / 2;
+          const isLeft = leftR1.includes(r1);
+          const r2X = isLeft
+            ? Math.max(5, x - hGap - r2D.w)
+            : Math.min(W - r2D.w - 5, x + r1D.w + hGap);
+
+          leaves.forEach((n, j) => {
+            n.x = r2X;
+            const yOff = (j - (leaves.length - 1) / 2) * r2Spread;
+            n.y = r1CY - r2D.h / 2 + yOff;
+          });
+
+          y += slotH;
+        });
+      }
+
+      const leftR1X = root.x - hGap - r1D.w;
+      const rightR1X = root.x + rootD.w + hGap;
+      placeR1Column(leftR1, leftR1X);
+      placeR1Column(rightR1, rightR1X);
 
       // Clamp within container
       nodes.forEach(n => {
