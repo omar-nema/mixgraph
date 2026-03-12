@@ -75,7 +75,7 @@
        ═══════════════════════════════════════════ */
     #toolbar {
       position: relative;
-      height: 60px;
+      height: 80px;
       flex-shrink: 0;
       z-index: 10;
     }
@@ -554,6 +554,35 @@
       stroke-linejoin: round;
     }
 
+    #share-btn {
+      position: absolute;
+      top: 48px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 10;
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 4px;
+      color: var(--text-tertiary);
+      transition: color 0.2s ease, transform 0.15s ease;
+    }
+    #share-btn:hover { color: var(--text-primary); }
+    #share-btn:active { transform: translateX(-50%) scale(0.9); }
+    #share-btn svg {
+      width: 15px;
+      height: 15px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+    #share-btn.copied { color: var(--connection-highlight); }
+    #share-btn.copied svg .check { display: block; }
+    #share-btn.copied svg .link { display: none; }
+    #share-btn:not(.copied) svg .check { display: none; }
+
     .filter-select {
       position: absolute;
       top: 16px;
@@ -890,102 +919,35 @@
       white-space: nowrap;
     }
 
-    /* Artist tracks panel */
-    #artist-tracks-panel {
+    /* Active artist filter indicator */
+    #artist-search.filtered {
+      border-color: var(--connection-highlight);
+      padding-right: 28px;
+    }
+
+    #artist-clear {
       position: absolute;
-      top: calc(100% + 4px);
-      left: 0;
-      width: 320px;
-      max-height: 420px;
-      overflow-y: auto;
-      background: var(--card-bg);
-      border: 1px solid var(--card-border);
-      border-radius: var(--card-radius);
-      box-shadow: 0 8px 30px rgba(42, 37, 32, 0.12);
-      display: none;
-      z-index: 30;
-    }
-
-    #artist-tracks-panel.open {
-      display: block;
-    }
-
-    .atp-header {
-      padding: 10px 14px 6px;
-      font-family: var(--font);
-      font-size: 11px;
-      font-weight: 600;
-      color: var(--text-secondary);
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-      border-bottom: 1px solid var(--card-border);
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      position: sticky;
-      top: 0;
-      background: var(--card-bg);
-      z-index: 1;
-    }
-
-    .atp-close {
-      background: none;
+      right: 8px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 16px;
+      height: 16px;
       border: none;
-      font-size: 16px;
-      color: var(--text-tertiary);
+      background: none;
       cursor: pointer;
-      padding: 0 2px;
+      color: var(--text-tertiary);
+      font-size: 14px;
       line-height: 1;
+      padding: 0;
+      display: none;
     }
 
-    .atp-close:hover {
+    #artist-clear:hover {
       color: var(--text-primary);
     }
 
-    .atp-track {
-      padding: 8px 14px;
-      font-family: var(--font);
-      cursor: pointer;
-      transition: background 0.1s ease;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-
-    .atp-track:hover {
-      background: rgba(42, 37, 32, 0.05);
-    }
-
-    .atp-track .atp-art {
-      width: 36px;
-      height: 36px;
-      border-radius: 4px;
-      object-fit: cover;
-      flex-shrink: 0;
-      background: #d9d1c7;
-    }
-
-    .atp-track .atp-art.no-art {
-      filter: url(#gradient-distort) saturate(50%) hue-rotate(46deg);
-    }
-
-    .atp-track .atp-info {
-      overflow: hidden;
-      min-width: 0;
-    }
-
-    .atp-track .atp-title {
-      font-size: 12px;
-      font-weight: 500;
-      color: var(--text-primary);
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-
-    .atp-track .atp-edges {
-      font-size: 10px;
-      color: var(--text-tertiary);
+    #artist-search.filtered ~ #artist-clear {
+      display: block;
     }
 
   </style>
@@ -1015,12 +977,18 @@
     <div id="artist-search-wrap">
       <svg class="search-icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M16.5 16.5L21 21"/></svg>
       <input id="artist-search" type="text" placeholder="search artist..." autocomplete="off">
+      <button id="artist-clear">&times;</button>
       <div id="artist-autocomplete"></div>
-      <div id="artist-tracks-panel"></div>
     </div>
     <button id="shuffle-btn">
       <svg viewBox="0 0 24 24"><path d="M16 3h5v5"/><path d="M4 20L21 3"/><path d="M21 16v5h-5"/><path d="M15 15l6 6"/><path d="M4 4l5 5"/></svg>
       shuffle
+    </button>
+    <button id="share-btn" title="Copy link">
+      <svg viewBox="0 0 24 24">
+        <g class="link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></g>
+        <g class="check"><polyline points="20 6 9 17 4 12"/></g>
+      </svg>
     </button>
     <select id="source-filter" class="filter-select">
       <option value="none">no filter</option>
@@ -1055,6 +1023,7 @@
     let candidates = [];    // node IDs with 3+ edges
     let currentRootId = null;
     let frozen = false;
+    let artistFilter = null; // { display, trackIds } when artist search is active
     let nodes = [];
     let edges = [];
     let nodeMap = {};
@@ -2221,9 +2190,23 @@
     function shuffle() {
       if (frozen || candidates.length === 0) return;
       const filter = document.getElementById('source-filter').value;
-      const pool = candidates.filter(id => matchesFilter(id, filter));
+      let pool = candidates.filter(id => matchesFilter(id, filter));
+
+      // If an artist is selected, restrict to their tracks
+      if (artistFilter) {
+        const artistSet = new Set(artistFilter.trackIds);
+        pool = pool.filter(id => artistSet.has(id));
+        // Fallback: if none of the artist's tracks are in candidates (3+ edges),
+        // use any of their tracks that exist in the graph
+        if (pool.length === 0) {
+          pool = artistFilter.trackIds.filter(id => graphNodes[id] && matchesFilter(id, filter));
+        }
+      }
+
       if (pool.length === 0) {
-        console.warn(`No candidates match filter "${filter}"`);
+        console.warn(artistFilter
+          ? `No tracks found for "${artistFilter.display}" with current filter`
+          : `No candidates match filter "${filter}"`);
         return;
       }
       const rootId = pool[Math.floor(Math.random() * pool.length)];
@@ -2307,6 +2290,14 @@
       // Wire shuffle button
       document.getElementById('shuffle-btn').addEventListener('click', shuffle);
 
+      // Wire share button
+      document.getElementById('share-btn').addEventListener('click', () => {
+        navigator.clipboard.writeText(window.location.href);
+        const btn = document.getElementById('share-btn');
+        btn.classList.add('copied');
+        setTimeout(() => btn.classList.remove('copied'), 1500);
+      });
+
       // Debug bar
       document.getElementById('freeze-btn').addEventListener('click', () => {
         frozen = !frozen;
@@ -2342,29 +2333,22 @@
       });
 
       // ── Artist search ──
-      const artistIndex = {}; // { lowercase artist name -> { display, tracks: [{ id, title, edges }] } }
+      // Build index: artist name -> list of graph node IDs
+      const artistIndex = {}; // { lowercase name -> { display, trackIds: [id, ...] } }
       for (const [id, node] of Object.entries(graphNodes)) {
         const artist = (node.artist || '').trim();
         if (!artist) continue;
         const key = artist.toLowerCase();
-        if (!artistIndex[key]) artistIndex[key] = { display: artist, tracks: [] };
-        artistIndex[key].tracks.push({
-          id,
-          title: node.title,
-          edges: (node.edges || []).length,
-        });
+        if (!artistIndex[key]) artistIndex[key] = { display: artist, trackIds: [] };
+        artistIndex[key].trackIds.push(id);
       }
-      // Sort each artist's tracks by edge count descending
-      for (const entry of Object.values(artistIndex)) {
-        entry.tracks.sort((a, b) => b.edges - a.edges);
-      }
-      // Pre-sorted list for autocomplete (by track count desc)
-      const artistList = Object.values(artistIndex).sort((a, b) => b.tracks.length - a.tracks.length);
+      // Pre-sorted by track count for autocomplete
+      const artistList = Object.values(artistIndex).sort((a, b) => b.trackIds.length - a.trackIds.length);
       console.log(`Artist index: ${artistList.length} unique artists`);
 
       const searchInput = document.getElementById('artist-search');
+      const clearBtn = document.getElementById('artist-clear');
       const acDropdown = document.getElementById('artist-autocomplete');
-      const tracksPanel = document.getElementById('artist-tracks-panel');
       let acItems = [];
       let acActiveIdx = -1;
 
@@ -2375,17 +2359,24 @@
         acActiveIdx = -1;
       }
 
-      function closeTracksPanel() {
-        tracksPanel.classList.remove('open');
-        tracksPanel.innerHTML = '';
+      function setArtistFilter(entry) {
+        artistFilter = entry;
+        searchInput.value = entry.display;
+        searchInput.classList.add('filtered');
+        // Immediately shuffle to one of this artist's tracks
+        shuffle();
+      }
+
+      function clearArtistFilter() {
+        artistFilter = null;
+        searchInput.value = '';
+        searchInput.classList.remove('filtered');
       }
 
       function showAc(query) {
-        closeTracksPanel();
         const q = query.toLowerCase().trim();
         if (!q) { closeAc(); return; }
 
-        // Match: starts-with first, then contains, cap at 30
         const starts = [];
         const contains = [];
         for (const entry of artistList) {
@@ -2395,7 +2386,6 @@
           if (starts.length + contains.length >= 30) break;
         }
         const results = [...starts, ...contains].slice(0, 30);
-
         if (results.length === 0) { closeAc(); return; }
 
         acDropdown.innerHTML = '';
@@ -2405,8 +2395,12 @@
         results.forEach((entry, i) => {
           const div = document.createElement('div');
           div.className = 'ac-item';
-          div.innerHTML = `<span class="ac-name">${escHtml(entry.display)}</span><span class="ac-count">${entry.tracks.length} track${entry.tracks.length !== 1 ? 's' : ''}</span>`;
-          div.addEventListener('click', () => selectArtist(entry));
+          const count = entry.trackIds.length;
+          div.innerHTML = `<span class="ac-name">${escHtml(entry.display)}</span><span class="ac-count">${count} track${count !== 1 ? 's' : ''}</span>`;
+          div.addEventListener('click', () => {
+            closeAc();
+            setArtistFilter(entry);
+          });
           div.addEventListener('mouseenter', () => {
             acItems.forEach(el => el.classList.remove('active'));
             div.classList.add('active');
@@ -2423,51 +2417,14 @@
         return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
       }
 
-      function selectArtist(entry) {
-        closeAc();
-        searchInput.value = entry.display;
-        searchInput.blur();
-        showTracksPanel(entry);
-      }
-
-      function showTracksPanel(entry) {
-        tracksPanel.innerHTML = '';
-
-        const header = document.createElement('div');
-        header.className = 'atp-header';
-        header.innerHTML = `<span>${escHtml(entry.display)} (${entry.tracks.length})</span><button class="atp-close">&times;</button>`;
-        header.querySelector('.atp-close').addEventListener('click', () => {
-          closeTracksPanel();
-          searchInput.value = '';
-        });
-        tracksPanel.appendChild(header);
-
-        for (const track of entry.tracks) {
-          const div = document.createElement('div');
-          div.className = 'atp-track';
-
-          const cached = audioCache[track.id];
-          const hasArt = cached && cached.artUrl && cached.source !== 'not_found';
-          let artHtml;
-          if (hasArt) {
-            artHtml = `<img class="atp-art" src="${cached.artUrl}" loading="lazy">`;
-          } else {
-            artHtml = `<div class="atp-art no-art" style="background: ${generateGradient(track.title, entry.display)}"></div>`;
-          }
-
-          div.innerHTML = `${artHtml}<div class="atp-info"><div class="atp-title" title="${escHtml(track.title)}">${escHtml(track.title)}</div><div class="atp-edges">${track.edges} connection${track.edges !== 1 ? 's' : ''}</div></div>`;
-          div.addEventListener('click', () => {
-            closeTracksPanel();
-            searchInput.value = '';
-            loadClusterById(track.id);
-          });
-          tracksPanel.appendChild(div);
+      searchInput.addEventListener('input', () => {
+        // If user starts editing while a filter is active, clear it
+        if (artistFilter && searchInput.value !== artistFilter.display) {
+          artistFilter = null;
+          searchInput.classList.remove('filtered');
         }
-
-        tracksPanel.classList.add('open');
-      }
-
-      searchInput.addEventListener('input', () => showAc(searchInput.value));
+        showAc(searchInput.value);
+      });
 
       searchInput.addEventListener('keydown', (e) => {
         if (!acDropdown.classList.contains('open')) return;
@@ -2492,11 +2449,15 @@
         }
       });
 
-      // Close dropdowns when clicking outside
+      clearBtn.addEventListener('click', () => {
+        clearArtistFilter();
+        closeAc();
+      });
+
+      // Close autocomplete when clicking outside
       document.addEventListener('click', (e) => {
         if (!e.target.closest('#artist-search-wrap')) {
           closeAc();
-          closeTracksPanel();
         }
       });
 
