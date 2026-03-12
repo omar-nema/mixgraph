@@ -511,75 +511,45 @@
     /* ═══════════════════════════════════════════
        Shuffle Button
        ═══════════════════════════════════════════ */
-    #shuffle-btn {
+    #center-btns {
       position: absolute;
       top: 16px;
       left: 50%;
       transform: translateX(-50%);
       z-index: 10;
-      font-family: var(--font);
-      font-size: 12px;
-      font-weight: 400;
-      color: var(--text-primary);
-      background: var(--card-bg);
-      border: 1px solid var(--card-border);
-      border-radius: 20px;
-      padding: 7px 18px;
-      cursor: pointer;
-      box-shadow: var(--card-shadow);
-      transition: box-shadow 0.2s ease, transform 0.2s ease;
       display: flex;
-      align-items: center;
-      gap: 6px;
-      letter-spacing: 0.02em;
+      gap: 8px;
     }
 
-    #shuffle-btn:hover {
-      box-shadow: var(--card-hover-shadow);
-      transform: translateX(-50%) translateY(-1px);
-    }
-
-    #shuffle-btn:active {
-      transform: translateX(-50%) translateY(0);
-    }
-
-    #shuffle-btn svg {
-      width: 13px;
-      height: 13px;
-      fill: none;
-      stroke: currentColor;
-      stroke-width: 2;
-      stroke-linecap: round;
-      stroke-linejoin: round;
-    }
-
-    #share-btn {
-      position: absolute;
-      top: 16px;
-      right: 24px;
-      z-index: 10;
+    #shuffle-btn, #share-btn {
       font-family: var(--font);
       font-size: 12px;
       font-weight: 400;
-      color: var(--text-primary);
+      color: var(--text-secondary);
       background: var(--card-bg);
       border: 1px solid var(--card-border);
       border-radius: 20px;
       padding: 7px 14px;
       cursor: pointer;
       box-shadow: var(--card-shadow);
-      transition: box-shadow 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
+      transition: box-shadow 0.2s ease, color 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
       display: flex;
       align-items: center;
       gap: 5px;
       letter-spacing: 0.02em;
     }
-    #share-btn:hover {
+
+    #shuffle-btn:hover, #share-btn:hover {
       box-shadow: var(--card-hover-shadow);
+      color: var(--text-primary);
       transform: translateY(-1px);
     }
-    #share-btn:active { transform: translateY(0); }
-    #share-btn svg {
+
+    #shuffle-btn:active, #share-btn:active {
+      transform: translateY(0);
+    }
+
+    #shuffle-btn svg, #share-btn svg {
       width: 13px;
       height: 13px;
       fill: none;
@@ -588,6 +558,7 @@
       stroke-linecap: round;
       stroke-linejoin: round;
     }
+
     #share-btn.copied {
       color: var(--connection-highlight);
       border-color: var(--connection-highlight);
@@ -1066,17 +1037,19 @@
       <button id="dj-clear">&times;</button>
       <div id="dj-autocomplete"></div>
     </div>
-    <button id="shuffle-btn">
-      <svg viewBox="0 0 24 24"><path d="M16 3h5v5"/><path d="M4 20L21 3"/><path d="M21 16v5h-5"/><path d="M15 15l6 6"/><path d="M4 4l5 5"/></svg>
-      shuffle
-    </button>
-    <button id="share-btn" title="Copy link">
-      <svg viewBox="0 0 24 24">
-        <g class="link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></g>
-        <g class="check"><polyline points="20 6 9 17 4 12"/></g>
-      </svg>
-      <span class="share-label">share</span>
-    </button>
+    <div id="center-btns">
+      <button id="shuffle-btn">
+        <svg viewBox="0 0 24 24"><path d="M16 3h5v5"/><path d="M4 20L21 3"/><path d="M21 16v5h-5"/><path d="M15 15l6 6"/><path d="M4 4l5 5"/></svg>
+        shuffle
+      </button>
+      <button id="share-btn" title="Copy link">
+        <svg viewBox="0 0 24 24">
+          <g class="link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></g>
+          <g class="check"><polyline points="20 6 9 17 4 12"/></g>
+        </svg>
+        <span class="share-label">share</span>
+      </button>
+    </div>
   </div>
   <div id="graph-viewport">
     <div id="graph-container">
@@ -2459,17 +2432,21 @@
 
       function showAc(query) {
         const q = query.toLowerCase().trim();
-        if (!q) { closeAc(); return; }
 
-        const starts = [];
-        const contains = [];
-        for (const entry of artistList) {
-          const name = entry.display.toLowerCase();
-          if (name.startsWith(q)) starts.push(entry);
-          else if (name.includes(q)) contains.push(entry);
-          if (starts.length + contains.length >= 30) break;
+        let results;
+        if (!q) {
+          results = artistList.slice(0, 50);
+        } else {
+          const starts = [];
+          const contains = [];
+          for (const entry of artistList) {
+            const name = entry.display.toLowerCase();
+            if (name.startsWith(q)) starts.push(entry);
+            else if (name.includes(q)) contains.push(entry);
+            if (starts.length + contains.length >= 30) break;
+          }
+          results = [...starts, ...contains].slice(0, 30);
         }
-        const results = [...starts, ...contains].slice(0, 30);
         if (results.length === 0) { closeAc(); return; }
 
         acDropdown.innerHTML = '';
@@ -2502,12 +2479,15 @@
       }
 
       searchInput.addEventListener('input', () => {
-        // If user starts editing while a filter is active, clear it
         if (artistFilter && searchInput.value !== artistFilter.display) {
           artistFilter = null;
           searchInput.classList.remove('filtered');
         }
         showAc(searchInput.value);
+      });
+
+      searchInput.addEventListener('focus', () => {
+        if (!artistFilter) showAc(searchInput.value);
       });
 
       searchInput.addEventListener('keydown', (e) => {
@@ -2596,17 +2576,21 @@
 
       function showDjAc(query) {
         const q = query.toLowerCase().trim();
-        if (!q) { closeDjAc(); return; }
 
-        const starts = [];
-        const contains = [];
-        for (const entry of djList) {
-          const name = entry.display.toLowerCase();
-          if (name.startsWith(q)) starts.push(entry);
-          else if (name.includes(q)) contains.push(entry);
-          if (starts.length + contains.length >= 30) break;
+        let results;
+        if (!q) {
+          results = djList.slice(0, 50);
+        } else {
+          const starts = [];
+          const contains = [];
+          for (const entry of djList) {
+            const name = entry.display.toLowerCase();
+            if (name.startsWith(q)) starts.push(entry);
+            else if (name.includes(q)) contains.push(entry);
+            if (starts.length + contains.length >= 30) break;
+          }
+          results = [...starts, ...contains].slice(0, 30);
         }
-        const results = [...starts, ...contains].slice(0, 30);
         if (results.length === 0) { closeDjAc(); return; }
 
         djAcDropdown.innerHTML = '';
@@ -2640,6 +2624,10 @@
           djSearchInput.classList.remove('filtered');
         }
         showDjAc(djSearchInput.value);
+      });
+
+      djSearchInput.addEventListener('focus', () => {
+        if (!djFilter) showDjAc(djSearchInput.value);
       });
 
       djSearchInput.addEventListener('keydown', (e) => {
