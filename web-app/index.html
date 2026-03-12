@@ -312,17 +312,6 @@
       transform: scale(1.1);
     }
 
-    .node-card .loading-label {
-      position: absolute;
-      top: -22px;
-      left: 50%;
-      transform: translateX(-50%);
-      font-family: var(--font);
-      font-size: 10px;
-      color: var(--text-secondary);
-      white-space: nowrap;
-    }
-
     .node-card.playing {
       border-color: var(--glow-dark, var(--connection-highlight));
       box-shadow:
@@ -1214,13 +1203,6 @@
     function showLoading(card) {
       if (!card) return;
       card.classList.add('loading');
-      let lbl = card.querySelector('.loading-label');
-      if (!lbl) {
-        lbl = document.createElement('span');
-        lbl.className = 'loading-label';
-        lbl.textContent = 'loading';
-        card.appendChild(lbl);
-      }
       const bar = card.querySelector('.progress-bar');
       if (bar) bar.classList.add('loading');
     }
@@ -1228,8 +1210,6 @@
     function hideLoading(card) {
       if (!card) return;
       card.classList.remove('loading');
-      const lbl = card.querySelector('.loading-label');
-      if (lbl) lbl.remove();
       const bar = card.querySelector('.progress-bar');
       if (bar) bar.classList.remove('loading');
     }
@@ -1546,7 +1526,7 @@
 
       // Same track — toggle pause/play (or cancel loading)
       if (currentlyPlayingId === nodeId) {
-        const isLoading = card && card.querySelector('.loading-label');
+        const isLoading = card && card.classList.contains('loading');
         if (isLoading) {
           stopCurrentPlayback();
           return;
