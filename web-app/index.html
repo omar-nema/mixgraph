@@ -6,7 +6,7 @@
   <title>adjacency</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300;1,400;1,500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <script src="https://w.soundcloud.com/player/api.js"></script>
   <style>
     /* ═══════════════════════════════════════════
@@ -14,18 +14,19 @@
        ═══════════════════════════════════════════ */
     :root {
       /* Background */
-      --bg: #FAFAF7;
-      --card-bg: #FFFFFF;
-      --card-border: #E8E4DF;
+      --bg: #f5f0eb;
+      --card-bg: #faf7f4;
+      --card-border: #d4c9bd;
 
       /* Text */
-      --text-primary: #2D2D2D;
-      --text-secondary: #6B6560;
+      --text-primary: #2a2520;
+      --text-secondary: #7a7068;
+      --text-tertiary: #a89e94;
 
       /* Connections */
-      --connection-stroke: #C4917B;
+      --connection-stroke: #c4b5a5;
       --connection-highlight: #B5705A;
-      --connection-width: 2.5;
+      --connection-width: 1.5;
 
       /* Card sizes */
       --card-root-width: 280px;
@@ -33,20 +34,20 @@
       --card-r2-width: 155px;
 
       /* Art sizes */
-      --art-root: 240px;
+      --art-root: 254px;
       --art-r1: 150px;
       --art-r2: 125px;
 
       /* Radius */
-      --card-radius: 14px;
-      --art-radius: 8px;
+      --card-radius: 12px;
+      --art-radius: 6px;
 
       /* Shadows */
-      --card-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.06);
-      --card-hover-shadow: 0 4px 12px rgba(0,0,0,0.08), 0 1px 3px rgba(0,0,0,0.06);
+      --card-shadow: 0 1px 4px rgba(42, 37, 32, 0.04);
+      --card-hover-shadow: 0 4px 20px rgba(42, 37, 32, 0.08);
 
       /* Font */
-      --font: 'DM Mono', monospace;
+      --font: 'Space Grotesk', sans-serif;
     }
 
     /* ═══════════════════════════════════════════
@@ -62,20 +63,38 @@
       background: var(--bg);
       font-family: var(--font);
       color: var(--text-primary);
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      min-height: 100vh;
+      margin: 0;
+      height: 100vh;
       overflow: hidden;
+      display: flex;
+      flex-direction: column;
     }
 
     /* ═══════════════════════════════════════════
-       Graph Container
+       Toolbar
        ═══════════════════════════════════════════ */
+    #toolbar {
+      position: relative;
+      height: 60px;
+      flex-shrink: 0;
+      z-index: 10;
+    }
+
+    /* ═══════════════════════════════════════════
+       Graph Viewport & Container
+       ═══════════════════════════════════════════ */
+    #graph-viewport {
+      flex: 1;
+      overflow: hidden;
+      position: relative;
+      display: flex;
+      justify-content: center;
+    }
+
     #graph-container {
       position: relative;
-      width: 1200px;
-      min-height: 900px;
+      transform-origin: center top;
+      transition: transform 0.3s ease;
     }
 
     #connections-layer {
@@ -106,19 +125,21 @@
       border: 1px solid var(--card-border);
       border-radius: var(--card-radius);
       box-shadow: var(--card-shadow);
-      padding: 14px;
+      padding: 13px;
       cursor: default;
-      transition: box-shadow 0.25s ease, transform 0.25s ease;
-      transform: translateY(0);
+      transition: box-shadow 0.25s ease;
 
-      /* fade in */
+      /* fade in — JS sets opacity:1 after animation so .playing toggle works */
       opacity: 0;
       animation: fadeInUp 0.6s ease forwards;
     }
 
+    .node-card.settled {
+      opacity: 1;
+    }
+
     .node-card:hover {
       box-shadow: var(--card-hover-shadow);
-      transform: translateY(-3px);
     }
 
     /* Rank sizing */
@@ -141,7 +162,7 @@
       border-radius: var(--art-radius);
       aspect-ratio: 1;
       object-fit: cover;
-      background: #EDE9E4;
+      background: #d9d1c7;
       margin-bottom: 10px;
     }
 
@@ -158,37 +179,44 @@
       height: var(--art-r2);
     }
 
-    /* Text */
+    /* Text — 2-line clamp with tooltip for overflow */
+    .node-card .track-title,
+    .node-card .artist-name,
+    .node-card .dj-line {
+      overflow: hidden;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+    }
+
     .node-card .track-title {
-      display: block;
-      font-weight: 500;
-      line-height: 1.35;
-      margin-bottom: 2px;
+      font-weight: 700;
+      line-height: 1.3;
+      margin-bottom: 4px;
     }
     .node-card .artist-name {
-      display: block;
       font-weight: 300;
       color: var(--text-secondary);
-      line-height: 1.35;
+      line-height: 1.3;
+      margin-bottom: 6px;
     }
 
-    .node-card[data-rank="root"] .track-title { font-size: 15px; }
-    .node-card[data-rank="root"] .artist-name { font-size: 13px; }
-    .node-card[data-rank="1"] .track-title { font-size: 13px; }
-    .node-card[data-rank="1"] .artist-name { font-size: 11px; }
-    .node-card[data-rank="2"] .track-title { font-size: 12px; }
-    .node-card[data-rank="2"] .artist-name { font-size: 11px; }
+    .node-card[data-rank="root"] .track-title { font-size: 22px; }
+    .node-card[data-rank="root"] .artist-name { font-size: 18px; }
+    .node-card[data-rank="1"] .track-title { font-size: 17px; }
+    .node-card[data-rank="1"] .artist-name { font-size: 14px; }
+    .node-card[data-rank="2"] .track-title { font-size: 16px; }
+    .node-card[data-rank="2"] .artist-name { font-size: 14px; }
 
     .node-card .dj-line {
-      display: block;
       font-weight: 300;
-      color: var(--text-secondary);
-      line-height: 1.35;
+      color: var(--text-tertiary);
+      line-height: 1.3;
       margin-top: 2px;
     }
-    .node-card[data-rank="root"] .dj-line { font-size: 12px; }
-    .node-card[data-rank="1"] .dj-line { font-size: 10px; }
-    .node-card[data-rank="2"] .dj-line { font-size: 9px; }
+    .node-card[data-rank="root"] .dj-line { font-size: 18px; }
+    .node-card[data-rank="1"] .dj-line { font-size: 14px; }
+    .node-card[data-rank="2"] .dj-line { font-size: 13px; }
 
     a.track-title {
       color: inherit;
@@ -202,7 +230,7 @@
     }
 
     .dj-line a {
-      color: var(--text-secondary);
+      color: var(--text-tertiary);
       text-decoration: underline;
       text-underline-offset: 2px;
       text-decoration-color: var(--card-border);
@@ -221,7 +249,7 @@
       stroke: var(--connection-stroke);
       stroke-width: var(--connection-width);
       stroke-linecap: round;
-      opacity: 0.45;
+      opacity: 0.6;
       transition: opacity 0.25s ease, stroke 0.25s ease;
 
       /* draw-in animation */
@@ -313,11 +341,13 @@
 
     @keyframes art-breathe {
       0%, 100% { transform: scale(1); }
-      50%      { transform: scale(1.012); }
+      50%      { transform: scale(1.013); }
     }
 
     .album-art.no-art {
-      background: #DDD8D2;
+      position: relative;
+      background: #d9d1c7; /* fallback */
+      filter: url(#gradient-distort) saturate(50%) hue-rotate(46deg);
     }
 
     /* Source badge (SoundCloud logo) */
@@ -353,6 +383,18 @@
       color: #fff;
       white-space: nowrap;
       text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+    }
+
+    /* No-artwork badge */
+    .album-art.no-art::after {
+      content: 'no artwork';
+      position: absolute;
+      bottom: 4px;
+      right: 5px;
+      font-family: var(--font);
+      font-size: 9px;
+      color: rgba(255,255,255,0.5);
+      white-space: nowrap;
     }
 
     /* ═══════════════════════════════════════════
@@ -397,7 +439,7 @@
        ═══════════════════════════════════════════ */
     #shuffle-btn {
       position: absolute;
-      top: 24px;
+      top: 16px;
       left: 50%;
       transform: translateX(-50%);
       z-index: 10;
@@ -440,7 +482,7 @@
 
     .filter-select {
       position: absolute;
-      top: 24px;
+      top: 16px;
       z-index: 10;
       font-family: var(--font);
       font-size: 11px;
@@ -467,7 +509,7 @@
        ═══════════════════════════════════════════ */
     #debug-bar {
       position: absolute;
-      top: 24px;
+      top: 16px;
       left: 24px;
       z-index: 10;
       display: flex;
@@ -599,10 +641,96 @@
         stroke-dashoffset: 0;
       }
     }
+
+    /* Tuning panel (gradient art knobs) */
+    #tuning-toggle {
+      position: fixed;
+      bottom: 12px;
+      right: 12px;
+      width: 36px; height: 36px;
+      border-radius: 50%;
+      border: 1px solid var(--card-border);
+      background: var(--card-bg);
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      z-index: 1000;
+      padding: 0;
+      transition: transform 0.2s ease;
+    }
+    #tuning-toggle:hover { transform: scale(1.1); }
+
+    #tuning-panel {
+      position: fixed;
+      bottom: 56px;
+      right: 12px;
+      width: 240px;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: var(--card-radius);
+      padding: 14px;
+      z-index: 1000;
+      display: none;
+      font-family: var(--font);
+      font-size: 11px;
+      color: var(--text-primary);
+    }
+    #tuning-panel.open { display: block; }
+    #tuning-panel h4 {
+      margin: 0 0 10px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-secondary);
+    }
+    .tune-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+    .tune-row label {
+      flex: 1;
+      color: var(--text-secondary);
+    }
+    .tune-row input[type="range"] {
+      width: 90px;
+      accent-color: var(--text-primary);
+    }
+    .tune-row .tune-val {
+      width: 36px;
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+      color: var(--text-primary);
+    }
+
+    /* Dev mode — hides debug controls when off */
+    body:not(.dev-mode) #debug-bar,
+    body:not(.dev-mode) .filter-select,
+    body:not(.dev-mode) #tuning-toggle,
+    body:not(.dev-mode) #tuning-panel {
+      display: none !important;
+    }
+
   </style>
 </head>
-<body>
-  <div id="graph-container">
+<body class="dev-mode">
+  <!-- SVG filters for gradient artwork -->
+  <svg width="0" height="0" style="position:absolute">
+    <filter id="gradient-distort" color-interpolation-filters="sRGB">
+      <!-- Warp distortion -->
+      <feTurbulence id="ft-turb" type="fractalNoise" baseFrequency="0.019" numOctaves="3" seed="1" result="noise"/>
+      <feDisplacementMap id="ft-displace" in="SourceGraphic" in2="noise" scale="16" xChannelSelector="R" yChannelSelector="G" result="warped"/>
+      <!-- Soft blur -->
+      <feGaussianBlur id="ft-blur" in="warped" stdDeviation="0.5" result="blurred"/>
+      <!-- Grain overlay -->
+      <feTurbulence id="ft-grain" type="turbulence" baseFrequency="0.65" numOctaves="4" seed="42" result="grain"/>
+      <feColorMatrix in="grain" type="saturate" values="0" result="grainBW"/>
+      <feBlend in="blurred" in2="grainBW" mode="overlay" result="grained"/>
+      <feComposite id="ft-grain-mix" in="blurred" in2="grained" operator="arithmetic" k1="0" k2="1" k3="0" k4="0"/>
+    </filter>
+  </svg>
+  <div id="toolbar">
     <div id="debug-bar">
       <button id="freeze-btn">freeze</button>
       <span class="debug-id" id="cluster-id" title="Click to copy">—</span>
@@ -612,14 +740,18 @@
       <svg viewBox="0 0 24 24"><path d="M16 3h5v5"/><path d="M4 20L21 3"/><path d="M21 16v5h-5"/><path d="M15 15l6 6"/><path d="M4 4l5 5"/></svg>
       shuffle
     </button>
-<select id="source-filter" class="filter-select">
+    <select id="source-filter" class="filter-select">
       <option value="none">no filter</option>
       <option value="soundcloud">has soundcloud</option>
       <option value="soundcloud_set">has soundcloud — full set</option>
       <option value="lotradio">has lot radio set</option>
     </select>
-    <svg id="connections-layer" xmlns="http://www.w3.org/2000/svg"></svg>
-    <div id="nodes-layer"></div>
+  </div>
+  <div id="graph-viewport">
+    <div id="graph-container">
+      <svg id="connections-layer" xmlns="http://www.w3.org/2000/svg"></svg>
+      <div id="nodes-layer"></div>
+    </div>
   </div>
 
   <iframe id="sc-widget" src="about:blank" style="position:absolute;width:0;height:0;border:0;overflow:hidden;" allow="autoplay"></iframe>
@@ -645,11 +777,13 @@
     let edges = [];
     let nodeMap = {};
 
-    const cardDims = {
-      'root': { w: 280, h: 310 },
-      '1':    { w: 180, h: 210 },
-      '2':    { w: 155, h: 185 },
-    };
+    const cardWidths = { 'root': 280, '1': 180, '2': 155 };
+    // Measured heights per node id, populated after first render pass
+    let measuredHeights = {};
+    function cardDimFor(node) {
+      return { w: cardWidths[node.rank], h: measuredHeights[node.id] || fallbackH(node.rank) };
+    }
+    function fallbackH(rank) { return rank === 'root' ? 310 : rank === '1' ? 260 : 240; }
 
     // ═══════════════════════════════════════════
     // SVG icons
@@ -695,6 +829,51 @@
       card.style.removeProperty('--glow-a');
       card.style.removeProperty('--glow-b');
       card.style.removeProperty('--glow-dark');
+    }
+
+    // ═══════════════════════════════════════════
+    // Gradient artwork for tracks without covers
+    // ═══════════════════════════════════════════
+    const gradientPalettes = [
+      ['#EB4679','#051681','#EE7F7D','#265BC9','#C25EA5','#7961D3'], // photogradient original
+      ['#FF6B6B','#4ECDC4','#2C3E50','#F39C12','#8E44AD'],          // sunset reef
+      ['#E44D90','#2B86C5','#784BA0','#F5AF19','#C850C0'],          // neon dusk
+      ['#0F2027','#2C5364','#203A43','#E8775F','#F2A65A'],          // deep ocean ember
+      ['#DA4453','#89216B','#2980B9','#6DD5FA','#FF512F'],          // berry voltage
+      ['#A770EF','#CF8BF3','#FDB99B','#5B86E5','#36D1DC'],         // lavender dream
+      ['#654EA3','#EAAFC8','#F093FB','#F5576C','#4FACFE'],         // soft plasma
+      ['#1A2980','#26D0CE','#4776E6','#8E54E9','#00C9FF'],         // arctic aurora
+      ['#EC6F66','#F3A183','#2C3E50','#3498DB','#9B59B6'],         // warm twilight
+      ['#C33764','#1D2671','#FDC830','#F37335','#6441A5'],         // golden violet
+      ['#E65C00','#F9D423','#2B5876','#4E4376','#C94B4B'],         // amber cosmos
+      ['#B24592','#F15F79','#00B4DB','#0083B0','#8360C3'],         // fuchsia tide
+    ];
+
+    function simpleHash(str) {
+      let h = 0;
+      for (let i = 0; i < str.length; i++) h = ((h << 5) - h + str.charCodeAt(i)) | 0;
+      return Math.abs(h);
+    }
+
+    function generateGradient(title, artist) {
+      const h = simpleHash((title || '') + (artist || ''));
+      const palette = gradientPalettes[h % gradientPalettes.length];
+      // Layered radial gradients at pseudo-random positions to mimic mesh gradient
+      const positions = [
+        [h % 40 + 10, h % 30 + 10],
+        [70 + (h >> 4) % 20, h % 25 + 5],
+        [(h >> 8) % 30 + 10, 70 + (h >> 2) % 20],
+        [60 + (h >> 6) % 30, 60 + (h >> 3) % 30],
+        [40 + (h >> 5) % 20, 40 + (h >> 7) % 20],
+      ];
+      const layers = palette.map((c, i) => {
+        const [x, y] = positions[i % positions.length];
+        const size = 50 + ((h >> (i * 3)) % 40);
+        return `radial-gradient(circle at ${x}% ${y}%, ${c} 0%, transparent ${size}%)`;
+      });
+      // Base color from the palette's darkest-looking color
+      const base = palette[1];
+      return `${layers.join(', ')}, ${base}`;
     }
 
     // ═══════════════════════════════════════════
@@ -832,7 +1011,6 @@
         scWidgetReady = true;
         if (card) { hideLoading(card); card.classList.add('playing'); applyGlow(card); }
         if (offsetSec) {
-          // Delay seek — widget reports READY before audio is seekable
           setTimeout(() => scWidget.seekTo(offsetSec * 1000), 800);
         }
       });
@@ -1132,7 +1310,7 @@
     const EDGE_PAD = 10;
 
     function getNodeCenter(node) {
-      const dims = cardDims[node.rank];
+      const dims = cardDimFor(node);
       return {
         x: node.x + dims.w / 2,
         y: node.y + dims.h / 2,
@@ -1169,32 +1347,35 @@
     function computePath(fromNode, toNode, edgeIndex) {
       const cA = getNodeCenter(fromNode);
       const cB = getNodeCenter(toNode);
-      const dA = cardDims[fromNode.rank];
-      const dB = cardDims[toNode.rank];
+      const dA = cardDimFor(fromNode);
+      const dB = cardDimFor(toNode);
 
-      const a = getEdgePoint(cA, cB, dA.w / 2, dA.h / 2, EDGE_PAD);
-      const b = getEdgePoint(cB, cA, dB.w / 2, dB.h / 2, EDGE_PAD);
+      // Determine exit side: leave horizontally toward the other node
+      const goRight = cB.x >= cA.x;
+      const a = {
+        x: goRight ? fromNode.x + dA.w + EDGE_PAD : fromNode.x - EDGE_PAD,
+        y: cA.y,
+      };
+      const b = {
+        x: goRight ? toNode.x - EDGE_PAD : toNode.x + dB.w + EDGE_PAD,
+        y: cB.y,
+      };
 
       const dx = b.x - a.x;
       const dy = b.y - a.y;
-      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dx === 0 && dy === 0) return `M${a.x},${a.y} L${b.x},${b.y}`;
 
-      if (dist === 0) return `M${a.x},${a.y} L${b.x},${b.y}`;
+      // Horizontal stub length: ~40% of horizontal distance, clamped
+      const stubLen = Math.min(Math.max(Math.abs(dx) * 0.4, 20), 80);
+      const dirA = goRight ? 1 : -1;
+      const dirB = -dirA;
 
-      const perpX = -dy / dist;
-      const perpY = dx / dist;
+      const cp1x = a.x + dirA * stubLen;
+      const cp1y = a.y;
+      const cp2x = b.x + dirB * stubLen;
+      const cp2y = b.y;
 
-      const seed = hashStr(fromNode.id + toNode.id);
-      const sagBase = dist * 0.25;
-      const sagJitter = (seededRand(seed) - 0.5) * 25;
-      const sagAmount = sagBase + sagJitter;
-
-      const slideJitter = (seededRand(seed + 1) - 0.5) * 15;
-
-      const cpX = a.x + dx / 2 + perpX * sagAmount + (dx / dist) * slideJitter;
-      const cpY = a.y + dy / 2 + perpY * sagAmount + (dy / dist) * slideJitter;
-
-      return `M${a.x},${a.y} Q${cpX},${cpY} ${b.x},${b.y}`;
+      return `M${a.x},${a.y} C${cp1x},${cp1y} ${cp2x},${cp2y} ${b.x},${b.y}`;
     }
 
     // ═══════════════════════════════════════════
@@ -1216,7 +1397,7 @@
         const artClass = hasArt ? 'album-art' : 'album-art no-art';
         const imgTag = hasArt
           ? `<img class="${artClass}" src="${node.artUrl}" alt="${node.title} by ${node.artist}" loading="lazy">`
-          : `<div class="${artClass}"></div>`;
+          : `<div class="${artClass}" style="background: ${generateGradient(node.title, node.artist)}; ${window._gradientFilter ? 'filter:' + window._gradientFilter : ''}"></div>`;
 
         const playBtn = hasAudio
           ? `<button class="play-btn" aria-label="Play">${PLAY_SVG}</button>`
@@ -1224,7 +1405,15 @@
 
         const sourceBadge = `<span class="source-badge">${SC_BADGE_SVG}</span>`;
 
-        const rankLabel = node.rank === 'root' ? 'root' : `rank ${node.rank}`;
+        const rootTitle = nodes.find(n => n.rank === 'root')?.title || '';
+        let rankLabel;
+        if (node.rank === 'root') {
+          rankLabel = '';
+        } else if (node.rank === '1') {
+          rankLabel = `Played next to ${rootTitle}`;
+        } else {
+          rankLabel = `2 tracks from ${rootTitle}`;
+        }
 
         // DJ line: "Mixed by DJ1, DJ2" with links (cap at 2 for small cards)
         const maxDjs = node.rank === 'root' ? 3 : 2;
@@ -1250,7 +1439,7 @@
           : `<span class="track-title">${node.title}</span>`;
 
         card.innerHTML = `
-          <span class="rank-tooltip">${rankLabel}</span>
+          ${rankLabel ? `<span class="rank-tooltip">${rankLabel}</span>` : ''}
           <div class="art-wrap">
             ${imgTag}
             ${playBtn}
@@ -1261,6 +1450,11 @@
           ${djLine}
         `;
 
+        // Tooltips for overflow text
+        card.querySelectorAll('.track-title, .artist-name, .dj-line').forEach(el => {
+          el.setAttribute('title', el.textContent);
+        });
+
         // Wire up play button
         if (hasAudio) {
           const btn = card.querySelector('.play-btn');
@@ -1270,6 +1464,7 @@
           });
         }
 
+        card.addEventListener('animationend', () => card.classList.add('settled'), { once: true });
         layer.appendChild(card);
       });
     }
@@ -1339,32 +1534,70 @@
         return leaves;
       }
 
-      const rootD = cardDims['root'];
-      const r1D = cardDims['1'];
-      const r2D = cardDims['2'];
-      const hGap = 60;
-      const r1Spread = r1D.h + 40;
-      const r2Spread = r2D.h + 60;
+      function dimOf(n) { return cardDimFor(n); }
 
-      // Split r1 into left/right
+      const rootD = dimOf(root);
+      const pad = 12;
+
+      // Split r1 into left/right, grouping by episode so tracks from
+      // the same DJ set stay on the same side
       const leftR1 = [], rightR1 = [];
-      r1Nodes.forEach((n, i) => (i % 2 === 0 ? leftR1 : rightR1).push(n));
+      const edgeMap = new Map(); // r1 localId -> edge context
+      for (const e of edges) {
+        if (e.from === 'root') edgeMap.set(e.to, e.context || {});
+      }
+      // Group R1 nodes by episode URL
+      const episodeGroups = new Map(); // episodeUrl -> [node, ...]
+      const noEpisode = [];
+      for (const n of r1Nodes) {
+        const ctx = edgeMap.get(n.id);
+        const ep = ctx && ctx.episodeUrl;
+        if (ep) {
+          if (!episodeGroups.has(ep)) episodeGroups.set(ep, []);
+          episodeGroups.get(ep).push(n);
+        } else {
+          noEpisode.push(n);
+        }
+      }
+      // Flatten all R1 nodes into a single pool, then alternate sides
+      const allR1 = [];
+      for (const [, group] of episodeGroups) allR1.push(...group);
+      allR1.push(...noEpisode);
+      for (const n of allR1) {
+        (leftR1.length <= rightR1.length ? leftR1 : rightR1).push(n);
+      }
 
-      // Compute needed height: max vertical extent of either side
+      // Slot height = max(r1 card height, total r2 children stacked)
+      function slotHeight(r1) {
+        const r1H = dimOf(r1).h;
+        const leaves = collectLeaves(r1.id);
+        if (leaves.length === 0) return r1H;
+        const r2BlockH = leaves.reduce((sum, l) => sum + dimOf(l).h + pad, 0) - pad;
+        return Math.max(r1H, r2BlockH);
+      }
+
       function sideHeight(r1List) {
         let total = 0;
-        for (const r1 of r1List) {
-          const leafCount = collectLeaves(r1.id).length;
-          const r1SlotH = Math.max(r1Spread, leafCount * r2Spread);
-          total += r1SlotH;
-        }
-        return total;
+        for (const r1 of r1List) total += slotHeight(r1) + pad;
+        return total > 0 ? total - pad : 0;
       }
-      const neededH = Math.max(sideHeight(leftR1), sideHeight(rightR1), rootD.h + 100);
-      const H = Math.max(900, neededH + 80);
-      const W = 1200;
 
-      // Resize container
+      // Use viewport dimensions to compute layout width
+      const vpW = window.innerWidth;
+      const vpH = document.getElementById('graph-viewport').clientHeight || (window.innerHeight - 60);
+
+      // Compute horizontal gaps to fill available width
+      // Layout columns: R2-left | gap | R1-left | gap | ROOT | gap | R1-right | gap | R2-right
+      const r1W = cardWidths['1'];
+      const r2W = cardWidths['2'];
+      const fixedW = r2W + r1W + rootD.w + r1W + r2W; // total card widths
+      const availGap = vpW - fixedW - 40; // 40px edge margins
+      const hGap = Math.max(30, availGap / 4); // distribute across 4 gaps
+
+      const neededH = Math.max(sideHeight(leftR1), sideHeight(rightR1), rootD.h + 100);
+      const H = Math.max(vpH, neededH + 80);
+      const W = Math.max(vpW, fixedW + hGap * 4 + 40);
+
       const container = document.getElementById('graph-container');
       container.style.height = H + 'px';
 
@@ -1372,49 +1605,76 @@
       root.x = (W - rootD.w) / 2;
       root.y = (H - rootD.h) / 2;
 
-      // Place an R1 column
+      // Place an R1 column — sequential top-to-bottom
       function placeR1Column(r1List, x) {
-        // Compute total height needed
-        const slots = r1List.map(r1 => {
-          const leafCount = collectLeaves(r1.id).length;
-          return Math.max(r1Spread, leafCount * r2Spread);
-        });
-        const totalH = slots.reduce((s, h) => s + h, 0);
+        const slots = r1List.map(r1 => slotHeight(r1));
+        const totalH = slots.reduce((s, h) => s + h, 0) + (slots.length - 1) * pad;
         let y = (H - totalH) / 2;
 
         r1List.forEach((r1, i) => {
-          const slotH = slots[i];
+          const sH = slots[i];
+          const r1H = dimOf(r1).h;
           r1.x = x;
-          r1.y = y + (slotH - r1D.h) / 2;
+          r1.y = y + (sH - r1H) / 2;
 
           const leaves = collectLeaves(r1.id);
-          const r1CY = r1.y + r1D.h / 2;
           const isLeft = leftR1.includes(r1);
+          const leafW = leaves.length > 0 ? dimOf(leaves[0]).w : r2W;
           const r2X = isLeft
-            ? Math.max(5, x - hGap - r2D.w)
-            : Math.min(W - r2D.w - 5, x + r1D.w + hGap);
+            ? Math.max(5, x - hGap - leafW)
+            : Math.min(W - leafW - 5, x + dimOf(r1).w + hGap);
 
-          leaves.forEach((n, j) => {
+          // Stack R2 children sequentially within their slot
+          const r2BlockH = leaves.length > 0
+            ? leaves.reduce((sum, l) => sum + dimOf(l).h + pad, 0) - pad : 0;
+          const r2StartY = y + (sH - r2BlockH) / 2;
+          let r2Y = r2StartY;
+          leaves.forEach(n => {
             n.x = r2X;
-            const yOff = (j - (leaves.length - 1) / 2) * r2Spread;
-            n.y = r1CY - r2D.h / 2 + yOff;
+            n.y = r2Y;
+            r2Y += dimOf(n).h + pad;
           });
 
-          y += slotH;
+          y += sH + pad;
         });
       }
 
-      const leftR1X = root.x - hGap - r1D.w;
+      const leftR1X = root.x - hGap - r1W;
       const rightR1X = root.x + rootD.w + hGap;
       placeR1Column(leftR1, leftR1X);
       placeR1Column(rightR1, rightR1X);
 
-      // Clamp within container
+      // Column sweep: sort each column by y, push down any overlaps
+      function sweepColumn(colNodes) {
+        if (colNodes.length < 2) return;
+        colNodes.sort((a, b) => a.y - b.y);
+        for (let i = 1; i < colNodes.length; i++) {
+          const prev = colNodes[i - 1], curr = colNodes[i];
+          const minY = prev.y + dimOf(prev).h + pad;
+          if (curr.y < minY) curr.y = minY;
+        }
+      }
+
+      // Group non-root nodes by x-column and sweep each
+      const columns = {};
       nodes.forEach(n => {
-        const d = cardDims[n.rank];
-        n.x = Math.max(5, Math.min(W - d.w - 5, n.x));
-        n.y = Math.max(5, Math.min(H - d.h - 5, n.y));
+        if (n.rank === 'root') return;
+        const key = Math.round(n.x);
+        if (!columns[key]) columns[key] = [];
+        columns[key].push(n);
       });
+      Object.values(columns).forEach(col => sweepColumn(col));
+
+      // Grow container if nodes extend beyond bounds
+      let maxBottom = H;
+      let maxRight = W;
+      nodes.forEach(n => {
+        const d = dimOf(n);
+        maxBottom = Math.max(maxBottom, n.y + d.h + 20);
+        maxRight = Math.max(maxRight, n.x + d.w + 20);
+      });
+      container.style.height = maxBottom + 'px';
+      container.style.width = maxRight + 'px';
     }
 
     // ═══════════════════════════════════════════
@@ -1426,6 +1686,11 @@
       // Remove cards and connections
       document.getElementById('nodes-layer').innerHTML = '';
       document.getElementById('connections-layer').innerHTML = '';
+
+      // Reset transform
+      const container = document.getElementById('graph-container');
+      container.style.transform = '';
+      container.style.marginTop = '';
     }
 
     function logCluster(cluster) {
@@ -1472,10 +1737,50 @@
       currentRootId = cluster.nodes[0].graphId;
       document.getElementById('cluster-id').textContent = currentRootId;
       logCluster(cluster);
-      computeLayout();
+
+      // Two-pass layout: render cards offscreen, measure, then position
+      // Pass 1: place cards at 0,0 so DOM can measure heights
+      nodes.forEach(n => { n.x = -9999; n.y = -9999; });
       renderCards();
+
+      // Measure actual card heights from DOM
+      measuredHeights = {};
+      nodes.forEach(n => {
+        const el = document.querySelector(`.node-card[data-node-id="${n.id}"]`);
+        if (el) measuredHeights[n.id] = el.offsetHeight;
+      });
+
+      // Pass 2: compute layout with real heights, reposition
+      computeLayout();
+      nodes.forEach(n => {
+        const el = document.querySelector(`.node-card[data-node-id="${n.id}"]`);
+        if (el) {
+          el.style.left = n.x + 'px';
+          el.style.top = n.y + 'px';
+        }
+      });
+
       renderConnections();
       setupHovers();
+
+      // Zoom-to-fit: scale graph container to fit within viewport
+      const container = document.getElementById('graph-container');
+      const viewport = document.getElementById('graph-viewport');
+      const contentW = parseFloat(container.style.width) || 1200;
+      const contentH = parseFloat(container.style.height) || 900;
+      const vpW = viewport.clientWidth;
+      const vpH = viewport.clientHeight;
+      const inset = vpW > 800 ? 100 : 0; // 50px padding each side
+      const scaleX = (vpW - inset) / contentW;
+      const scaleY = vpH / contentH;
+      const scale = Math.min(1, scaleX, scaleY);
+      container.style.transform = `scale(${scale})`;
+      container.style.width = contentW + 'px';
+
+      // Center vertically within viewport
+      const scaledH = contentH * scale;
+      const topOffset = Math.max(0, (vpH - scaledH) / 2);
+      container.style.marginTop = topOffset + 'px';
     }
 
     function matchesFilter(nodeId, filter) {
@@ -1589,7 +1894,79 @@
       document.querySelector('#mc-player .mc-close').addEventListener('click', () => {
         stopCurrentPlayback();
       });
+
+      // ── Dev mode toggle (Ctrl+Shift+D) ──
+      document.addEventListener('keydown', (e) => {
+        if (e.ctrlKey && e.shiftKey && e.key === 'D') {
+          e.preventDefault();
+          document.body.classList.toggle('dev-mode');
+        }
+      });
+
+      // ── Tuning panel ──
+      document.getElementById('tuning-toggle').addEventListener('click', () => {
+        document.getElementById('tuning-panel').classList.toggle('open');
+      });
+
+      // ── Gradient art knobs ──
+      const ftTurb = document.getElementById('ft-turb');
+      const ftDisplace = document.getElementById('ft-displace');
+      const ftBlur = document.getElementById('ft-blur');
+      const ftGrainMix = document.getElementById('ft-grain-mix');
+
+      function updateGradientFilter() {
+        const warp = document.getElementById('tune-warp').value;
+        const freq = document.getElementById('tune-freq').value / 1000;
+        const blur = document.getElementById('tune-blur').value;
+        const grain = document.getElementById('tune-grain').value / 100;
+        const sat = document.getElementById('tune-saturate').value;
+        const hue = document.getElementById('tune-hue').value;
+
+        ftTurb.setAttribute('baseFrequency', freq);
+        ftDisplace.setAttribute('scale', warp);
+        ftBlur.setAttribute('stdDeviation', blur);
+        // Grain mix: k2 = (1-grain) for original, k3 = grain for grained
+        ftGrainMix.setAttribute('k2', 1 - grain);
+        ftGrainMix.setAttribute('k3', grain);
+
+        // CSS filters (saturation + hue) applied via style override
+        const cssFilter = `url(#gradient-distort) saturate(${sat}%) hue-rotate(${hue}deg)`;
+        document.querySelectorAll('.album-art.no-art').forEach(el => {
+          el.style.filter = cssFilter;
+        });
+        // Store for newly created cards
+        window._gradientFilter = cssFilter;
+      }
+
+      ['tune-warp','tune-freq','tune-blur','tune-grain','tune-saturate','tune-hue'].forEach(id => {
+        const input = document.getElementById(id);
+        const valSpan = input.parentElement.querySelector('.tune-val');
+        input.addEventListener('input', () => {
+          // Update display label
+          if (id === 'tune-freq') valSpan.textContent = (input.value / 1000).toFixed(3);
+          else if (id === 'tune-grain') valSpan.textContent = input.value + '%';
+          else if (id === 'tune-saturate') valSpan.textContent = input.value + '%';
+          else if (id === 'tune-hue') valSpan.textContent = input.value + '\u00B0';
+          else if (id === 'tune-blur') valSpan.textContent = input.value;
+          else valSpan.textContent = input.value;
+          updateGradientFilter();
+        });
+      });
+
     });
   </script>
+
+  <button id="tuning-toggle" title="Tune visuals">
+    <svg viewBox="0 0 32 32" width="20" height="20"><defs><linearGradient id="gear-grad" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#C25EA5"/><stop offset="50%" stop-color="#265BC9"/><stop offset="100%" stop-color="#4ECDC4"/></linearGradient></defs><circle cx="16" cy="16" r="10" fill="url(#gear-grad)" opacity="0.85"/><path d="M16 4l1.5 3.2a9 9 0 012.8 1.2L23.5 7l1.5 1.5-1.4 3.2a9 9 0 011.2 2.8L28 16l-3.2 1.5a9 9 0 01-1.2 2.8L25 23.5l-1.5 1.5-3.2-1.4a9 9 0 01-2.8 1.2L16 28l-1.5-3.2a9 9 0 01-2.8-1.2L8.5 25 7 23.5l1.4-3.2a9 9 0 01-1.2-2.8L4 16l3.2-1.5a9 9 0 011.2-2.8L7 8.5 8.5 7l3.2 1.4a9 9 0 012.8-1.2L16 4z" fill="none" stroke="url(#gear-grad)" stroke-width="1.5" opacity="0.9"/></svg>
+  </button>
+  <div id="tuning-panel">
+    <h4>gradient art</h4>
+    <div class="tune-row"><label>warp</label><input type="range" id="tune-warp" min="0" max="80" value="16"><span class="tune-val">16</span></div>
+    <div class="tune-row"><label>frequency</label><input type="range" id="tune-freq" min="1" max="50" value="19" step="1"><span class="tune-val">0.019</span></div>
+    <div class="tune-row"><label>blur</label><input type="range" id="tune-blur" min="0" max="12" value="0.5" step="0.5"><span class="tune-val">0.5</span></div>
+    <div class="tune-row"><label>grain</label><input type="range" id="tune-grain" min="0" max="100" value="0"><span class="tune-val">0%</span></div>
+    <div class="tune-row"><label>saturate</label><input type="range" id="tune-saturate" min="0" max="300" value="50"><span class="tune-val">50%</span></div>
+    <div class="tune-row"><label>hue shift</label><input type="range" id="tune-hue" min="0" max="360" value="46"><span class="tune-val">46°</span></div>
+  </div>
 </body>
 </html>
