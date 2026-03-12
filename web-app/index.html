@@ -2155,6 +2155,10 @@
       nodes.forEach(n => nodeMap[n.id] = n);
       currentRootId = cluster.nodes[0].graphId;
       document.getElementById('cluster-id').textContent = currentRootId;
+      const newHash = '#' + encodeURIComponent(currentRootId);
+      if (window.location.hash !== newHash) {
+        history.pushState(null, '', newHash);
+      }
       logCluster(cluster);
 
       // Two-pass layout: render cards offscreen, measure, then position
@@ -2282,8 +2286,23 @@
         return;
       }
 
-      // Generate and show first cluster
-      shuffle();
+      // Load cluster from URL hash, or shuffle for a random one
+      const hashId = decodeURIComponent(window.location.hash.slice(1));
+      if (hashId && graphNodes[hashId]) {
+        loadClusterById(hashId);
+      } else {
+        shuffle();
+      }
+
+      // Navigate to cluster on back/forward
+      window.addEventListener('popstate', () => {
+        const id = decodeURIComponent(window.location.hash.slice(1));
+        if (id && graphNodes[id] && id !== currentRootId) {
+          loadClusterById(id);
+        } else if (!id) {
+          shuffle();
+        }
+      });
 
       // Wire shuffle button
       document.getElementById('shuffle-btn').addEventListener('click', shuffle);
