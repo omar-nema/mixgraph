@@ -75,7 +75,7 @@
        ═══════════════════════════════════════════ */
     #toolbar {
       position: relative;
-      height: 80px;
+      height: 88px;
       flex-shrink: 0;
       z-index: 10;
     }
@@ -560,25 +560,41 @@
       left: 50%;
       transform: translateX(-50%);
       z-index: 10;
-      background: none;
-      border: none;
+      font-family: var(--font);
+      font-size: 12px;
+      font-weight: 400;
+      color: var(--text-secondary);
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 20px;
+      padding: 5px 14px;
       cursor: pointer;
-      padding: 4px;
-      color: var(--text-tertiary);
-      transition: color 0.2s ease, transform 0.15s ease;
+      box-shadow: var(--card-shadow);
+      transition: box-shadow 0.2s ease, color 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      letter-spacing: 0.02em;
     }
-    #share-btn:hover { color: var(--text-primary); }
-    #share-btn:active { transform: translateX(-50%) scale(0.9); }
+    #share-btn:hover {
+      box-shadow: var(--card-hover-shadow);
+      color: var(--text-primary);
+      transform: translateX(-50%) translateY(-1px);
+    }
+    #share-btn:active { transform: translateX(-50%) translateY(0); }
     #share-btn svg {
-      width: 15px;
-      height: 15px;
+      width: 13px;
+      height: 13px;
       fill: none;
       stroke: currentColor;
       stroke-width: 2;
       stroke-linecap: round;
       stroke-linejoin: round;
     }
-    #share-btn.copied { color: var(--connection-highlight); }
+    #share-btn.copied {
+      color: var(--connection-highlight);
+      border-color: var(--connection-highlight);
+    }
     #share-btn.copied svg .check { display: block; }
     #share-btn.copied svg .link { display: none; }
     #share-btn:not(.copied) svg .check { display: none; }
@@ -989,6 +1005,7 @@
         <g class="link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></g>
         <g class="check"><polyline points="20 6 9 17 4 12"/></g>
       </svg>
+      <span class="share-label">share</span>
     </button>
     <select id="source-filter" class="filter-select">
       <option value="none">no filter</option>
@@ -2294,8 +2311,10 @@
       document.getElementById('share-btn').addEventListener('click', () => {
         navigator.clipboard.writeText(window.location.href);
         const btn = document.getElementById('share-btn');
+        const label = btn.querySelector('.share-label');
         btn.classList.add('copied');
-        setTimeout(() => btn.classList.remove('copied'), 1500);
+        label.textContent = 'copied';
+        setTimeout(() => { btn.classList.remove('copied'); label.textContent = 'share'; }, 1500);
       });
 
       // Debug bar
