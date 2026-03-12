@@ -2401,6 +2401,7 @@
       }
       // Pre-sorted by track count for autocomplete
       const artistList = Object.values(artistIndex).sort((a, b) => b.trackIds.length - a.trackIds.length);
+      const artistListAlpha = [...artistList].sort((a, b) => a.display.localeCompare(b.display));
       console.log(`Artist index: ${artistList.length} unique artists`);
 
       const searchInput = document.getElementById('artist-search');
@@ -2435,11 +2436,11 @@
 
         let results;
         if (!q) {
-          results = artistList.slice(0, 50);
+          results = artistListAlpha.slice(0, 50);
         } else {
           const starts = [];
           const contains = [];
-          for (const entry of artistList) {
+          for (const entry of artistListAlpha) {
             const name = entry.display.toLowerCase();
             if (name.startsWith(q)) starts.push(entry);
             else if (name.includes(q)) contains.push(entry);
