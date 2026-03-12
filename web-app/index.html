@@ -75,7 +75,7 @@
        ═══════════════════════════════════════════ */
     #toolbar {
       position: relative;
-      height: 88px;
+      height: 60px;
       flex-shrink: 0;
       z-index: 10;
     }
@@ -520,14 +520,14 @@
       font-family: var(--font);
       font-size: 12px;
       font-weight: 400;
-      color: var(--text-secondary);
+      color: var(--text-primary);
       background: var(--card-bg);
       border: 1px solid var(--card-border);
       border-radius: 20px;
       padding: 7px 18px;
       cursor: pointer;
       box-shadow: var(--card-shadow);
-      transition: box-shadow 0.2s ease, color 0.2s ease, transform 0.2s ease;
+      transition: box-shadow 0.2s ease, transform 0.2s ease;
       display: flex;
       align-items: center;
       gap: 6px;
@@ -536,7 +536,6 @@
 
     #shuffle-btn:hover {
       box-shadow: var(--card-hover-shadow);
-      color: var(--text-primary);
       transform: translateX(-50%) translateY(-1px);
     }
 
@@ -556,21 +555,20 @@
 
     #share-btn {
       position: absolute;
-      top: 48px;
-      left: 50%;
-      transform: translateX(-50%);
+      top: 16px;
+      right: 24px;
       z-index: 10;
       font-family: var(--font);
       font-size: 12px;
       font-weight: 400;
-      color: var(--text-secondary);
+      color: var(--text-primary);
       background: var(--card-bg);
       border: 1px solid var(--card-border);
       border-radius: 20px;
-      padding: 5px 14px;
+      padding: 7px 14px;
       cursor: pointer;
       box-shadow: var(--card-shadow);
-      transition: box-shadow 0.2s ease, color 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
+      transition: box-shadow 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
       display: flex;
       align-items: center;
       gap: 5px;
@@ -578,10 +576,9 @@
     }
     #share-btn:hover {
       box-shadow: var(--card-hover-shadow);
-      color: var(--text-primary);
-      transform: translateX(-50%) translateY(-1px);
+      transform: translateY(-1px);
     }
-    #share-btn:active { transform: translateX(-50%) translateY(0); }
+    #share-btn:active { transform: translateY(0); }
     #share-btn svg {
       width: 13px;
       height: 13px;
@@ -599,101 +596,7 @@
     #share-btn.copied svg .link { display: none; }
     #share-btn:not(.copied) svg .check { display: none; }
 
-    .filter-select {
-      position: absolute;
-      top: 16px;
-      z-index: 10;
-      font-family: var(--font);
-      font-size: 11px;
-      font-weight: 400;
-      color: var(--text-secondary);
-      background: var(--card-bg);
-      border: 1px solid var(--card-border);
-      border-radius: 20px;
-      padding: 7px 14px;
-      cursor: pointer;
-      box-shadow: var(--card-shadow);
-      appearance: none;
-      -webkit-appearance: none;
-      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%236B6560' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
-      background-repeat: no-repeat;
-      background-position: right 12px center;
-      padding-right: 30px;
-    }
-
-    #source-filter { right: 24px; }
-
-    /* ═══════════════════════════════════════════
-       Debug Bar
-       ═══════════════════════════════════════════ */
-    #debug-bar {
-      position: absolute;
-      top: 16px;
-      left: 24px;
-      z-index: 10;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      font-family: var(--font);
-      font-size: 11px;
-      color: var(--text-secondary);
-    }
-
-    #debug-bar .debug-id {
-      background: var(--card-bg);
-      border: 1px solid var(--card-border);
-      border-radius: 20px;
-      padding: 7px 12px;
-      box-shadow: var(--card-shadow);
-      cursor: pointer;
-      user-select: all;
-      max-width: 180px;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-
-    #debug-bar .debug-id:hover {
-      box-shadow: var(--card-hover-shadow);
-      color: var(--text-primary);
-    }
-
-    #debug-bar input {
-      font-family: var(--font);
-      font-size: 11px;
-      color: var(--text-primary);
-      background: var(--card-bg);
-      border: 1px solid var(--card-border);
-      border-radius: 20px;
-      padding: 7px 12px;
-      width: 140px;
-      box-shadow: var(--card-shadow);
-      outline: none;
-    }
-
-    #debug-bar input::placeholder { color: var(--text-secondary); opacity: 0.6; }
-    #debug-bar input:focus { border-color: var(--connection-stroke); }
-
-    #freeze-btn {
-      background: var(--card-bg);
-      border: 1px solid var(--card-border);
-      border-radius: 20px;
-      padding: 7px 12px;
-      cursor: pointer;
-      box-shadow: var(--card-shadow);
-      font-family: var(--font);
-      font-size: 11px;
-      color: var(--text-secondary);
-      transition: box-shadow 0.2s ease, color 0.2s ease;
-    }
-
-    #freeze-btn:hover { box-shadow: var(--card-hover-shadow); color: var(--text-primary); }
-    #freeze-btn.frozen { border-color: var(--connection-stroke); color: var(--connection-highlight); }
-
-    .filter-select:hover {
-      box-shadow: var(--card-hover-shadow);
-      color: var(--text-primary);
-    }
+    /* (debug-bar and filter-select moved into dev panel) */
 
     /* ═══════════════════════════════════════════
        Mixcloud Mini-Player
@@ -761,8 +664,10 @@
       }
     }
 
-    /* Tuning panel (gradient art knobs) */
-    #tuning-toggle {
+    /* ═══════════════════════════════════════════
+       Dev Panel (bottom-right)
+       ═══════════════════════════════════════════ */
+    #dev-toggle {
       position: fixed;
       bottom: 12px;
       right: 12px;
@@ -776,37 +681,120 @@
       padding: 0;
       transition: transform 0.2s ease;
     }
-    #tuning-toggle:hover { transform: scale(1.1); }
+    #dev-toggle:hover { transform: scale(1.1); }
 
-    #tuning-panel {
+    #dev-panel {
       position: fixed;
       bottom: 56px;
       right: 12px;
-      width: 240px;
+      width: 280px;
+      max-height: calc(100vh - 80px);
+      overflow-y: auto;
       background: var(--card-bg);
       border: 1px solid var(--card-border);
       border-radius: var(--card-radius);
-      padding: 14px;
+      padding: 16px;
       z-index: 1000;
       display: none;
       font-family: var(--font);
       font-size: 11px;
       color: var(--text-primary);
     }
-    #tuning-panel.open { display: block; }
-    #tuning-panel h4 {
-      margin: 0 0 10px;
-      font-size: 11px;
+    #dev-panel.open { display: block; }
+
+    #dev-panel h4 {
+      margin: 0 0 8px;
+      font-size: 10px;
       font-weight: 600;
       text-transform: uppercase;
-      letter-spacing: 0.05em;
-      color: var(--text-secondary);
+      letter-spacing: 0.06em;
+      color: var(--text-tertiary);
     }
+    #dev-panel h4:not(:first-child) {
+      margin-top: 14px;
+      padding-top: 12px;
+      border-top: 1px solid var(--card-border);
+    }
+
+    .dev-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 6px;
+    }
+
+    .dev-row .debug-id {
+      font-size: 10px;
+      color: var(--text-secondary);
+      cursor: pointer;
+      user-select: all;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      flex: 1;
+      min-width: 0;
+      padding: 5px 8px;
+      background: var(--bg);
+      border-radius: 6px;
+      border: 1px solid var(--card-border);
+    }
+    .dev-row .debug-id:hover {
+      color: var(--text-primary);
+    }
+
+    .dev-row input[type="text"] {
+      font-family: var(--font);
+      font-size: 11px;
+      color: var(--text-primary);
+      background: var(--bg);
+      border: 1px solid var(--card-border);
+      border-radius: 6px;
+      padding: 5px 8px;
+      flex: 1;
+      min-width: 0;
+      outline: none;
+    }
+    .dev-row input[type="text"]::placeholder { color: var(--text-tertiary); }
+    .dev-row input[type="text"]:focus { border-color: var(--connection-stroke); }
+
+    #freeze-btn {
+      background: var(--bg);
+      border: 1px solid var(--card-border);
+      border-radius: 6px;
+      padding: 5px 10px;
+      cursor: pointer;
+      font-family: var(--font);
+      font-size: 11px;
+      color: var(--text-secondary);
+      transition: color 0.15s ease;
+      white-space: nowrap;
+    }
+    #freeze-btn:hover { color: var(--text-primary); }
+    #freeze-btn.frozen { border-color: var(--connection-highlight); color: var(--connection-highlight); }
+
+    #dev-panel select {
+      font-family: var(--font);
+      font-size: 11px;
+      color: var(--text-primary);
+      background: var(--bg);
+      border: 1px solid var(--card-border);
+      border-radius: 6px;
+      padding: 5px 28px 5px 8px;
+      width: 100%;
+      cursor: pointer;
+      appearance: none;
+      -webkit-appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%236B6560' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 8px center;
+      outline: none;
+    }
+
     .tune-row {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      margin-bottom: 8px;
+      margin-bottom: 6px;
     }
     .tune-row label {
       flex: 1;
@@ -823,14 +811,6 @@
       color: var(--text-primary);
     }
 
-    /* Dev mode — hides debug controls when off */
-    body:not(.dev-mode) #debug-bar,
-    body:not(.dev-mode) .filter-select,
-    body:not(.dev-mode) #tuning-toggle,
-    body:not(.dev-mode) #tuning-panel {
-      display: none !important;
-    }
-
     /* ═══════════════════════════════════════════
        Artist Search
        ═══════════════════════════════════════════ */
@@ -839,11 +819,6 @@
       top: 16px;
       left: 24px;
       z-index: 20;
-    }
-
-    body.dev-mode #artist-search-wrap {
-      left: auto;
-      right: 180px;
     }
 
     #artist-search {
@@ -966,9 +941,103 @@
       display: block;
     }
 
+    /* ═══════════════════════════════════════════
+       DJ Search
+       ═══════════════════════════════════════════ */
+    #dj-search-wrap {
+      position: absolute;
+      top: 16px;
+      right: 24px;
+      z-index: 20;
+    }
+
+    #dj-search {
+      font-family: var(--font);
+      font-size: 12px;
+      font-weight: 400;
+      color: var(--text-primary);
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 20px;
+      padding: 7px 14px 7px 32px;
+      width: 200px;
+      box-shadow: var(--card-shadow);
+      outline: none;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease, width 0.2s ease;
+    }
+
+    #dj-search::placeholder {
+      color: var(--text-secondary);
+      opacity: 0.6;
+    }
+
+    #dj-search:focus {
+      border-color: var(--connection-stroke);
+      box-shadow: var(--card-hover-shadow);
+      width: 260px;
+    }
+
+    #dj-search-wrap .search-icon {
+      position: absolute;
+      left: 11px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 14px;
+      height: 14px;
+      stroke: var(--text-tertiary);
+      fill: none;
+      stroke-width: 2;
+      stroke-linecap: round;
+      pointer-events: none;
+    }
+
+    #dj-autocomplete {
+      position: absolute;
+      top: calc(100% + 4px);
+      right: 0;
+      width: 260px;
+      max-height: 320px;
+      overflow-y: auto;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: var(--card-radius);
+      box-shadow: 0 8px 30px rgba(42, 37, 32, 0.12);
+      display: none;
+      z-index: 30;
+    }
+
+    #dj-autocomplete.open { display: block; }
+    #dj-autocomplete .ac-item { padding: 8px 14px; font-family: var(--font); font-size: 12px; color: var(--text-primary); cursor: pointer; display: flex; justify-content: space-between; align-items: center; transition: background 0.1s ease; }
+    #dj-autocomplete .ac-item:hover, #dj-autocomplete .ac-item.active { background: rgba(42, 37, 32, 0.05); }
+
+    #dj-search.filtered {
+      border-color: var(--connection-highlight);
+      padding-right: 28px;
+    }
+
+    #dj-clear {
+      position: absolute;
+      right: 8px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 16px;
+      height: 16px;
+      border: none;
+      background: none;
+      cursor: pointer;
+      color: var(--text-tertiary);
+      font-size: 14px;
+      line-height: 1;
+      padding: 0;
+      display: none;
+    }
+
+    #dj-clear:hover { color: var(--text-primary); }
+    #dj-search.filtered ~ #dj-clear { display: block; }
+
   </style>
 </head>
-<body class="dev-mode">
+<body>
   <!-- SVG filters for gradient artwork -->
   <svg width="0" height="0" style="position:absolute">
     <filter id="gradient-distort" color-interpolation-filters="sRGB">
@@ -985,16 +1054,17 @@
     </filter>
   </svg>
   <div id="toolbar">
-    <div id="debug-bar">
-      <button id="freeze-btn">freeze</button>
-      <span class="debug-id" id="cluster-id" title="Click to copy">—</span>
-      <input id="cluster-input" type="text" placeholder="enter cluster id">
-    </div>
     <div id="artist-search-wrap">
       <svg class="search-icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M16.5 16.5L21 21"/></svg>
       <input id="artist-search" type="text" placeholder="search artist..." autocomplete="off">
       <button id="artist-clear">&times;</button>
       <div id="artist-autocomplete"></div>
+    </div>
+    <div id="dj-search-wrap">
+      <svg class="search-icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M16.5 16.5L21 21"/></svg>
+      <input id="dj-search" type="text" placeholder="search DJ..." autocomplete="off">
+      <button id="dj-clear">&times;</button>
+      <div id="dj-autocomplete"></div>
     </div>
     <button id="shuffle-btn">
       <svg viewBox="0 0 24 24"><path d="M16 3h5v5"/><path d="M4 20L21 3"/><path d="M21 16v5h-5"/><path d="M15 15l6 6"/><path d="M4 4l5 5"/></svg>
@@ -1007,12 +1077,6 @@
       </svg>
       <span class="share-label">share</span>
     </button>
-    <select id="source-filter" class="filter-select">
-      <option value="none">no filter</option>
-      <option value="soundcloud">has soundcloud</option>
-      <option value="soundcloud_set">has soundcloud — full set</option>
-      <option value="lotradio">has lot radio set</option>
-    </select>
   </div>
   <div id="graph-viewport">
     <div id="graph-container">
@@ -1041,6 +1105,7 @@
     let currentRootId = null;
     let frozen = false;
     let artistFilter = null; // { display, trackIds } when artist search is active
+    let djFilter = null;     // { display, trackIds } when DJ search is active
     let nodes = [];
     let edges = [];
     let nodeMap = {};
@@ -2213,16 +2278,24 @@
       if (artistFilter) {
         const artistSet = new Set(artistFilter.trackIds);
         pool = pool.filter(id => artistSet.has(id));
-        // Fallback: if none of the artist's tracks are in candidates (3+ edges),
-        // use any of their tracks that exist in the graph
         if (pool.length === 0) {
           pool = artistFilter.trackIds.filter(id => graphNodes[id] && matchesFilter(id, filter));
         }
       }
 
+      // If a DJ is selected, restrict to their tracks
+      if (djFilter) {
+        const djSet = new Set(djFilter.trackIds);
+        pool = pool.filter(id => djSet.has(id));
+        if (pool.length === 0) {
+          pool = djFilter.trackIds.filter(id => graphNodes[id] && matchesFilter(id, filter));
+        }
+      }
+
       if (pool.length === 0) {
-        console.warn(artistFilter
-          ? `No tracks found for "${artistFilter.display}" with current filter`
+        const activeFilter = artistFilter || djFilter;
+        console.warn(activeFilter
+          ? `No tracks found for "${activeFilter.display}" with current filter`
           : `No candidates match filter "${filter}"`);
         return;
       }
@@ -2317,7 +2390,7 @@
         setTimeout(() => { btn.classList.remove('copied'); label.textContent = 'share'; }, 1500);
       });
 
-      // Debug bar
+      // Dev panel controls
       document.getElementById('freeze-btn').addEventListener('click', () => {
         frozen = !frozen;
         const btn = document.getElementById('freeze-btn');
@@ -2341,14 +2414,6 @@
       // Wire Mixcloud close button
       document.querySelector('#mc-player .mc-close').addEventListener('click', () => {
         stopCurrentPlayback();
-      });
-
-      // ── Dev mode toggle (Ctrl+Shift+D) ──
-      document.addEventListener('keydown', (e) => {
-        if (e.ctrlKey && e.shiftKey && e.key === 'D') {
-          e.preventDefault();
-          document.body.classList.toggle('dev-mode');
-        }
       });
 
       // ── Artist search ──
@@ -2478,11 +2543,136 @@
         if (!e.target.closest('#artist-search-wrap')) {
           closeAc();
         }
+        if (!e.target.closest('#dj-search-wrap')) {
+          closeDjAc();
+        }
       });
 
-      // ── Tuning panel ──
-      document.getElementById('tuning-toggle').addEventListener('click', () => {
-        document.getElementById('tuning-panel').classList.toggle('open');
+      // ── DJ search ──
+      // Build index: DJ name -> list of track node IDs they played
+      const djIndex = {}; // { lowercase name -> { display, trackIds: [id, ...] } }
+      for (const [id, node] of Object.entries(graphNodes)) {
+        for (const edge of (node.edges || [])) {
+          for (const ctx of (edge.contexts || [])) {
+            const dj = (ctx.dj || '').trim();
+            if (!dj) continue;
+            const key = dj.toLowerCase();
+            if (!djIndex[key]) djIndex[key] = { display: dj, trackIds: new Set() };
+            djIndex[key].trackIds.add(id);
+            djIndex[key].trackIds.add(edge.node);
+          }
+        }
+      }
+      // Convert Sets to arrays, sort by track count
+      const djList = Object.values(djIndex).map(e => ({ display: e.display, trackIds: [...e.trackIds] }))
+        .sort((a, b) => b.trackIds.length - a.trackIds.length);
+      console.log(`DJ index: ${djList.length} unique DJs`);
+
+      const djSearchInput = document.getElementById('dj-search');
+      const djClearBtn = document.getElementById('dj-clear');
+      const djAcDropdown = document.getElementById('dj-autocomplete');
+      let djAcItems = [];
+      let djAcActiveIdx = -1;
+
+      function closeDjAc() {
+        djAcDropdown.classList.remove('open');
+        djAcDropdown.innerHTML = '';
+        djAcItems = [];
+        djAcActiveIdx = -1;
+      }
+
+      function setDjFilter(entry) {
+        djFilter = entry;
+        djSearchInput.value = entry.display;
+        djSearchInput.classList.add('filtered');
+        shuffle();
+      }
+
+      function clearDjFilter() {
+        djFilter = null;
+        djSearchInput.value = '';
+        djSearchInput.classList.remove('filtered');
+      }
+
+      function showDjAc(query) {
+        const q = query.toLowerCase().trim();
+        if (!q) { closeDjAc(); return; }
+
+        const starts = [];
+        const contains = [];
+        for (const entry of djList) {
+          const name = entry.display.toLowerCase();
+          if (name.startsWith(q)) starts.push(entry);
+          else if (name.includes(q)) contains.push(entry);
+          if (starts.length + contains.length >= 30) break;
+        }
+        const results = [...starts, ...contains].slice(0, 30);
+        if (results.length === 0) { closeDjAc(); return; }
+
+        djAcDropdown.innerHTML = '';
+        djAcItems = [];
+        djAcActiveIdx = -1;
+
+        results.forEach((entry, i) => {
+          const div = document.createElement('div');
+          div.className = 'ac-item';
+          const count = entry.trackIds.length;
+          div.innerHTML = `<span class="ac-name">${escHtml(entry.display)}</span><span class="ac-count">${count} track${count !== 1 ? 's' : ''}</span>`;
+          div.addEventListener('click', () => {
+            closeDjAc();
+            setDjFilter(entry);
+          });
+          div.addEventListener('mouseenter', () => {
+            djAcItems.forEach(el => el.classList.remove('active'));
+            div.classList.add('active');
+            djAcActiveIdx = i;
+          });
+          djAcDropdown.appendChild(div);
+          djAcItems.push(div);
+        });
+
+        djAcDropdown.classList.add('open');
+      }
+
+      djSearchInput.addEventListener('input', () => {
+        if (djFilter && djSearchInput.value !== djFilter.display) {
+          djFilter = null;
+          djSearchInput.classList.remove('filtered');
+        }
+        showDjAc(djSearchInput.value);
+      });
+
+      djSearchInput.addEventListener('keydown', (e) => {
+        if (!djAcDropdown.classList.contains('open')) return;
+        if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          djAcActiveIdx = Math.min(djAcActiveIdx + 1, djAcItems.length - 1);
+          djAcItems.forEach((el, i) => el.classList.toggle('active', i === djAcActiveIdx));
+          djAcItems[djAcActiveIdx]?.scrollIntoView({ block: 'nearest' });
+        } else if (e.key === 'ArrowUp') {
+          e.preventDefault();
+          djAcActiveIdx = Math.max(djAcActiveIdx - 1, 0);
+          djAcItems.forEach((el, i) => el.classList.toggle('active', i === djAcActiveIdx));
+          djAcItems[djAcActiveIdx]?.scrollIntoView({ block: 'nearest' });
+        } else if (e.key === 'Enter') {
+          e.preventDefault();
+          if (djAcActiveIdx >= 0 && djAcActiveIdx < djAcItems.length) {
+            djAcItems[djAcActiveIdx].click();
+          }
+        } else if (e.key === 'Escape') {
+          closeDjAc();
+          djSearchInput.blur();
+        }
+      });
+
+      djClearBtn.addEventListener('click', () => {
+        clearDjFilter();
+        closeDjAc();
+      });
+
+      // ── Dev panel toggle ──
+      document.getElementById('dev-toggle').addEventListener('click', () => {
+        document.getElementById('dev-panel').classList.toggle('open');
       });
 
       // ── Gradient art knobs ──
@@ -2533,10 +2723,27 @@
     });
   </script>
 
-  <button id="tuning-toggle" title="Tune visuals">
-    <svg viewBox="0 0 32 32" width="20" height="20"><defs><linearGradient id="gear-grad" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#C25EA5"/><stop offset="50%" stop-color="#265BC9"/><stop offset="100%" stop-color="#4ECDC4"/></linearGradient></defs><circle cx="16" cy="16" r="10" fill="url(#gear-grad)" opacity="0.85"/><path d="M16 4l1.5 3.2a9 9 0 012.8 1.2L23.5 7l1.5 1.5-1.4 3.2a9 9 0 011.2 2.8L28 16l-3.2 1.5a9 9 0 01-1.2 2.8L25 23.5l-1.5 1.5-3.2-1.4a9 9 0 01-2.8 1.2L16 28l-1.5-3.2a9 9 0 01-2.8-1.2L8.5 25 7 23.5l1.4-3.2a9 9 0 01-1.2-2.8L4 16l3.2-1.5a9 9 0 011.2-2.8L7 8.5 8.5 7l3.2 1.4a9 9 0 012.8-1.2L16 4z" fill="none" stroke="url(#gear-grad)" stroke-width="1.5" opacity="0.9"/></svg>
+  <button id="dev-toggle" title="Settings">
+    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="var(--text-tertiary)" stroke-width="2" stroke-linecap="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
   </button>
-  <div id="tuning-panel">
+  <div id="dev-panel">
+    <h4>cluster</h4>
+    <div class="dev-row">
+      <span class="debug-id" id="cluster-id" title="Click to copy">—</span>
+      <button id="freeze-btn">freeze</button>
+    </div>
+    <div class="dev-row">
+      <input id="cluster-input" type="text" placeholder="enter cluster id">
+    </div>
+
+    <h4>filter</h4>
+    <select id="source-filter">
+      <option value="none">no filter</option>
+      <option value="soundcloud">has soundcloud</option>
+      <option value="soundcloud_set">has soundcloud — full set</option>
+      <option value="lotradio">has lot radio set</option>
+    </select>
+
     <h4>gradient art</h4>
     <div class="tune-row"><label>warp</label><input type="range" id="tune-warp" min="0" max="80" value="16"><span class="tune-val">16</span></div>
     <div class="tune-row"><label>frequency</label><input type="range" id="tune-freq" min="1" max="50" value="19" step="1"><span class="tune-val">0.019</span></div>
