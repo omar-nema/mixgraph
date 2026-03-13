@@ -6,7 +6,6 @@ web-app/output/*
 !web-app/output/combined_graph.json
 !web-app/output/audio_cache.json
 sandbox/
-sandbox2-character/
 
 # Python
 __pycache__/

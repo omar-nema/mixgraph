@@ -169,9 +169,15 @@
       border-radius: var(--card-radius) var(--card-radius) 0 0;
       overflow: hidden;
       margin: -13px -13px 13px -13px;
+      display: flex;
     }
+    .card-toolbar #shuffle-btn { flex: 4; }
+    .card-toolbar #card-link-btn { flex: 1; border-left: 1px solid var(--card-border); transition: color 0.2s, background 0.2s; }
+    .card-toolbar #card-link-btn .check-icon { display: none; }
+    .card-toolbar #card-link-btn.copied { color: #c0392b; background: var(--bg); }
+    .card-toolbar #card-link-btn.copied .link-icon { display: none; }
+    .card-toolbar #card-link-btn.copied .check-icon { display: block; }
     .card-toolbar button {
-      width: 100%;
       font-family: var(--font);
       font-size: 13px;
       font-weight: 400;
@@ -488,6 +494,9 @@
       -webkit-line-clamp: 2;
       -webkit-box-orient: vertical;
     }
+    .node-card .dj-line.expanded {
+      -webkit-line-clamp: unset;
+    }
 
     .node-card .track-title {
       font-weight: 700;
@@ -512,7 +521,6 @@
       font-weight: 300;
       color: var(--text-tertiary);
       line-height: 1.3;
-      margin-top: 2px;
     }
     .node-card[data-rank="root"] .dj-line { font-size: 18px; }
     .node-card[data-rank="1"] .dj-line { font-size: 14px; }
@@ -539,6 +547,19 @@
     .dj-line a:hover {
       color: var(--text-primary);
       text-decoration-color: var(--text-secondary);
+    }
+    .dj-more {
+      font-family: var(--font);
+      font-size: inherit;
+      font-weight: 300;
+      color: var(--text-tertiary);
+      background: none;
+      border: none;
+      padding: 0;
+      cursor: pointer;
+    }
+    .dj-more:hover {
+      color: var(--text-primary);
     }
 
     /* ═══════════════════════════════════════════
@@ -2326,17 +2347,16 @@
         if (node.rank === 'root') {
           rankLabel = '';
         } else if (node.rank === '1') {
-          rankLabel = `Played next to ${rootTitle}`;
+          rankLabel = `Played next to '${rootTitle}'`;
         } else {
-          rankLabel = `2 tracks from ${rootTitle}`;
+          rankLabel = `2 tracks from '${rootTitle}'`;
         }
 
-        // DJ line: "Mixed by DJ1, DJ2" with links (cap at 2 for small cards)
-        const maxDjs = node.rank === 'root' ? 3 : 2;
-        const djs = (node.djs || []).slice(0, maxDjs);
+        // DJ line: show all DJs, clamp to 2 lines with "(more)" if overflowing
+        const allDjs = node.djs || [];
         let djLine = '';
-        if (djs.length > 0) {
-          const links = djs.map(d =>
+        if (allDjs.length > 0) {
+          const links = allDjs.map(d =>
             d.episodeUrl
               ? `<a href="${d.episodeUrl}" target="_blank" rel="noopener">${d.name}</a>`
               : d.name
@@ -2359,6 +2379,10 @@
             <button id="shuffle-btn" title="Shuffle">
               <svg viewBox="0 0 24 24"><path d="M16 3h5v5"/><path d="M4 20L21 3"/><path d="M21 16v5h-5"/><path d="M15 15l6 6"/><path d="M4 4l5 5"/></svg>
               shuffle
+            </button>
+            <button id="card-link-btn" title="Copy link">
+              <svg class="link-icon" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+              <svg class="check-icon" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
             </button>
           </div>` : '';
 
@@ -2675,9 +2699,41 @@
       nodes.forEach(n => { n.x = -9999; n.y = -9999; });
       renderCards();
 
+      // Detect DJ line overflow — truncate with inline "(more)" that expands
+      document.querySelectorAll('.dj-line').forEach(line => {
+        if (line.scrollHeight <= line.clientHeight + 1) return;
+        const fullHTML = line.innerHTML;
+        const moreBtn = document.createElement('button');
+        moreBtn.className = 'dj-more';
+        moreBtn.textContent = '(more)';
+        moreBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          line.innerHTML = fullHTML;
+          line.classList.add('expanded');
+        });
+        // Use plain text truncation with binary search to fit "… (more)" in 2 lines
+        const fullText = line.textContent;
+        let lo = 0, hi = fullText.length;
+        while (lo < hi) {
+          const mid = (lo + hi + 1) >> 1;
+          line.textContent = fullText.slice(0, mid) + '… ';
+          line.appendChild(moreBtn.cloneNode(true));
+          if (line.scrollHeight <= line.clientHeight + 1) lo = mid;
+          else hi = mid - 1;
+        }
+        line.textContent = fullText.slice(0, lo) + '… ';
+        line.appendChild(moreBtn);
+      });
+
       // Wire shuffle button (recreated each render inside root card)
       const shuffleBtn = document.getElementById('shuffle-btn');
       if (shuffleBtn) shuffleBtn.addEventListener('click', shuffle);
+      const cardLinkBtn = document.getElementById('card-link-btn');
+      if (cardLinkBtn) cardLinkBtn.addEventListener('click', () => {
+        navigator.clipboard.writeText(window.location.href);
+        cardLinkBtn.classList.add('copied');
+        setTimeout(() => { cardLinkBtn.classList.remove('copied'); }, 1500);
+      });
 
       // Measure actual card heights from DOM
       measuredHeights = {};
@@ -2783,7 +2839,7 @@
     document.addEventListener('DOMContentLoaded', async () => {
       // Load graph (required)
       try {
-        const resp = await fetch('output/combined_graph.json');
+        const resp = await fetch('web-app/output/combined_graph.json');
         if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
         const data = await resp.json();
         graphNodes = data.nodes;
@@ -2796,7 +2852,7 @@
 
       // Load audio cache (optional — fail silently)
       try {
-        const resp = await fetch('output/audio_cache.json');
+        const resp = await fetch('web-app/output/audio_cache.json');
         if (resp.ok) {
           audioCache = await resp.json();
           console.log(`Audio cache loaded: ${Object.keys(audioCache).length} entries`);
@@ -3083,8 +3139,8 @@
         const vw = cratesView.clientWidth || window.innerWidth;
         const vh = cratesView.clientHeight || (window.innerHeight - 60);
 
-        // Seeded random for deterministic layout
-        let crateSeed = 42;
+        // Seeded random — random each session (testing)
+        let crateSeed = Date.now() % 2147483647 || 1;
         function crateRand() {
           crateSeed = (crateSeed * 16807) % 2147483647;
           return (crateSeed - 1) / 2147483646;
@@ -3182,8 +3238,9 @@
             const base = 148 + Math.floor(crateRand() * 40) - 20;
             card.style.background = `rgb(${base}, ${base - 4}, ${base - 8})`;
 
-            // Match info to artwork — artKeys parallels the artworks array
-            const mKey = artKeys.length > 0 ? artKeys[i % artKeys.length] : null;
+            // Top card shows seed track; others cycle through artKeys
+            const mKey = (i === numCards - 1) ? item.seedKey
+              : artKeys.length > 0 ? artKeys[i % artKeys.length] : null;
             const mNode = mKey && graphNodes[mKey];
             const info = document.createElement('div');
             info.className = 'crate-info';
@@ -3279,10 +3336,16 @@
           page.artLoaded = true;
           page.stacks.forEach(({ el: stackEl, item }) => {
             const cards = stackEl.querySelectorAll('.crate-card');
+            const last = cards.length - 1;
             cards.forEach((card, i) => {
-              if (item.artworks.length > 0) {
+              // Top card uses seed artwork; others cycle through artworks array
+              const seedCached = audioCache[item.seedKey];
+              const url = (i === last && seedCached && seedCached.artUrl)
+                ? seedCached.artUrl
+                : item.artworks.length > 0 ? item.artworks[i % item.artworks.length] : null;
+              if (url) {
                 const img = document.createElement('img');
-                img.src = item.artworks[i % item.artworks.length].replace('-t500x500', '-t120x120');
+                img.src = url.replace('-t500x500', '-t120x120');
                 img.loading = 'lazy'; img.draggable = false;
                 img.onload = () => {
                   card.style.background = '';
@@ -3311,11 +3374,11 @@
         }
 
         function updateVisible() {
-          // Viewport in canvas coords
+          // Viewport in canvas coords (account for scale)
           const viewL = -panX;
           const viewT = -panY;
-          const viewR = viewL + vw;
-          const viewB = viewT + vh;
+          const viewR = viewL + vw / crateScale;
+          const viewB = viewT + vh / crateScale;
 
           // Pages to build (visible + 1 buffer for placeholders)
           const colMin = Math.floor(viewL / vw) - 1;
@@ -3347,9 +3410,10 @@
           }
         }
 
-        // Pan state — start at origin
+        // Pan state — start at origin, zoomed out 20% for crisper thumbnails
+        const crateScale = 0.8;
         let panX = 0, panY = 0;
-        surface.style.transform = `translate(${panX}px, ${panY}px)`;
+        surface.style.transform = `scale(${crateScale}) translate(${panX}px, ${panY}px)`;
 
         // Drag-to-pan
         let isDragging = false, didDrag = false, dragStartX, dragStartY, panStartX, panStartY;
@@ -3368,7 +3432,7 @@
           }
           if (didDrag) {
             panX = panStartX + dx; panY = panStartY + dy;
-            surface.style.transform = `translate(${panX}px, ${panY}px)`;
+            surface.style.transform = `scale(${crateScale}) translate(${panX}px, ${panY}px)`;
             updateVisible();
           }
         };
@@ -3382,7 +3446,7 @@
         cratesView.onwheel = e => {
           e.preventDefault();
           panX -= e.deltaX; panY -= e.deltaY;
-          surface.style.transform = `translate(${panX}px, ${panY}px)`;
+          surface.style.transform = `scale(${crateScale}) translate(${panX}px, ${panY}px)`;
           updateVisible();
         };
 

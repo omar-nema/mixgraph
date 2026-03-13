@@ -3,16 +3,16 @@
 ## Lot Radio
 
 - **1,501 episodes** discovered and scraped (full site)
-- **509 episodes (34%)** have tracklists in our data
-- **992 episodes (66%)** marked as no tracklist
+- **661 episodes (44%)** have tracklists in our data
+- **840 episodes (56%)** marked as no tracklist
 
-However, Lot Radio's website likely does have tracklists for most/all episodes — the parser may be missing them due to dynamic loading or unexpected page structure. This needs investigation (compare a known-missing episode like `razor-n-tape/2025-12-17-1700` against what `parse.py` extracts).
+Lot Radio's website likely has tracklists for more episodes — the parser may be missing them due to dynamic loading or unexpected page structure.
 
 ## NTS Radio
 
 - **84,646 episodes** in the discovered index (full NTS catalog)
-- **3,500 episodes scraped (4.1%)** — the most recent 3,500
-- **3,321 of those (95%)** have tracklists
+- **7,000 episodes scraped (8.3%)** — the most recent 7,000
+- **6,569 of those (94%)** have tracklists
 
 The scraper is idempotent and supports `--resume`, so coverage can be expanded incrementally by running `scraper.py` with a higher `--limit` or no limit at all.
 

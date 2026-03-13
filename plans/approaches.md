@@ -12,6 +12,5 @@ Eventually
 - Create a visual exploration space. Initially was thinking a canvas where you can swim through clusters, but this feels too reductive. It puts everything in one static place which I don't like. Instead it might still be the above models: start with a single rec. But branching out can then be done visually based off the first rec.
 
 Not doing
-- Search by song and find a DJ: most songs will not exist in my catalogue, it's somewhat narrow. 
-- Search by artist and find a 
-
+- Search by song and find a DJ: most songs will not exist in my catalogue, it's somewhat narrow
+- Search by artist and find adjacent artists: too generic, loses the DJ curation angle

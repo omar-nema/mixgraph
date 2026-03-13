@@ -5,9 +5,9 @@ Music discovery app. Scrapes DJ set tracklists from radio stations (Lot Radio, N
 ## Project structure
 
 ```
-web-app/                # Frontend
-  index.html            # Single-file vanilla HTML/CSS/JS app
-  output/               # Symlink -> pipeline/output/
+index.html              # Single-file vanilla HTML/CSS/JS app (project root)
+web-app/
+  output/               # Static data files (combined_graph.json, audio_cache.json)
 scrapers/
   lot-radio/            # Lot Radio scraper
     discover.py         # Episode URL discovery
@@ -27,7 +27,6 @@ pipeline/               # Data processing (shared across sources)
   output/               # combined_graph.json, audio_cache.json
 plans/                  # Implementation plans and docs
 sandbox/                # Frontend experiments (prototyping)
-sandbox/                # Frontend experiments (prototyping)
 ```
 
 ## Commands
@@ -44,14 +43,14 @@ cd pipeline && python3 graph.py
 cd pipeline && python3 enrich.py
 
 # Serve frontend locally
-cd web-app && python3 -m http.server 8000
+python3 -m http.server 8000
 ```
 
 ## Frontend
 
 - **No build tools, no frameworks** — plain HTML/CSS/JS in a single file (`index.html`)
 - Uses CSS custom properties for theming (`:root` design tokens)
-- DM Mono font via Google Fonts CDN
+- Space Grotesk font via Google Fonts CDN
 - SoundCloud widget API for individual tracks + DJ sets, Mixcloud widget as fallback
 - Graph layout is hand-rolled (no D3) — keep it that way unless I say otherwise
 
@@ -80,11 +79,7 @@ cd web-app && python3 -m http.server 8000
 
 ## Sandbox
 
-`sandbox/` is for experimenting with frontend concepts (layouts, effects, interactions). When asked, port working experiments from sandbox into `web-app/index.html`.
-
-## Sandbox
-
-`sandbox/` is for experimenting with frontend concepts (layouts, effects, interactions). When asked, port working experiments from sandbox into `web-app/index.html`.
+`sandbox/` is for experimenting with frontend concepts (layouts, effects, interactions). When asked, port working experiments from sandbox into `index.html`.
 
 ## Long-running tasks
 
