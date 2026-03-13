@@ -1861,7 +1861,7 @@
   </div>
   <div id="crates-view" class="hidden"><div id="crates-surface"></div></div>
 
-  <iframe id="sc-widget" src="about:blank" style="position:absolute;left:-9999px;width:300px;height:166px;border:0;" allow="autoplay"></iframe>
+  <iframe id="sc-widget" src="https://w.soundcloud.com/player/?url=https%3A%2F%2Fapi.soundcloud.com%2Ftracks%2F293&show_artwork=false&auto_play=false" style="position:absolute;left:-9999px;width:300px;height:166px;border:0;" allow="autoplay"></iframe>
   <div id="mc-player">
     <div class="mc-bar">
       <span class="mc-label">press play on the mixcloud widget to start</span>
@@ -2043,14 +2043,14 @@
       }, 5000);
     }
 
+    // SC widget iframe is pre-loaded in HTML with a dummy track URL.
+    // initSCWidget just wraps it — no src change, so no race condition.
+    let scWidgetInitQueue = null;
     function initSCWidget() {
       if (scWidget) return true;
       try {
         if (typeof SC === 'undefined' || !SC.Widget) return false;
         const iframe = document.getElementById('sc-widget');
-        // Must set src to SC player URL so widget.load() can derive the base URL.
-        // Empty url= param 404s, so use a real (short) track as a throwaway init.
-        iframe.src = 'https://w.soundcloud.com/player/?url=https%3A%2F%2Fapi.soundcloud.com%2Ftracks%2F293&show_artwork=false&auto_play=false';
         scWidget = SC.Widget(iframe);
         return true;
       } catch (e) {
