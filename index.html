@@ -1002,12 +1002,16 @@
       #sc-player-area {
         position: fixed;
         bottom: 0; left: 0; right: 0;
-        height: 80px;
         z-index: 99;
+        background: var(--bg);
+        border-top: 1px solid var(--card-border);
+      }
+      #sc-player-area #mobile-source-area {
+        padding: 8px 16px;
       }
       #sc-placeholder {
         width: 100%;
-        height: 100%;
+        height: 80px;
         background: var(--card-border);
         display: flex;
         align-items: center;
@@ -1015,7 +1019,6 @@
         font-family: var(--font);
         font-size: 12px;
         color: var(--text-tertiary);
-        border-top: 1px solid var(--card-border);
       }
       #sc-placeholder.hidden { display: none; }
       #sc-widget.sc-active {
@@ -1025,11 +1028,8 @@
         overflow: visible;
         pointer-events: auto;
         z-index: 99;
-        position: absolute;
-        bottom: 0; left: 0;
-        border-top: 1px solid var(--card-border);
       }
-      body { padding-bottom: 84px; }
+      body { padding-bottom: 130px; }
     }
 
     #mc-player {
@@ -1582,6 +1582,9 @@
         width: 52vw;
         scroll-snap-align: center;
       }
+      .mobile-carousel-item[data-rank="root"] {
+        width: 60vw;
+      }
       .mobile-carousel-card {
         background: var(--card-bg);
         border: 1px solid var(--card-border);
@@ -1655,9 +1658,6 @@
       }
 
       /* ── Source pills ── */
-      #mobile-source-area {
-        padding: 0 16px 50px;
-      }
       .mobile-source-label {
         font-size: 11px; font-weight: 500; letter-spacing: 0.08em;
         text-transform: uppercase; color: var(--text-tertiary);
@@ -1850,12 +1850,12 @@
     </div>
     <div id="mobile-tracks" style="display:none">
       <div id="mobile-carousel"></div>
-      <div id="mobile-source-area"></div>
     </div>
   </div>
   <div id="crates-view" class="hidden"><div id="crates-surface"></div></div>
 
   <div id="sc-player-area">
+    <div id="mobile-source-area"></div>
     <div id="sc-placeholder">tap on a track to play</div>
     <iframe id="sc-widget" src="https://w.soundcloud.com/player/?auto_play=false&show_artwork=false" allow="autoplay; encrypted-media"></iframe>
   </div>
@@ -3109,7 +3109,7 @@
       if (sources.size > 0) {
         const label = document.createElement('div');
         label.className = 'mobile-source-label';
-        label.textContent = 'From these sets';
+        label.textContent = 'Sourced from these sets';
         sourceArea.appendChild(label);
 
         const row = document.createElement('div');
@@ -3130,6 +3130,7 @@
     function makeCarouselCard(node) {
       const item = document.createElement('div');
       item.className = 'mobile-carousel-item';
+      item.dataset.rank = node.rank || '';
 
       const card = document.createElement('div');
       card.className = 'mobile-carousel-card';
