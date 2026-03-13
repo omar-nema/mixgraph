@@ -164,10 +164,43 @@
       height: 52px;
       padding: 0 20px;
     }
-    #shuffle-row {
+    .card-toolbar {
+      border-bottom: 1px solid var(--card-border);
+      border-radius: var(--card-radius) var(--card-radius) 0 0;
+      overflow: hidden;
+      margin: -13px -13px 13px -13px;
+    }
+    .card-toolbar button {
+      width: 100%;
+      font-family: var(--font);
+      font-size: 13px;
+      font-weight: 400;
+      letter-spacing: 0.03em;
+      color: var(--text-primary);
+      background: var(--bg);
+      border: none;
+      padding: 9px 12px;
+      cursor: pointer;
       display: flex;
+      align-items: center;
       justify-content: center;
-      padding-bottom: 8px;
+      gap: 5px;
+      transition: background 0.15s ease;
+    }
+    .card-toolbar button:hover {
+      background: var(--bg);
+    }
+    .card-toolbar button:active {
+      background: var(--card-border);
+    }
+    .card-toolbar button svg {
+      width: 12px;
+      height: 12px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
     }
 
     .toolbar-side {
@@ -193,7 +226,7 @@
     }
     .mode-tab {
       font-family: var(--font);
-      font-size: 12px;
+      font-size: 14px;
       font-weight: 400;
       color: var(--text-tertiary);
       background: none;
@@ -402,6 +435,7 @@
 
     .node-card.settled {
       opacity: 1;
+      animation: none;
     }
 
     .node-card:hover {
@@ -763,66 +797,17 @@
       transform: translateX(-50%) translateY(0);
     }
 
-    /* ═══════════════════════════════════════════
-       Shuffle Button
-       ═══════════════════════════════════════════ */
     #center-btns {
       display: flex;
       align-items: center;
       gap: 8px;
     }
 
-    #shuffle-btn, #share-btn {
-      font-family: var(--font);
-      font-size: 16px;
-      font-weight: 400;
-      color: #000;
-      background: var(--card-bg);
-      border: 1px solid var(--card-border);
-      border-radius: 20px;
-      padding: 7px 14px;
-      cursor: pointer;
-      box-shadow: var(--card-shadow);
-      transition: box-shadow 0.2s ease, color 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
-      display: flex;
-      align-items: center;
-      gap: 5px;
-      letter-spacing: 0.02em;
-    }
-
-    #shuffle-btn:hover, #share-btn:hover {
-      box-shadow: var(--card-hover-shadow);
-      color: var(--text-primary);
-      transform: translateY(-1px);
-    }
-
-    #shuffle-btn:active, #share-btn:active {
-      transform: translateY(0);
-    }
-
-    #shuffle-btn svg, #share-btn svg {
-      width: 13px;
-      height: 13px;
-      fill: none;
-      stroke: currentColor;
-      stroke-width: 2;
-      stroke-linecap: round;
-      stroke-linejoin: round;
-    }
-
-    #share-btn.copied {
-      color: var(--connection-highlight);
-      border-color: var(--connection-highlight);
-    }
-    #share-btn.copied svg .check { display: block; }
-    #share-btn.copied svg .link { display: none; }
-    #share-btn:not(.copied) svg .check { display: none; }
-
     /* Help button */
     #help-btn {
       flex-shrink: 0;
       font-family: var(--font);
-      font-size: 16px;
+      font-size: 14px;
       font-weight: 400;
       color: #000;
       background: var(--card-bg);
@@ -853,6 +838,48 @@
       transform: translateY(-1px);
     }
     #help-btn:active { transform: translateY(0); }
+
+    /* Share button */
+    #share-btn {
+      flex-shrink: 0;
+      font-family: var(--font);
+      font-size: 14px;
+      font-weight: 400;
+      color: #000;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 20px;
+      padding: 6px 12px;
+      cursor: pointer;
+      box-shadow: var(--card-shadow);
+      transition: box-shadow 0.2s ease, color 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      white-space: nowrap;
+    }
+    #share-btn svg {
+      width: 13px;
+      height: 13px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+    #share-btn:hover {
+      box-shadow: var(--card-hover-shadow);
+      color: var(--text-primary);
+      transform: translateY(-1px);
+    }
+    #share-btn:active { transform: translateY(0); }
+    #share-btn.copied {
+      color: var(--connection-highlight);
+      border-color: var(--connection-highlight);
+    }
+    #share-btn.copied svg .check { display: block; }
+    #share-btn.copied svg .link { display: none; }
+    #share-btn:not(.copied) svg .check { display: none; }
 
     /* Help modal */
     #help-overlay {
@@ -1386,7 +1413,7 @@
   <div id="toolbar">
     <div id="toolbar-row">
       <div class="toolbar-side toolbar-left">
-        <button id="help-btn" title="How it works"><svg class="help-info-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg> B2B: Curated Music Discovery</button>
+        <button id="help-btn" title="How it works"><svg class="help-info-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg> What is B2B?</button>
       </div>
       <div id="center-btns">
         <div id="mode-tabs">
@@ -1400,21 +1427,9 @@
           <g class="link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></g>
           <g class="check"><polyline points="20 6 9 17 4 12"/></g>
         </svg>
-        <span class="share-label">share page</span>
+        <span class="share-label">share</span>
       </button>
-      <div id="dj-search-wrap">
-        <svg class="search-icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M16.5 16.5L21 21"/></svg>
-        <input id="dj-search" type="text" placeholder="search DJ..." autocomplete="off">
-        <button id="dj-clear">&times;</button>
-        <div id="dj-autocomplete"></div>
-      </div>
     </div>
-    </div>
-    <div id="shuffle-row">
-      <button id="shuffle-btn">
-        <svg viewBox="0 0 24 24"><path d="M16 3h5v5"/><path d="M4 20L21 3"/><path d="M21 16v5h-5"/><path d="M15 15l6 6"/><path d="M4 4l5 5"/></svg>
-        shuffle
-      </button>
     </div>
   </div>
 
@@ -2339,7 +2354,16 @@
           ? `<a href="${trackLink}" class="track-title" target="_blank" rel="noopener">${node.title}</a>`
           : `<span class="track-title">${node.title}</span>`;
 
+        const cardToolbar = node.rank === 'root' ? `
+          <div class="card-toolbar">
+            <button id="shuffle-btn" title="Shuffle">
+              <svg viewBox="0 0 24 24"><path d="M16 3h5v5"/><path d="M4 20L21 3"/><path d="M21 16v5h-5"/><path d="M15 15l6 6"/><path d="M4 4l5 5"/></svg>
+              shuffle
+            </button>
+          </div>` : '';
+
         card.innerHTML = `
+          ${cardToolbar}
           ${rankLabel ? `<span class="rank-tooltip">${rankLabel}</span>` : ''}
           <div class="art-wrap">
             ${imgTag}
@@ -2651,6 +2675,10 @@
       nodes.forEach(n => { n.x = -9999; n.y = -9999; });
       renderCards();
 
+      // Wire shuffle button (recreated each render inside root card)
+      const shuffleBtn = document.getElementById('shuffle-btn');
+      if (shuffleBtn) shuffleBtn.addEventListener('click', shuffle);
+
       // Measure actual card heights from DOM
       measuredHeights = {};
       nodes.forEach(n => {
@@ -2812,17 +2840,14 @@
         }
       });
 
-      // Wire shuffle button
-      document.getElementById('shuffle-btn').addEventListener('click', shuffle);
-
       // Wire share button
       document.getElementById('share-btn').addEventListener('click', () => {
         navigator.clipboard.writeText(window.location.href);
         const btn = document.getElementById('share-btn');
         const label = btn.querySelector('.share-label');
         btn.classList.add('copied');
-        label.textContent = 'copied';
-        setTimeout(() => { btn.classList.remove('copied'); label.textContent = 'share page'; }, 1500);
+        label.textContent = 'copied!';
+        setTimeout(() => { btn.classList.remove('copied'); label.textContent = 'share'; }, 1500);
       });
 
       // Wire help modal
@@ -2867,9 +2892,6 @@
         tracksView.classList.remove('hidden');
         document.querySelectorAll('.mode-tab').forEach(t => t.classList.remove('active'));
         document.querySelector('.mode-tab[data-mode="tracks"]').classList.add('active');
-        document.getElementById('shuffle-row').style.display = '';
-        document.getElementById('share-btn').style.display = '';
-        document.getElementById('dj-search-wrap').style.display = '';
 
         const graphContainer = document.getElementById('graph-container');
 
@@ -3114,17 +3136,17 @@
             if (overlap > members.length * 0.3) continue;
             members.forEach(m => usedNodes.add(m));
 
-            const artworks = [];
+            const artworks = [], artKeys = [];
             for (const key of members) {
               const cached = audioCache[key];
-              if (cached && cached.artUrl) artworks.push(cached.artUrl);
+              if (cached && cached.artUrl) { artworks.push(cached.artUrl); artKeys.push(key); }
             }
             const [artist, title] = seedKey.split(':::');
             const displayCount = estimateClusterSize(seedKey);
             clusters.push({
               seedKey, label: artist || 'unknown',
               title: title || '', artist: artist || '',
-              count: displayCount, artworks,
+              count: displayCount, artworks, artKeys,
               memberKeys: members, weight: members.length,
             });
           }
@@ -3146,7 +3168,7 @@
           el.style.left = x + 'px'; el.style.top = y + 'px';
           el.style.width = w + 'px'; el.style.height = h + 'px';
 
-          const memberKeys = item.memberKeys || [];
+          const artKeys = item.artKeys || [];
           for (let i = 0; i < numCards; i++) {
             const card = document.createElement('div');
             card.className = 'crate-card placeholder';
@@ -3160,7 +3182,8 @@
             const base = 148 + Math.floor(crateRand() * 40) - 20;
             card.style.background = `rgb(${base}, ${base - 4}, ${base - 8})`;
 
-            const mKey = memberKeys[i % memberKeys.length];
+            // Match info to artwork — artKeys parallels the artworks array
+            const mKey = artKeys.length > 0 ? artKeys[i % artKeys.length] : null;
             const mNode = mKey && graphNodes[mKey];
             const info = document.createElement('div');
             info.className = 'crate-info';
@@ -3259,7 +3282,7 @@
             cards.forEach((card, i) => {
               if (item.artworks.length > 0) {
                 const img = document.createElement('img');
-                img.src = item.artworks[i % item.artworks.length];
+                img.src = item.artworks[i % item.artworks.length].replace('-t500x500', '-t120x120');
                 img.loading = 'lazy'; img.draggable = false;
                 img.onload = () => {
                   card.style.background = '';
@@ -3377,10 +3400,6 @@
           const mode = tab.dataset.mode;
           document.getElementById('tracks-view').classList.toggle('hidden', mode !== 'tracks');
           document.getElementById('crates-view').classList.toggle('hidden', mode !== 'crates');
-          // Hide/show tracks-specific toolbar items
-          document.getElementById('shuffle-row').style.display = mode === 'tracks' ? '' : 'none';
-          document.getElementById('share-btn').style.display = mode === 'tracks' ? '' : 'none';
-          document.getElementById('dj-search-wrap').style.display = mode === 'tracks' ? '' : 'none';
           // Lazy init crates — defer so tab switch is instant
           if (mode === 'crates') requestAnimationFrame(() => initCrates());
         });
@@ -3392,8 +3411,8 @@
         const btn = document.getElementById('freeze-btn');
         btn.textContent = frozen ? 'frozen' : 'freeze';
         btn.classList.toggle('frozen', frozen);
-        document.getElementById('shuffle-btn').style.opacity = frozen ? '0.3' : '1';
-        document.getElementById('shuffle-btn').style.pointerEvents = frozen ? 'none' : '';
+        const sBtn = document.getElementById('shuffle-btn');
+        if (sBtn) { sBtn.style.opacity = frozen ? '0.3' : '1'; sBtn.style.pointerEvents = frozen ? 'none' : ''; }
       });
 
       document.getElementById('cluster-id').addEventListener('click', () => {
@@ -3739,6 +3758,14 @@
     <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="var(--text-tertiary)" stroke-width="2" stroke-linecap="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
   </button>
   <div id="dev-panel">
+    <h4>DJ search</h4>
+    <div id="dj-search-wrap">
+      <svg class="search-icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M16.5 16.5L21 21"/></svg>
+      <input id="dj-search" type="text" placeholder="search DJ..." autocomplete="off">
+      <button id="dj-clear">&times;</button>
+      <div id="dj-autocomplete"></div>
+    </div>
+
     <h4>artist search</h4>
     <div id="artist-search-wrap">
       <svg class="search-icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M16.5 16.5L21 21"/></svg>
