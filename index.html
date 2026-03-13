@@ -1861,13 +1861,13 @@
   </div>
   <div id="crates-view" class="hidden"><div id="crates-surface"></div></div>
 
-  <iframe id="sc-widget" src="https://w.soundcloud.com/player/?url=https%3A%2F%2Fapi.soundcloud.com%2Ftracks%2F293&show_artwork=false&auto_play=false" style="position:absolute;left:-9999px;width:300px;height:166px;border:0;" allow="autoplay"></iframe>
+  <iframe id="sc-widget" src="https://w.soundcloud.com/player/?url=https%3A%2F%2Fapi.soundcloud.com%2Ftracks%2F293&show_artwork=false&auto_play=false" style="width:300px;height:166px;border:0;position:fixed;bottom:0;left:0;opacity:0;pointer-events:none;z-index:-1;" allow="autoplay; encrypted-media"></iframe>
   <div id="mc-player">
     <div class="mc-bar">
       <span class="mc-label">press play on the mixcloud widget to start</span>
       <button class="mc-close" aria-label="Close">&times;</button>
     </div>
-    <iframe id="mc-widget" src="about:blank" allow="autoplay"></iframe>
+    <iframe id="mc-widget" src="about:blank" allow="autoplay; encrypted-media"></iframe>
   </div>
   <button id="theme-toggle">
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -2245,6 +2245,8 @@
 
       scWidget.bind(SC.Widget.Events.READY, () => {
         scWidgetReady = true;
+        // Safari blocks auto_play in iframes — explicitly call play() on READY
+        try { scWidget.play(); } catch (e) {}
       });
       scWidget.bind(SC.Widget.Events.PLAY, () => {
         clearPlayTimeout();
@@ -2287,6 +2289,8 @@
 
       scWidget.bind(SC.Widget.Events.READY, () => {
         scWidgetReady = true;
+        // Safari blocks auto_play in iframes — explicitly call play() on READY
+        try { scWidget.play(); } catch (e) {}
         if (offsetSec) {
           setTimeout(() => scWidget.seekTo(offsetSec * 1000), 800);
         }
