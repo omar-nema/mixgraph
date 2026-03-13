@@ -1538,6 +1538,7 @@
         overflow-y: auto;
         overflow-x: hidden;
         -webkit-overflow-scrolling: touch;
+        justify-content: center;
       }
 
       /* ── Carousel ── */
@@ -1549,7 +1550,7 @@
         scroll-snap-type: x mandatory;
         -webkit-overflow-scrolling: touch;
         scrollbar-width: none;
-        padding: 20px calc((100vw - 65vw) / 2);
+        padding: 12px calc((100vw - 65vw) / 2);
         scroll-padding-inline: calc((100vw - 65vw) / 2);
         flex-shrink: 0;
       }
@@ -1621,6 +1622,10 @@
       .mobile-carousel-card .mc-dj {
         font-size: 11px; font-weight: 300; color: var(--text-tertiary);
         margin-top: 3px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+      }
+      .mobile-carousel-card .mc-context {
+        font-size: 11px; font-weight: 400; color: var(--text-tertiary);
+        margin-top: 8px; text-align: center;
       }
 
       /* ── Source pills ── */
@@ -3104,6 +3109,11 @@
             djs.slice(0, 3).map(d => d.name || d).join(', ')
           }</div>` : '';
 
+      let contextLabel = '';
+      if (node.rank === 'root') contextLabel = '<div class="mc-context">if you like this track, swipe &rarr;</div>';
+      else if (node.rank === '1') contextLabel = '<div class="mc-context">played after in same set</div>';
+      else if (node.rank === '2') contextLabel = '<div class="mc-context">played 2 tracks away</div>';
+
       card.innerHTML = `
         <div class="mc-art-wrap">
           ${mobileArtHtml(node)}
@@ -3112,7 +3122,8 @@
         </div>
         <div class="mc-title">${node.title}</div>
         <div class="mc-artist">${node.artist}</div>
-        ${djLine}`;
+        ${djLine}
+        ${contextLabel}`;
 
       card.addEventListener('click', () => {
         if (hasAudio) togglePlay(node.id);
