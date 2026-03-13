@@ -1611,21 +1611,8 @@
         object-fit: cover; display: block;
         background: #d9d1c7;
       }
-      .mobile-carousel-card .play-btn {
-        position: absolute; inset: 0;
-        border: none; background: rgba(0,0,0,0.15);
-        display: flex; align-items: center; justify-content: center;
-        opacity: 0; transition: opacity 0.15s; cursor: pointer;
-      }
-      .mobile-carousel-card:active .play-btn { opacity: 1; }
-      .mobile-carousel-card.playing .play-btn,
-      .mobile-carousel-card.loading .play-btn { opacity: 1; }
-      .mobile-carousel-card .play-btn svg { width: 36px; height: 36px; fill: #fff; filter: drop-shadow(0 2px 6px rgba(0,0,0,0.3)); }
-      .mobile-carousel-card .progress-bar { position: absolute; bottom: 0; left: 0; right: 0; height: 4px; }
-      .mobile-carousel-card .bar-track { width: 100%; height: 100%; background: rgba(0,0,0,0.3); }
-      .mobile-carousel-card .bar-fill { height: 100%; width: 0%; background: #fff; }
-      .mobile-carousel-card.playing { border-color: var(--connection-highlight); }
-      .mobile-carousel-card.playing .mc-art-wrap {
+      .mobile-carousel-card.selected { border-color: var(--connection-highlight); }
+      .mobile-carousel-card.selected .mc-art-wrap {
         animation: breathe 3s ease-in-out infinite;
       }
       .mobile-carousel-card.loading .mc-art-wrap::after {
@@ -3084,6 +3071,44 @@
         carousel.scrollTo({ left: 0, behavior: 'instant' });
       });
 
+      // Auto-load first track with audio into SC widget
+      const firstWithAudio = allCards.find(n => n.scTrackUrl || n.setUrl);
+      if (firstWithAudio) {
+        requestAnimationFrame(() => selectMobileTrack(firstWithAudio.id));
+      }
+    }
+
+    // Mobile: select a card to load it into the SC widget. No play/pause
+    // on the card itself — user taps play in the SC widget below.
+    function selectMobileTrack(nodeId) {
+      const node = nodeMap[nodeId];
+      if (!node) return;
+      const hasAudio = !!(node.scTrackUrl || node.setUrl);
+      if (!hasAudio) return;
+
+      // Deselect previous
+      document.querySelectorAll('.mobile-carousel-card.selected').forEach(c => {
+        c.classList.remove('selected', 'loading');
+      });
+
+      const card = document.querySelector(`.mobile-carousel-card[data-node-id="${nodeId}"]`);
+      if (card) {
+        card.classList.add('selected', 'loading');
+      }
+
+      // Load into SC widget
+      if (!initSCWidget()) return;
+      showScPlayer();
+
+      scWidgetReady = false;
+      scWidget.unbind(SC.Widget.Events.READY);
+      scWidget.bind(SC.Widget.Events.READY, () => {
+        scWidgetReady = true;
+        if (card) card.classList.remove('loading');
+      });
+
+      const url = node.scTrackUrl || node.setUrl;
+      scWidget.load(url, { auto_play: true, show_artwork: false, visual: false, show_teaser: false, sharing: false, buying: false });
     }
 
     function makeCarouselCard(node) {
@@ -3106,18 +3131,15 @@
       card.innerHTML = `
         <div class="mc-art-wrap">
           ${mobileArtHtml(node)}
-          ${hasAudio ? `<button class="play-btn">${PLAY_SVG}</button>` : ''}
-          ${hasAudio ? '<div class="progress-bar"><div class="bar-track"><div class="bar-fill"></div></div></div>' : ''}
         </div>
         <div class="mc-title">${node.title}</div>
         <div class="mc-artist">${node.artist}</div>
         ${djLine}`;
 
       card.addEventListener('click', () => {
-        if (hasAudio) togglePlay(node.id);
+        if (hasAudio) selectMobileTrack(node.id);
       });
 
-      initProgressBarInteraction(card);
       item.appendChild(card);
 
       let contextText = '';
