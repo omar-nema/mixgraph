@@ -1006,9 +1006,6 @@
         background: var(--bg);
         border-top: 1px solid var(--card-border);
       }
-      #sc-player-area #mobile-source-area {
-        padding: 8px 16px;
-      }
       #sc-placeholder {
         width: 100%;
         height: 80px;
@@ -1029,7 +1026,7 @@
         pointer-events: auto;
         z-index: 99;
       }
-      body { padding-bottom: 130px; }
+      body { padding-bottom: 84px; }
     }
 
     #mc-player {
@@ -1579,11 +1576,11 @@
 
       .mobile-carousel-item {
         flex-shrink: 0;
-        width: 52vw;
+        width: 60vw;
         scroll-snap-align: center;
       }
       .mobile-carousel-item[data-rank="root"] {
-        width: 60vw;
+        width: 70vw;
       }
       .mobile-carousel-card {
         background: var(--card-bg);
@@ -1855,7 +1852,6 @@
   <div id="crates-view" class="hidden"><div id="crates-surface"></div></div>
 
   <div id="sc-player-area">
-    <div id="mobile-source-area"></div>
     <div id="sc-placeholder">tap on a track to play</div>
     <iframe id="sc-widget" src="https://w.soundcloud.com/player/?auto_play=false&show_artwork=false" allow="autoplay; encrypted-media"></iframe>
   </div>
@@ -3086,45 +3082,6 @@
         carousel.scrollTo({ left: 0, behavior: 'instant' });
       });
 
-      // Source pills
-      const sourceArea = document.getElementById('mobile-source-area');
-      sourceArea.innerHTML = '';
-
-      const sources = new Map();
-      for (const node of cluster.nodes) {
-        const gn = graphNodes[node.graphId];
-        if (!gn || !gn.edges) continue;
-        for (const edge of gn.edges) {
-          for (const ctx of (edge.contexts || [])) {
-            const dj = (ctx.dj || '').trim();
-            const url = ctx.episode_url || '';
-            if (dj && url) {
-              const key = `${dj}|${url}`;
-              if (!sources.has(key)) sources.set(key, { dj, url, date: ctx.date || '' });
-            }
-          }
-        }
-      }
-
-      if (sources.size > 0) {
-        const label = document.createElement('div');
-        label.className = 'mobile-source-label';
-        label.textContent = 'Sourced from these sets';
-        sourceArea.appendChild(label);
-
-        const row = document.createElement('div');
-        row.className = 'mobile-source-row';
-        for (const src of sources.values()) {
-          const pill = document.createElement('a');
-          pill.className = 'mobile-source-pill';
-          pill.href = src.url;
-          pill.target = '_blank';
-          pill.rel = 'noopener';
-          pill.textContent = src.dj;
-          row.appendChild(pill);
-        }
-        sourceArea.appendChild(row);
-      }
     }
 
     function makeCarouselCard(node) {
