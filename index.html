@@ -2023,33 +2023,34 @@
       if (scPlayTimeout) { clearTimeout(scPlayTimeout); scPlayTimeout = null; }
     }
 
-    // Mobile browsers block auto_play in cross-origin iframes.
-    // Retry .play() quickly; if still stuck after retries, fall back or reset.
+    // Safety net: if auto_play doesn't fire within timeout, fall back.
+    // Only retry play() if the widget has signalled READY.
     function startPlayTimeout(nodeId, fallbackToSet) {
       clearPlayTimeout();
-      let retries = 0;
-      const maxRetries = 3;
-      function tryPlay() {
+      scPlayTimeout = setTimeout(() => {
         if (currentlyPlayingId !== nodeId) return;
         const card = findCardForNode(nodeId);
         const stillLoading = card && card.classList.contains('loading');
         if (!stillLoading) return; // PLAY fired, all good
-        if (retries < maxRetries) {
-          retries++;
+        // Only retry if widget is actually ready
+        if (scWidgetReady) {
           try { scWidget.play(); } catch (e) {}
-          scPlayTimeout = setTimeout(tryPlay, 2000);
-        } else {
-          // Give up
-          resetCardUI(nodeId);
-          currentlyPlayingId = null;
-          currentBackend = null;
-          if (fallbackToSet) {
-            const node = nodeMap[nodeId];
-            if (node && node.setUrl) playSet(nodeId);
-          }
         }
-      }
-      scPlayTimeout = setTimeout(tryPlay, 2000);
+        // Give it one more chance, then give up
+        scPlayTimeout = setTimeout(() => {
+          if (currentlyPlayingId !== nodeId) return;
+          const c = findCardForNode(nodeId);
+          if (c && c.classList.contains('loading')) {
+            resetCardUI(nodeId);
+            currentlyPlayingId = null;
+            currentBackend = null;
+            if (fallbackToSet) {
+              const node = nodeMap[nodeId];
+              if (node && node.setUrl) playSet(nodeId);
+            }
+          }
+        }, 5000);
+      }, 5000);
     }
 
     function initSCWidget() {
