@@ -1535,140 +1535,70 @@
       #mobile-tracks {
         flex-direction: column;
         flex: 1;
-        overflow: hidden;
+        overflow-y: auto;
+        overflow-x: hidden;
+        -webkit-overflow-scrolling: touch;
       }
 
-      /* Root sticky card */
-      .mobile-root-sticky {
+      /* ── Carousel ── */
+      #mobile-carousel {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        overflow-x: auto;
+        scroll-snap-type: x mandatory;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+        padding: 20px calc((100vw - 65vw) / 2);
+        scroll-padding-inline: calc((100vw - 65vw) / 2);
         flex-shrink: 0;
-        border-bottom: 1px solid var(--card-border);
-        background: var(--bg);
-        z-index: 10;
-        overflow: hidden;
-        transition: background 0.4s ease;
       }
-      .mobile-root-expanded {
-        padding: 14px 16px 12px;
-        text-align: center;
+      #mobile-carousel::-webkit-scrollbar { display: none; }
+
+      .mobile-carousel-card {
+        flex-shrink: 0;
+        width: 65vw;
+        scroll-snap-align: center;
+        background: var(--card-bg);
+        border: 1px solid var(--card-border);
+        border-radius: var(--card-radius);
+        padding: 12px;
+        box-shadow: var(--card-shadow);
+        cursor: pointer;
       }
-      .mobile-root-expanded .mobile-root-art-wrap {
+      .mobile-carousel-card:active { box-shadow: var(--card-hover-shadow); }
+
+      .mobile-carousel-card .mc-art-wrap {
         position: relative;
-        width: 50%;
+        width: 100%;
         aspect-ratio: 1;
         border-radius: var(--art-radius);
         overflow: hidden;
-        margin: 0 auto 12px;
+        margin-bottom: 10px;
       }
-      .mobile-root-expanded .album-art {
+      .mobile-carousel-card .album-art {
         width: 100%; height: 100%;
         object-fit: cover; display: block;
         background: #d9d1c7;
       }
-      .mobile-root-expanded .play-btn {
+      .mobile-carousel-card .play-btn {
         position: absolute; inset: 0;
         border: none; background: rgba(0,0,0,0.15);
         display: flex; align-items: center; justify-content: center;
         opacity: 0; transition: opacity 0.15s; cursor: pointer;
       }
-      .mobile-root-expanded:active .play-btn { opacity: 1; }
-      .mobile-root-expanded .play-btn svg { width: 40px; height: 40px; fill: #fff; filter: drop-shadow(0 2px 6px rgba(0,0,0,0.3)); }
-      .mobile-root-expanded .progress-bar { position: absolute; bottom: 0; left: 0; right: 0; height: 4px; }
-      .mobile-root-expanded .bar-track { width: 100%; height: 100%; background: rgba(0,0,0,0.3); }
-      .mobile-root-expanded .bar-fill { height: 100%; width: 0%; background: #fff; }
-      .mobile-root-expanded .mobile-root-title {
-        font-size: 19px; font-weight: 700; line-height: 1.25; margin-bottom: 3px;
-        text-align: left;
-        overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
-      }
-      .mobile-root-expanded .mobile-root-artist {
-        font-size: 15px; font-weight: 300; color: var(--text-secondary); line-height: 1.3; margin-bottom: 4px;
-        text-align: left;
-      }
-      .mobile-root-expanded .mobile-root-djs {
-        font-size: 12px; font-weight: 300; color: var(--text-tertiary); line-height: 1.3;
-        text-align: left;
-      }
-
-      /* Mobile playing/loading state */
-      .mobile-root-sticky.playing .play-btn,
-      .mobile-root-sticky.loading .play-btn { opacity: 1; }
-      .mobile-root-sticky.playing { border-color: var(--connection-highlight); }
-      .mobile-root-sticky.playing .mobile-root-art-wrap {
+      .mobile-carousel-card:active .play-btn { opacity: 1; }
+      .mobile-carousel-card.playing .play-btn,
+      .mobile-carousel-card.loading .play-btn { opacity: 1; }
+      .mobile-carousel-card .play-btn svg { width: 36px; height: 36px; fill: #fff; filter: drop-shadow(0 2px 6px rgba(0,0,0,0.3)); }
+      .mobile-carousel-card .progress-bar { position: absolute; bottom: 0; left: 0; right: 0; height: 4px; }
+      .mobile-carousel-card .bar-track { width: 100%; height: 100%; background: rgba(0,0,0,0.3); }
+      .mobile-carousel-card .bar-fill { height: 100%; width: 0%; background: #fff; }
+      .mobile-carousel-card.playing { border-color: var(--connection-highlight); }
+      .mobile-carousel-card.playing .mc-art-wrap {
         animation: breathe 3s ease-in-out infinite;
       }
-      .mobile-root-sticky.loading .mobile-root-art-wrap::after {
-        content: '';
-        position: absolute;
-        inset: 0;
-        background: linear-gradient(90deg, transparent 25%, rgba(255,255,255,0.3) 50%, transparent 75%);
-        background-size: 200% 100%;
-        animation: card-shimmer 2.5s ease-in-out infinite;
-        pointer-events: none;
-        z-index: 10;
-      }
-      @keyframes breathe {
-        0%, 100% { transform: scale(1); }
-        50% { transform: scale(1.013); }
-      }
-
-      /* Scroll area */
-      #mobile-scroll-area {
-        flex: 1;
-        overflow-y: auto;
-        overflow-x: hidden;
-        -webkit-overflow-scrolling: touch;
-        padding-bottom: 50px;
-      }
-
-      .mobile-section-label {
-        font-size: 11px; font-weight: 500; letter-spacing: 0.08em;
-        text-transform: uppercase; color: var(--text-tertiary);
-        padding: 16px 16px 8px;
-      }
-
-      /* Horizontal card rows */
-      .mobile-neighbor-row {
-        display: flex; gap: 12px; padding: 0 16px;
-        overflow-x: auto; scroll-snap-type: x mandatory;
-        -webkit-overflow-scrolling: touch; scrollbar-width: none;
-      }
-      .mobile-neighbor-row::-webkit-scrollbar { display: none; }
-
-      .mobile-neighbor-card {
-        flex-shrink: 0; width: 140px;
-        background: var(--card-bg); border: 1px solid var(--card-border);
-        border-radius: var(--card-radius); padding: 10px;
-        box-shadow: var(--card-shadow); scroll-snap-align: start;
-        transition: box-shadow 0.2s; cursor: pointer;
-      }
-      .mobile-neighbor-card:active { box-shadow: var(--card-hover-shadow); }
-
-      .mobile-neighbor-card .mn-art-wrap {
-        position: relative;
-        width: 100%; aspect-ratio: 1;
-        border-radius: var(--art-radius);
-        overflow: hidden;
-        margin-bottom: 8px;
-      }
-      .mobile-neighbor-card .album-art {
-        width: 100%; height: 100%;
-        object-fit: cover; display: block; background: #d9d1c7;
-      }
-      .mobile-neighbor-card .play-btn {
-        position: absolute; inset: 0;
-        border: none; background: rgba(0,0,0,0.15);
-        display: flex; align-items: center; justify-content: center;
-        opacity: 0; transition: opacity 0.15s; cursor: pointer;
-      }
-      .mobile-neighbor-card:active .play-btn { opacity: 1; }
-      .mobile-neighbor-card.playing .play-btn,
-      .mobile-neighbor-card.loading .play-btn { opacity: 1; }
-      .mobile-neighbor-card .play-btn svg { width: 24px; height: 24px; fill: #fff; filter: drop-shadow(0 1px 4px rgba(0,0,0,0.3)); }
-      .mobile-neighbor-card .progress-bar { position: absolute; bottom: 0; left: 0; right: 0; height: 3px; }
-      .mobile-neighbor-card .bar-track { width: 100%; height: 100%; background: rgba(0,0,0,0.3); }
-      .mobile-neighbor-card .bar-fill { height: 100%; width: 0%; background: #fff; }
-      .mobile-neighbor-card.playing { border-color: var(--connection-highlight); }
-      .mobile-neighbor-card.loading .mn-art-wrap::after {
+      .mobile-carousel-card.loading .mc-art-wrap::after {
         content: '';
         position: absolute; inset: 0;
         background: linear-gradient(90deg, transparent 25%, rgba(255,255,255,0.3) 50%, transparent 75%);
@@ -1676,22 +1606,34 @@
         animation: card-shimmer 2.5s ease-in-out infinite;
         pointer-events: none; z-index: 10;
       }
-      .mobile-neighbor-card .mn-title {
-        font-size: 13px; font-weight: 600; line-height: 1.3; margin-bottom: 2px;
+      @keyframes breathe {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.013); }
+      }
+
+      .mobile-carousel-card .mc-title {
+        font-size: 17px; font-weight: 700; line-height: 1.25; margin-bottom: 3px;
         overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
       }
-      .mobile-neighbor-card .mn-artist {
-        font-size: 11px; font-weight: 300; color: var(--text-secondary); line-height: 1.3;
-        overflow: hidden; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical;
+      .mobile-carousel-card .mc-artist {
+        font-size: 14px; font-weight: 300; color: var(--text-secondary); line-height: 1.3;
       }
-      .mobile-neighbor-card .mn-dj {
+      .mobile-carousel-card .mc-dj {
         font-size: 11px; font-weight: 300; color: var(--text-tertiary);
         margin-top: 3px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
       }
 
-      /* Source pills row */
+      /* ── Source pills ── */
+      #mobile-source-area {
+        padding: 0 16px 50px;
+      }
+      .mobile-source-label {
+        font-size: 11px; font-weight: 500; letter-spacing: 0.08em;
+        text-transform: uppercase; color: var(--text-tertiary);
+        padding: 8px 0 8px;
+      }
       .mobile-source-row {
-        display: flex; gap: 8px; padding: 0 16px;
+        display: flex; gap: 8px;
         overflow-x: auto; scrollbar-width: none;
         -webkit-overflow-scrolling: touch;
       }
@@ -1876,17 +1818,13 @@
       </div>
     </div>
     <div id="mobile-tracks" style="display:none">
-      <div id="mobile-root-sticky" class="mobile-root-sticky" style="display:none">
-        <div class="mobile-root-expanded" id="mobile-root-expanded"></div>
-      </div>
-      <div id="mobile-scroll-area">
-        <div id="mobile-content"></div>
-      </div>
+      <div id="mobile-carousel"></div>
+      <div id="mobile-source-area"></div>
     </div>
   </div>
   <div id="crates-view" class="hidden"><div id="crates-surface"></div></div>
 
-  <iframe id="sc-widget" src="https://w.soundcloud.com/player/?show_artwork=false&auto_play=false&visual=false&show_teaser=false&sharing=false&buying=false" allow="autoplay; encrypted-media"></iframe>
+  <iframe id="sc-widget" src="https://w.soundcloud.com/player/?auto_play=false&show_artwork=false" allow="autoplay; encrypted-media"></iframe>
   <div id="mc-player">
     <div class="mc-bar">
       <span class="mc-label">press play on the mixcloud widget to start</span>
@@ -2423,8 +2361,7 @@
 
     function findCardForNode(nodeId) {
       return document.querySelector(`.node-card[data-node-id="${nodeId}"]`)
-          || document.querySelector(`#mobile-root-sticky[data-node-id="${nodeId}"]`)
-          || document.querySelector(`.mobile-neighbor-card[data-node-id="${nodeId}"]`);
+          || document.querySelector(`.mobile-carousel-card[data-node-id="${nodeId}"]`);
     }
 
     function togglePlay(nodeId) {
@@ -3101,69 +3038,22 @@
       const root = cluster.nodes.find(n => n.rank === 'root');
       const r1Nodes = cluster.nodes.filter(n => n.rank === '1');
       const r2Nodes = cluster.nodes.filter(n => n.rank === '2');
-      const djs = collectDjs(root.graphId);
-      const djsHtml = djs.length > 0 ? `<div class="mobile-root-djs">Mixed by ${djs.slice(0, 3).map(d => d.name).join(', ')}</div>` : '';
 
-      const sticky = document.getElementById('mobile-root-sticky');
-      sticky.style.display = '';
-      sticky.classList.remove('playing');
-      sticky.setAttribute('data-node-id', 'root');
+      // Build carousel: root first, then rank 1, then rank 2
+      const allCards = [root, ...r1Nodes, ...r2Nodes];
+      const carousel = document.getElementById('mobile-carousel');
+      carousel.innerHTML = '';
+      allCards.forEach(node => carousel.appendChild(makeCarouselCard(node)));
 
-      const hasAudio = !!(root.scTrackUrl || root.setUrl);
-      document.getElementById('mobile-root-expanded').innerHTML = `
-        <div class="mobile-root-art-wrap">
-          ${mobileArtHtml(root)}
-          ${hasAudio ? `<button class="play-btn">${PLAY_SVG}</button>` : ''}
-          ${hasAudio ? '<div class="progress-bar"><div class="bar-track"><div class="bar-fill"></div></div></div>' : ''}
-        </div>
-        <div class="mobile-root-title">${root.title}</div>
-        <div class="mobile-root-artist">${root.artist}</div>
-        ${djsHtml}
-      `;
+      // Scroll to root (first card)
+      requestAnimationFrame(() => {
+        carousel.scrollTo({ left: 0, behavior: 'instant' });
+      });
 
-      // Wire root play button
-      const rootPlayBtn = sticky.querySelector('.play-btn');
-      if (rootPlayBtn) {
-        rootPlayBtn.addEventListener('click', (e) => {
-          e.stopPropagation();
-          togglePlay('root');
-        });
-      }
+      // Source pills
+      const sourceArea = document.getElementById('mobile-source-area');
+      sourceArea.innerHTML = '';
 
-      // Wire root progress bar seeking (pass sticky as the "card" since it has data-node-id)
-      initProgressBarInteraction(sticky);
-
-      const content = document.getElementById('mobile-content');
-      content.innerHTML = '';
-
-      if (r1Nodes.length > 0) {
-        const label1 = document.createElement('div');
-        label1.className = 'mobile-section-label mobile-animate-in';
-        label1.textContent = 'Played next to';
-        content.appendChild(label1);
-
-        const row1 = document.createElement('div');
-        row1.className = 'mobile-neighbor-row mobile-animate-in';
-        row1.style.animationDelay = '0.05s';
-        r1Nodes.forEach(node => row1.appendChild(makeMobileCard(node)));
-        content.appendChild(row1);
-      }
-
-      if (r2Nodes.length > 0) {
-        const label2 = document.createElement('div');
-        label2.className = 'mobile-section-label mobile-animate-in';
-        label2.style.animationDelay = '0.15s';
-        label2.textContent = '2 tracks away';
-        content.appendChild(label2);
-
-        const row2 = document.createElement('div');
-        row2.className = 'mobile-neighbor-row mobile-r2-row mobile-animate-in';
-        row2.style.animationDelay = '0.2s';
-        r2Nodes.forEach(node => row2.appendChild(makeMobileCard(node)));
-        content.appendChild(row2);
-      }
-
-      // Collect unique DJ sets from all edges
       const sources = new Map();
       for (const node of cluster.nodes) {
         const gn = graphNodes[node.graphId];
@@ -3181,15 +3071,13 @@
       }
 
       if (sources.size > 0) {
-        const label3 = document.createElement('div');
-        label3.className = 'mobile-section-label mobile-animate-in';
-        label3.style.animationDelay = '0.3s';
-        label3.textContent = 'Sourced from';
-        content.appendChild(label3);
+        const label = document.createElement('div');
+        label.className = 'mobile-source-label';
+        label.textContent = 'From these sets';
+        sourceArea.appendChild(label);
 
-        const row3 = document.createElement('div');
-        row3.className = 'mobile-source-row mobile-animate-in';
-        row3.style.animationDelay = '0.35s';
+        const row = document.createElement('div');
+        row.className = 'mobile-source-row';
         for (const src of sources.values()) {
           const pill = document.createElement('a');
           pill.className = 'mobile-source-pill';
@@ -3197,38 +3085,40 @@
           pill.target = '_blank';
           pill.rel = 'noopener';
           pill.textContent = src.dj;
-          row3.appendChild(pill);
+          row.appendChild(pill);
         }
-        content.appendChild(row3);
+        sourceArea.appendChild(row);
       }
-
-      document.getElementById('mobile-scroll-area').scrollTop = 0;
     }
 
-    function makeMobileCard(node) {
+    function makeCarouselCard(node) {
       const card = document.createElement('div');
-      card.className = 'mobile-neighbor-card';
+      card.className = 'mobile-carousel-card';
       card.dataset.nodeId = node.id;
+      card.dataset.rank = node.rank || '';
       const hasAudio = !!(node.scTrackUrl || node.setUrl);
-      const djLine = node.djs && node.djs.length > 0
-        ? `<div class="mn-dj">via ${node.djs[0].name || node.djs[0]}</div>` : '';
+
+      const djs = node.rank === 'root' ? collectDjs(node.graphId) : (node.djs || []);
+      const djLine = djs.length > 0
+        ? `<div class="mc-dj">${node.rank === 'root' ? 'Mixed by ' : 'via '}${
+            djs.slice(0, 3).map(d => d.name || d).join(', ')
+          }</div>` : '';
+
       card.innerHTML = `
-        <div class="mn-art-wrap">
+        <div class="mc-art-wrap">
           ${mobileArtHtml(node)}
           ${hasAudio ? `<button class="play-btn">${PLAY_SVG}</button>` : ''}
           ${hasAudio ? '<div class="progress-bar"><div class="bar-track"><div class="bar-fill"></div></div></div>' : ''}
         </div>
-        <div class="mn-title">${node.title}</div>
-        <div class="mn-artist">${node.artist}</div>
+        <div class="mc-title">${node.title}</div>
+        <div class="mc-artist">${node.artist}</div>
         ${djLine}`;
+
       card.addEventListener('click', () => {
-        if (hasAudio) {
-          togglePlay(node.id);
-        } else {
-          const cluster = selectCluster(node.graphId);
-          showCluster(cluster);
-        }
+        if (hasAudio) togglePlay(node.id);
       });
+
+      initProgressBarInteraction(card);
       return card;
     }
 
