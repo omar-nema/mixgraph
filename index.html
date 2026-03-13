@@ -999,7 +999,7 @@
       overflow: hidden;
     }
     @media (max-width: 768px) {
-      #sc-widget {
+      #sc-widget.sc-active {
         width: 100%;
         height: 80px;
         clip: auto;
@@ -1008,7 +1008,7 @@
         z-index: 99;
         border-top: 1px solid var(--card-border);
       }
-      body { padding-bottom: 84px; }
+      body.sc-playing { padding-bottom: 84px; }
     }
 
     #mc-player {
@@ -2115,11 +2115,21 @@
       }
     }
 
+    function showScPlayer() {
+      document.getElementById('sc-widget').classList.add('sc-active');
+      document.body.classList.add('sc-playing');
+    }
+    function hideScPlayer() {
+      document.getElementById('sc-widget').classList.remove('sc-active');
+      document.body.classList.remove('sc-playing');
+    }
+
     function stopCurrentPlayback() {
       clearPlayTimeout();
       if (!currentlyPlayingId) return;
       if (currentBackend === 'sc' && scWidget) {
         try { scWidget.pause(); } catch (e) {}
+        hideScPlayer();
       } else if (currentBackend === 'mc') {
         hideMcPlayer();
       }
@@ -2130,6 +2140,7 @@
 
     function onPlaybackEnded() {
       if (currentlyPlayingId) {
+        hideScPlayer();
         resetCardUI(currentlyPlayingId);
         currentlyPlayingId = null;
         currentBackend = null;
@@ -2275,11 +2286,13 @@
       });
       scWidget.bind(SC.Widget.Events.PLAY, () => {
         clearPlayTimeout();
+        showScPlayer();
         if (card) { hideLoading(card); card.classList.add('playing'); applyGlow(card); }
         startProgressPolling();
       });
       scWidget.bind(SC.Widget.Events.FINISH, onPlaybackEnded);
       scWidget.bind(SC.Widget.Events.ERROR, () => {
+        hideScPlayer();
         resetCardUI(nodeId);
         currentlyPlayingId = null;
         currentBackend = null;
@@ -2321,11 +2334,12 @@
       });
       scWidget.bind(SC.Widget.Events.PLAY, () => {
         clearPlayTimeout();
+        showScPlayer();
         if (card) { hideLoading(card); card.classList.add('playing'); applyGlow(card); }
         startProgressPolling();
       });
       scWidget.bind(SC.Widget.Events.FINISH, onPlaybackEnded);
-      scWidget.bind(SC.Widget.Events.ERROR, onPlaybackEnded);
+      scWidget.bind(SC.Widget.Events.ERROR, () => { hideScPlayer(); onPlaybackEnded(); });
 
       scWidget.load(setUrl, { auto_play: true, show_artwork: false });
       startPlayTimeout(nodeId, false);
