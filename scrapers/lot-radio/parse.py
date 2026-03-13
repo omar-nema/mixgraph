@@ -255,8 +255,10 @@ def parse_tracklist(html: str) -> tuple[bool, List[Dict[str, Any]]]:
 
                 # Extract and clean the JSON array
                 raw_array = html[bracket_start:end]
-                # Unescape the JSON: \" -> " and \' -> '
-                cleaned = raw_array.replace('\\"', '"').replace("\\'", "'")
+                # Unescape the JSON: handle double-escaped quotes first
+                # (literal " inside values appears as \\\" in RSC data)
+                # then unescape structural quotes
+                cleaned = raw_array.replace('\\\\"', '\uFFFD').replace('\\"', '"').replace('\uFFFD', '\\"').replace("\\'", "'")
 
                 try:
                     parsed = json.loads(cleaned)

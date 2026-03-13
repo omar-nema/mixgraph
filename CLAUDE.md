@@ -76,6 +76,7 @@ cd web-app && python3 -m http.server 8000
 - No TypeScript, no bundlers, no package.json for the frontend
 - When editing index.html, preserve the existing CSS token system and code organization
 - Concise comments only where logic isn't obvious
+- **Use flexbox for layout** — never use absolute positioning for standard UI elements like toolbars, navs, or button groups. Reserve absolute positioning for overlays, tooltips, and things that genuinely need to escape the flow
 
 ## Sandbox
 
@@ -84,6 +85,11 @@ cd web-app && python3 -m http.server 8000
 ## Sandbox
 
 `sandbox/` is for experimenting with frontend concepts (layouts, effects, interactions). When asked, port working experiments from sandbox into `web-app/index.html`.
+
+## Long-running tasks
+
+- **Run caffeinated** — wrap long-running commands with `caffeinate` (e.g., `caffeinate -dims python3 scraper.py`) so the machine stays awake if I step away or the lid closes
+- **Progress updates every 30 minutes** — for any task that runs longer than a few minutes, post a status update every ~30 minutes with progress so far, estimated remaining work, and any issues hit
 
 ## Workflow habits
 

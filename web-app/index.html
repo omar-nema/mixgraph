@@ -74,10 +74,29 @@
        Toolbar
        ═══════════════════════════════════════════ */
     #toolbar {
-      position: relative;
+      display: flex;
+      align-items: center;
       height: 60px;
+      padding: 0 20px;
       flex-shrink: 0;
       z-index: 10;
+    }
+
+    .toolbar-side {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .toolbar-right {
+      justify-content: flex-end;
+    }
+
+    #site-title {
+      font-family: var(--font);
+      font-size: 12px;
+      color: var(--text-secondary);
+      letter-spacing: 0.02em;
     }
 
     /* ═══════════════════════════════════════════
@@ -501,11 +520,6 @@
        Shuffle Button
        ═══════════════════════════════════════════ */
     #center-btns {
-      position: absolute;
-      top: 16px;
-      left: 50%;
-      transform: translateX(-50%);
-      z-index: 10;
       display: flex;
       gap: 8px;
     }
@@ -555,6 +569,112 @@
     #share-btn.copied svg .check { display: block; }
     #share-btn.copied svg .link { display: none; }
     #share-btn:not(.copied) svg .check { display: none; }
+
+    /* Help button */
+    #help-btn {
+      flex-shrink: 0;
+      font-family: var(--font);
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 50%;
+      width: 32px;
+      height: 32px;
+      cursor: pointer;
+      box-shadow: var(--card-shadow);
+      transition: box-shadow 0.2s ease, color 0.2s ease, transform 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    #help-btn:hover {
+      box-shadow: var(--card-hover-shadow);
+      color: var(--text-primary);
+      transform: translateY(-1px);
+    }
+    #help-btn:active { transform: translateY(0); }
+
+    /* Help modal */
+    #help-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 200;
+      background: rgba(42, 37, 32, 0.4);
+      backdrop-filter: blur(4px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s ease;
+    }
+    #help-overlay.open {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    #help-modal {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      box-shadow: 0 8px 40px rgba(42, 37, 32, 0.15);
+      padding: 32px;
+      max-width: 620px;
+      width: 90%;
+      max-height: 80vh;
+      overflow-y: auto;
+      transform: translateY(12px) scale(0.97);
+      transition: transform 0.25s ease;
+    }
+    #help-overlay.open #help-modal {
+      transform: translateY(0) scale(1);
+    }
+    #help-modal h2 {
+      font-family: var(--font);
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 16px;
+    }
+    #help-modal p {
+      font-family: var(--font);
+      font-size: 13px;
+      font-weight: 400;
+      color: var(--text-secondary);
+      line-height: 1.6;
+      margin-bottom: 12px;
+    }
+    #help-modal p:last-child { margin-bottom: 0; }
+    #help-modal kbd {
+      font-family: var(--font);
+      font-size: 11px;
+      background: var(--bg);
+      border: 1px solid var(--card-border);
+      border-radius: 4px;
+      padding: 1px 6px;
+    }
+    .help-diagram {
+      width: 100%;
+      margin-top: 20px;
+      border-radius: 10px;
+      background: var(--bg);
+      padding: 12px;
+    }
+
+    #help-modal .help-close {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      background: none;
+      border: none;
+      font-size: 20px;
+      color: var(--text-tertiary);
+      cursor: pointer;
+      transition: color 0.15s ease;
+      line-height: 1;
+    }
+    #help-modal .help-close:hover { color: var(--text-primary); }
 
     /* (debug-bar and filter-select moved into dev panel) */
 
@@ -775,45 +895,40 @@
        Artist Search
        ═══════════════════════════════════════════ */
     #artist-search-wrap {
-      position: absolute;
-      top: 16px;
-      left: 24px;
+      position: relative;
       z-index: 20;
     }
 
     #artist-search {
       font-family: var(--font);
-      font-size: 12px;
+      font-size: 11px;
       font-weight: 400;
       color: var(--text-primary);
-      background: var(--card-bg);
+      background: var(--bg);
       border: 1px solid var(--card-border);
-      border-radius: 20px;
-      padding: 7px 14px 7px 32px;
-      width: 220px;
-      box-shadow: var(--card-shadow);
+      border-radius: 6px;
+      padding: 5px 8px 5px 28px;
+      width: 100%;
+      box-sizing: border-box;
       outline: none;
-      transition: border-color 0.2s ease, box-shadow 0.2s ease, width 0.2s ease;
+      transition: border-color 0.2s ease;
     }
 
     #artist-search::placeholder {
-      color: var(--text-secondary);
-      opacity: 0.6;
+      color: var(--text-tertiary);
     }
 
     #artist-search:focus {
       border-color: var(--connection-stroke);
-      box-shadow: var(--card-hover-shadow);
-      width: 280px;
     }
 
     #artist-search-wrap .search-icon {
       position: absolute;
-      left: 11px;
+      left: 8px;
       top: 50%;
       transform: translateY(-50%);
-      width: 14px;
-      height: 14px;
+      width: 12px;
+      height: 12px;
       stroke: var(--text-tertiary);
       fill: none;
       stroke-width: 2;
@@ -823,10 +938,10 @@
 
     #artist-autocomplete {
       position: absolute;
-      top: calc(100% + 4px);
+      bottom: calc(100% + 4px);
       left: 0;
-      width: 280px;
-      max-height: 320px;
+      width: 100%;
+      max-height: 260px;
       overflow-y: auto;
       background: var(--card-bg);
       border: 1px solid var(--card-border);
@@ -873,12 +988,12 @@
     /* Active artist filter indicator */
     #artist-search.filtered {
       border-color: var(--connection-highlight);
-      padding-right: 28px;
+      padding-right: 24px;
     }
 
     #artist-clear {
       position: absolute;
-      right: 8px;
+      right: 6px;
       top: 50%;
       transform: translateY(-50%);
       width: 16px;
@@ -905,9 +1020,7 @@
        DJ Search
        ═══════════════════════════════════════════ */
     #dj-search-wrap {
-      position: absolute;
-      top: 16px;
-      right: 24px;
+      position: relative;
       z-index: 20;
     }
 
@@ -1014,17 +1127,8 @@
     </filter>
   </svg>
   <div id="toolbar">
-    <div id="artist-search-wrap">
-      <svg class="search-icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M16.5 16.5L21 21"/></svg>
-      <input id="artist-search" type="text" placeholder="search artist..." autocomplete="off">
-      <button id="artist-clear">&times;</button>
-      <div id="artist-autocomplete"></div>
-    </div>
-    <div id="dj-search-wrap">
-      <svg class="search-icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M16.5 16.5L21 21"/></svg>
-      <input id="dj-search" type="text" placeholder="search DJ..." autocomplete="off">
-      <button id="dj-clear">&times;</button>
-      <div id="dj-autocomplete"></div>
+    <div class="toolbar-side toolbar-left">
+      <span id="site-title">b2b: curated music discovery</span>
     </div>
     <div id="center-btns">
       <button id="shuffle-btn">
@@ -1039,7 +1143,133 @@
         <span class="share-label">share</span>
       </button>
     </div>
+    <div class="toolbar-side toolbar-right">
+      <div id="dj-search-wrap">
+        <svg class="search-icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M16.5 16.5L21 21"/></svg>
+        <input id="dj-search" type="text" placeholder="search DJ..." autocomplete="off">
+        <button id="dj-clear">&times;</button>
+        <div id="dj-autocomplete"></div>
+      </div>
+      <button id="help-btn" title="How it works">?</button>
+    </div>
   </div>
+
+  <div id="help-overlay">
+    <div id="help-modal" style="position:relative;">
+      <button class="help-close">&times;</button>
+      <h2>b2b: curated music discovery</h2>
+      <p>B2B is built from real DJ set tracklists. Hit shuffle, find a track you like, and explore what DJs played around it: the tracks before, the tracks after. Every connection is a real curatorial decision, not an algorithm.</p>
+      <p>Data sourced from <strong>Lot Radio</strong> and <strong>NTS Radio</strong>.</p>
+
+      <svg class="help-diagram" viewBox="0 0 460 260" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <!-- Connection lines -->
+        <g stroke="#c4b5a5" stroke-width="1.5">
+          <!-- Root to R1 left -->
+          <line x1="170" y1="110" x2="130" y2="65"/>
+          <line x1="170" y1="135" x2="130" y2="180"/>
+          <!-- Root to R1 right -->
+          <line x1="290" y1="120" x2="330" y2="90"/>
+          <line x1="290" y1="135" x2="330" y2="195"/>
+          <!-- R1 left to R2 -->
+          <line x1="80" y1="55" x2="42" y2="28"/>
+          <line x1="80" y1="68" x2="42" y2="90"/>
+          <line x1="80" y1="185" x2="42" y2="200"/>
+          <!-- R1 right to R2 -->
+          <line x1="380" y1="82" x2="418" y2="52"/>
+          <line x1="380" y1="92" x2="418" y2="112"/>
+          <line x1="380" y1="200" x2="418" y2="190"/>
+          <line x1="380" y1="210" x2="418" y2="232"/>
+        </g>
+
+        <!-- Root card -->
+        <g>
+          <rect x="170" y="80" width="120" height="100" rx="8" fill="#faf7f4" stroke="#d4c9bd"/>
+          <rect x="180" y="90" width="100" height="52" rx="4" fill="#e8e2db"/>
+          <rect x="180" y="150" width="60" height="6" rx="2" fill="#2a2520" opacity="0.7"/>
+          <rect x="180" y="162" width="40" height="4" rx="2" fill="#7a7068" opacity="0.5"/>
+        </g>
+
+        <!-- R1 left cards -->
+        <g>
+          <rect x="80" y="38" width="50" height="48" rx="6" fill="#faf7f4" stroke="#d4c9bd"/>
+          <rect x="86" y="43" width="38" height="22" rx="3" fill="#e8e2db"/>
+          <rect x="86" y="70" width="28" height="4" rx="2" fill="#2a2520" opacity="0.6"/>
+          <rect x="86" y="78" width="18" height="3" rx="1" fill="#7a7068" opacity="0.4"/>
+        </g>
+        <g>
+          <rect x="80" y="160" width="50" height="48" rx="6" fill="#faf7f4" stroke="#d4c9bd"/>
+          <rect x="86" y="165" width="38" height="22" rx="3" fill="#e8e2db"/>
+          <rect x="86" y="192" width="28" height="4" rx="2" fill="#2a2520" opacity="0.6"/>
+          <rect x="86" y="200" width="18" height="3" rx="1" fill="#7a7068" opacity="0.4"/>
+        </g>
+
+        <!-- R1 right cards -->
+        <g>
+          <rect x="330" y="62" width="50" height="48" rx="6" fill="#faf7f4" stroke="#d4c9bd"/>
+          <rect x="336" y="67" width="38" height="22" rx="3" fill="#e8e2db"/>
+          <rect x="336" y="94" width="28" height="4" rx="2" fill="#2a2520" opacity="0.6"/>
+          <rect x="336" y="102" width="18" height="3" rx="1" fill="#7a7068" opacity="0.4"/>
+        </g>
+        <g>
+          <rect x="330" y="175" width="50" height="48" rx="6" fill="#faf7f4" stroke="#d4c9bd"/>
+          <rect x="336" y="180" width="38" height="22" rx="3" fill="#e8e2db"/>
+          <rect x="336" y="207" width="28" height="4" rx="2" fill="#2a2520" opacity="0.6"/>
+          <rect x="336" y="215" width="18" height="3" rx="1" fill="#7a7068" opacity="0.4"/>
+        </g>
+
+        <!-- R2 left cards -->
+        <g>
+          <rect x="10" y="10" width="38" height="36" rx="5" fill="#faf7f4" stroke="#d4c9bd"/>
+          <rect x="15" y="14" width="28" height="16" rx="2" fill="#e8e2db"/>
+          <rect x="15" y="34" width="20" height="3" rx="1" fill="#2a2520" opacity="0.5"/>
+        </g>
+        <g>
+          <rect x="10" y="72" width="38" height="36" rx="5" fill="#faf7f4" stroke="#d4c9bd"/>
+          <rect x="15" y="76" width="28" height="16" rx="2" fill="#e8e2db"/>
+          <rect x="15" y="96" width="20" height="3" rx="1" fill="#2a2520" opacity="0.5"/>
+        </g>
+        <g>
+          <rect x="10" y="184" width="38" height="36" rx="5" fill="#faf7f4" stroke="#d4c9bd"/>
+          <rect x="15" y="188" width="28" height="16" rx="2" fill="#e8e2db"/>
+          <rect x="15" y="208" width="20" height="3" rx="1" fill="#2a2520" opacity="0.5"/>
+        </g>
+
+        <!-- R2 right cards -->
+        <g>
+          <rect x="412" y="34" width="38" height="36" rx="5" fill="#faf7f4" stroke="#d4c9bd"/>
+          <rect x="417" y="38" width="28" height="16" rx="2" fill="#e8e2db"/>
+          <rect x="417" y="58" width="20" height="3" rx="1" fill="#2a2520" opacity="0.5"/>
+        </g>
+        <g>
+          <rect x="412" y="94" width="38" height="36" rx="5" fill="#faf7f4" stroke="#d4c9bd"/>
+          <rect x="417" y="98" width="28" height="16" rx="2" fill="#e8e2db"/>
+          <rect x="417" y="118" width="20" height="3" rx="1" fill="#2a2520" opacity="0.5"/>
+        </g>
+        <g>
+          <rect x="412" y="172" width="38" height="36" rx="5" fill="#faf7f4" stroke="#d4c9bd"/>
+          <rect x="417" y="176" width="28" height="16" rx="2" fill="#e8e2db"/>
+          <rect x="417" y="196" width="20" height="3" rx="1" fill="#2a2520" opacity="0.5"/>
+        </g>
+        <g>
+          <rect x="412" y="216" width="38" height="36" rx="5" fill="#faf7f4" stroke="#d4c9bd"/>
+          <rect x="417" y="220" width="28" height="16" rx="2" fill="#e8e2db"/>
+          <rect x="417" y="240" width="20" height="3" rx="1" fill="#2a2520" opacity="0.5"/>
+        </g>
+
+        <!-- Label: central track (below root) -->
+        <text x="230" y="198" font-family="'Space Grotesk', sans-serif" font-size="8.5" fill="#B5705A" text-anchor="middle" font-weight="500">central track</text>
+
+        <!-- Label: played next to it (above top-right R1 card) -->
+        <text x="355" y="55" font-family="'Space Grotesk', sans-serif" font-size="8" fill="#7a7068" text-anchor="middle">played next to it</text>
+        <line x1="355" y1="58" x2="355" y2="62" stroke="#a89e94" stroke-width="0.8"/>
+
+        <!-- Label: 2 tracks away (above top-right R2 card) -->
+        <text x="431" y="27" font-family="'Space Grotesk', sans-serif" font-size="7.5" fill="#a89e94" text-anchor="middle">2 tracks away</text>
+        <line x1="431" y1="30" x2="431" y2="34" stroke="#a89e94" stroke-width="0.8"/>
+      </svg>
+    </div>
+  </div>
+
   <div id="graph-viewport">
     <div id="graph-container">
       <svg id="connections-layer" xmlns="http://www.w3.org/2000/svg"></svg>
@@ -2343,6 +2573,13 @@
         setTimeout(() => { btn.classList.remove('copied'); label.textContent = 'share'; }, 1500);
       });
 
+      // Wire help modal
+      const helpOverlay = document.getElementById('help-overlay');
+      document.getElementById('help-btn').addEventListener('click', () => helpOverlay.classList.add('open'));
+      helpOverlay.addEventListener('click', (e) => { if (e.target === helpOverlay) helpOverlay.classList.remove('open'); });
+      helpOverlay.querySelector('.help-close').addEventListener('click', () => helpOverlay.classList.remove('open'));
+      document.addEventListener('keydown', (e) => { if (e.key === 'Escape') helpOverlay.classList.remove('open'); });
+
       // Dev panel controls
       document.getElementById('freeze-btn').addEventListener('click', () => {
         frozen = !frozen;
@@ -2696,6 +2933,14 @@
     <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="var(--text-tertiary)" stroke-width="2" stroke-linecap="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
   </button>
   <div id="dev-panel">
+    <h4>artist search</h4>
+    <div id="artist-search-wrap">
+      <svg class="search-icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M16.5 16.5L21 21"/></svg>
+      <input id="artist-search" type="text" placeholder="search artist..." autocomplete="off">
+      <button id="artist-clear">&times;</button>
+      <div id="artist-autocomplete"></div>
+    </div>
+
     <h4>cluster</h4>
     <div class="dev-row">
       <span class="debug-id" id="cluster-id" title="Click to copy">—</span>
