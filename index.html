@@ -2048,6 +2048,9 @@
       try {
         if (typeof SC === 'undefined' || !SC.Widget) return false;
         const iframe = document.getElementById('sc-widget');
+        // Must set src to SC player URL so widget.load() can derive the base URL.
+        // Empty url= param 404s, so use a real (short) track as a throwaway init.
+        iframe.src = 'https://w.soundcloud.com/player/?url=https%3A%2F%2Fapi.soundcloud.com%2Ftracks%2F293&show_artwork=false&auto_play=false';
         scWidget = SC.Widget(iframe);
         return true;
       } catch (e) {
