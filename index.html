@@ -995,9 +995,11 @@
       background: #1c1c1e;
       transform: translateY(100%);
       transition: transform 0.3s ease;
+      visibility: hidden;
     }
     #mc-player.visible {
       transform: translateY(0);
+      visibility: visible;
     }
     #mc-player .mc-bar {
       display: flex;
@@ -1858,7 +1860,7 @@
   </div>
   <div id="crates-view" class="hidden"><div id="crates-surface"></div></div>
 
-  <iframe id="sc-widget" src="about:blank" style="position:fixed;bottom:0;left:0;width:100%;height:166px;border:0;opacity:0.01;pointer-events:none;z-index:-1;" allow="autoplay"></iframe>
+  <iframe id="sc-widget" src="about:blank" style="position:fixed;bottom:0;left:0;width:100%;height:1px;border:0;overflow:hidden;pointer-events:none;z-index:-1;" allow="autoplay"></iframe>
   <div id="mc-player">
     <div class="mc-bar">
       <span class="mc-label">press play on the mixcloud widget to start</span>
