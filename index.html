@@ -999,6 +999,25 @@
       overflow: hidden;
     }
     @media (max-width: 768px) {
+      #sc-player-area {
+        position: fixed;
+        bottom: 0; left: 0; right: 0;
+        height: 80px;
+        z-index: 99;
+      }
+      #sc-placeholder {
+        width: 100%;
+        height: 100%;
+        background: var(--card-border);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: var(--font);
+        font-size: 12px;
+        color: var(--text-tertiary);
+        border-top: 1px solid var(--card-border);
+      }
+      #sc-placeholder.hidden { display: none; }
       #sc-widget.sc-active {
         width: 100%;
         height: 80px;
@@ -1006,9 +1025,11 @@
         overflow: visible;
         pointer-events: auto;
         z-index: 99;
+        position: absolute;
+        bottom: 0; left: 0;
         border-top: 1px solid var(--card-border);
       }
-      body.sc-playing { padding-bottom: 84px; }
+      body { padding-bottom: 84px; }
     }
 
     #mc-player {
@@ -1550,24 +1571,32 @@
         scroll-snap-type: x mandatory;
         -webkit-overflow-scrolling: touch;
         scrollbar-width: none;
-        padding: 12px calc((100vw - 65vw) / 2);
-        scroll-padding-inline: calc((100vw - 65vw) / 2);
+        padding: 12px calc((100vw - 52vw) / 2);
+        scroll-padding-inline: calc((100vw - 52vw) / 2);
         flex-shrink: 0;
       }
       #mobile-carousel::-webkit-scrollbar { display: none; }
 
-      .mobile-carousel-card {
+      .mobile-carousel-item {
         flex-shrink: 0;
-        width: 65vw;
+        width: 52vw;
         scroll-snap-align: center;
+      }
+      .mobile-carousel-card {
         background: var(--card-bg);
         border: 1px solid var(--card-border);
         border-radius: var(--card-radius);
-        padding: 12px;
+        padding: 10px;
         box-shadow: var(--card-shadow);
         cursor: pointer;
+        height: 100%;
+        overflow: hidden;
       }
       .mobile-carousel-card:active { box-shadow: var(--card-hover-shadow); }
+      .mc-context {
+        font-size: 11px; font-weight: 400; color: var(--text-tertiary);
+        text-align: center; margin-top: 8px;
+      }
 
       .mobile-carousel-card .mc-art-wrap {
         position: relative;
@@ -1613,19 +1642,16 @@
       }
 
       .mobile-carousel-card .mc-title {
-        font-size: 17px; font-weight: 700; line-height: 1.25; margin-bottom: 3px;
-        overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+        font-size: 15px; font-weight: 700; line-height: 1.25; margin-bottom: 3px;
+        overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
       }
       .mobile-carousel-card .mc-artist {
-        font-size: 14px; font-weight: 300; color: var(--text-secondary); line-height: 1.3;
+        font-size: 13px; font-weight: 300; color: var(--text-secondary); line-height: 1.3;
+        overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
       }
       .mobile-carousel-card .mc-dj {
         font-size: 11px; font-weight: 300; color: var(--text-tertiary);
         margin-top: 3px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
-      }
-      .mobile-carousel-card .mc-context {
-        font-size: 11px; font-weight: 400; color: var(--text-tertiary);
-        margin-top: 8px; text-align: center;
       }
 
       /* ── Source pills ── */
@@ -1829,7 +1855,10 @@
   </div>
   <div id="crates-view" class="hidden"><div id="crates-surface"></div></div>
 
-  <iframe id="sc-widget" src="https://w.soundcloud.com/player/?auto_play=false&show_artwork=false" allow="autoplay; encrypted-media"></iframe>
+  <div id="sc-player-area">
+    <div id="sc-placeholder">tap on a track to play</div>
+    <iframe id="sc-widget" src="https://w.soundcloud.com/player/?auto_play=false&show_artwork=false" allow="autoplay; encrypted-media"></iframe>
+  </div>
   <div id="mc-player">
     <div class="mc-bar">
       <span class="mc-label">press play on the mixcloud widget to start</span>
@@ -2060,11 +2089,13 @@
 
     function showScPlayer() {
       document.getElementById('sc-widget').classList.add('sc-active');
-      document.body.classList.add('sc-playing');
+      const ph = document.getElementById('sc-placeholder');
+      if (ph) ph.classList.add('hidden');
     }
     function hideScPlayer() {
       document.getElementById('sc-widget').classList.remove('sc-active');
-      document.body.classList.remove('sc-playing');
+      const ph = document.getElementById('sc-placeholder');
+      if (ph) ph.classList.remove('hidden');
     }
 
     function stopCurrentPlayback() {
@@ -3097,6 +3128,9 @@
     }
 
     function makeCarouselCard(node) {
+      const item = document.createElement('div');
+      item.className = 'mobile-carousel-item';
+
       const card = document.createElement('div');
       card.className = 'mobile-carousel-card';
       card.dataset.nodeId = node.id;
@@ -3109,11 +3143,6 @@
             djs.slice(0, 3).map(d => d.name || d).join(', ')
           }</div>` : '';
 
-      let contextLabel = '';
-      if (node.rank === 'root') contextLabel = '<div class="mc-context">if you like this track, swipe &rarr;</div>';
-      else if (node.rank === '1') contextLabel = '<div class="mc-context">played after in same set</div>';
-      else if (node.rank === '2') contextLabel = '<div class="mc-context">played 2 tracks away</div>';
-
       card.innerHTML = `
         <div class="mc-art-wrap">
           ${mobileArtHtml(node)}
@@ -3122,15 +3151,27 @@
         </div>
         <div class="mc-title">${node.title}</div>
         <div class="mc-artist">${node.artist}</div>
-        ${djLine}
-        ${contextLabel}`;
+        ${djLine}`;
 
       card.addEventListener('click', () => {
         if (hasAudio) togglePlay(node.id);
       });
 
       initProgressBarInteraction(card);
-      return card;
+      item.appendChild(card);
+
+      let contextText = '';
+      if (node.rank === 'root') contextText = 'if you like this track, swipe \u2192';
+      else if (node.rank === '1') contextText = 'played after in same set';
+      else if (node.rank === '2') contextText = 'played 2 tracks away';
+      if (contextText) {
+        const label = document.createElement('div');
+        label.className = 'mc-context';
+        label.textContent = contextText;
+        item.appendChild(label);
+      }
+
+      return item;
     }
 
     function showCluster(cluster) {
