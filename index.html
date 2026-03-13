@@ -1413,6 +1413,260 @@
     #dj-clear:hover { color: var(--text-primary); }
     #dj-search.filtered ~ #dj-clear { display: block; }
 
+    /* ═══════════════════════════════════════════
+       Mobile View (≤ 768px)
+       ═══════════════════════════════════════════ */
+    @media (max-width: 768px) {
+      /* Hide desktop-only elements */
+      #graph-viewport { display: none !important; }
+      .mode-tab[data-mode="crates"] { display: none !important; }
+      #mode-tabs { display: none !important; }
+      #dev-toggle { display: none !important; }
+      #dev-panel { display: none !important; }
+
+      /* Show mobile tracks container */
+      #mobile-tracks { display: flex !important; }
+
+      /* Mobile shuffle button — fills center */
+      #mobile-shuffle-btn {
+        display: flex !important;
+        width: 100%;
+        justify-content: center;
+        font-family: var(--font);
+        font-size: 13px;
+        font-weight: 400;
+        color: var(--text-secondary);
+        background: none;
+        border: 1px solid var(--card-border);
+        border-radius: 20px;
+        padding: 7px 14px;
+        cursor: pointer;
+        align-items: center;
+        gap: 5px;
+        transition: color 0.2s, background 0.2s;
+      }
+      #mobile-shuffle-btn:active { background: var(--card-border); }
+
+      /* Toolbar: reorder for mobile — share (left) | shuffle (center) | b2b (right) */
+      #toolbar { padding: 0; }
+      #toolbar-row {
+        padding: 8px 12px;
+        padding-top: calc(8px + env(safe-area-inset-top, 0px));
+        gap: 8px;
+      }
+      .toolbar-left { order: 2; flex: 0 !important; }
+      .toolbar-right { order: 0; flex: 0 !important; }
+      #center-btns { order: 1; flex: 1; }
+
+      /* Help button: flat style on mobile */
+      #help-btn {
+        border: none !important;
+        background: none !important;
+        box-shadow: none !important;
+        padding: 6px 8px !important;
+        font-size: 12px !important;
+      }
+      #help-btn .help-info-icon { display: none; }
+      #help-btn .help-btn-text { font-size: 0; }
+      #help-btn .help-btn-text::after { content: 'about b2b'; font-size: 12px; }
+
+      /* Help modal: full screen on mobile */
+      #help-overlay {
+        background: none !important;
+        backdrop-filter: none !important;
+      }
+      #help-modal {
+        max-width: 100% !important;
+        width: 100% !important;
+        max-height: 100% !important;
+        height: 100% !important;
+        border-radius: 0 !important;
+        border: none !important;
+        box-shadow: none !important;
+        padding: 24px 20px !important;
+        padding-top: calc(60px + env(safe-area-inset-top, 0px)) !important;
+        background: color-mix(in srgb, var(--bg) 85%, transparent) !important;
+        -webkit-backdrop-filter: blur(20px) saturate(1.4);
+        backdrop-filter: blur(20px) saturate(1.4);
+      }
+      #help-modal .help-close {
+        top: calc(16px + env(safe-area-inset-top, 0px)) !important;
+        right: 16px !important;
+        font-size: 32px !important;
+        width: 44px !important;
+        height: 44px !important;
+        display: flex !important;
+        align-items: center;
+        justify-content: center;
+      }
+      .help-diagram { display: none !important; }
+
+      /* Share button: simpler on mobile */
+      #share-btn .share-label { display: none; }
+
+      /* Mobile tracks layout */
+      #mobile-tracks {
+        flex-direction: column;
+        flex: 1;
+        overflow: hidden;
+      }
+
+      /* Root sticky card */
+      .mobile-root-sticky {
+        flex-shrink: 0;
+        border-bottom: 1px solid var(--card-border);
+        background: var(--bg);
+        z-index: 10;
+        overflow: hidden;
+        transition: background 0.4s ease;
+      }
+      .mobile-root-expanded {
+        padding: 14px 16px 12px;
+        text-align: center;
+      }
+      .mobile-root-expanded .mobile-root-art-wrap {
+        position: relative;
+        width: 100%;
+        aspect-ratio: 1;
+        border-radius: var(--art-radius);
+        overflow: hidden;
+        margin: 0 auto 12px;
+      }
+      .mobile-root-expanded .album-art {
+        width: 100%; height: 100%;
+        object-fit: cover; display: block;
+        background: #d9d1c7;
+      }
+      .mobile-root-expanded .play-btn {
+        position: absolute; inset: 0;
+        border: none; background: rgba(0,0,0,0.15);
+        display: flex; align-items: center; justify-content: center;
+        opacity: 0; transition: opacity 0.15s; cursor: pointer;
+      }
+      .mobile-root-expanded:active .play-btn { opacity: 1; }
+      .mobile-root-expanded .play-btn svg { width: 40px; height: 40px; fill: #fff; filter: drop-shadow(0 2px 6px rgba(0,0,0,0.3)); }
+      .mobile-root-expanded .progress-bar { position: absolute; bottom: 0; left: 0; right: 0; height: 4px; }
+      .mobile-root-expanded .bar-track { width: 100%; height: 100%; background: rgba(0,0,0,0.3); }
+      .mobile-root-expanded .bar-fill { height: 100%; width: 0%; background: #fff; }
+      .mobile-root-expanded .mobile-root-title {
+        font-size: 19px; font-weight: 700; line-height: 1.25; margin-bottom: 3px;
+        text-align: left;
+        overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+      }
+      .mobile-root-expanded .mobile-root-artist {
+        font-size: 15px; font-weight: 300; color: var(--text-secondary); line-height: 1.3; margin-bottom: 4px;
+        text-align: left;
+      }
+      .mobile-root-expanded .mobile-root-djs {
+        font-size: 12px; font-weight: 300; color: var(--text-tertiary); line-height: 1.3;
+        text-align: left;
+      }
+
+      /* Mobile playing state */
+      .mobile-root-sticky.playing { border-color: var(--connection-highlight); }
+      .mobile-root-sticky.playing .mobile-root-art-wrap {
+        animation: breathe 3s ease-in-out infinite;
+      }
+      @keyframes breathe {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.013); }
+      }
+
+      /* Scroll area */
+      #mobile-scroll-area {
+        flex: 1;
+        overflow-y: auto;
+        overflow-x: hidden;
+        -webkit-overflow-scrolling: touch;
+      }
+
+      .mobile-section-label {
+        font-size: 11px; font-weight: 500; letter-spacing: 0.08em;
+        text-transform: uppercase; color: var(--text-tertiary);
+        padding: 16px 16px 8px;
+      }
+
+      /* Horizontal card rows */
+      .mobile-neighbor-row {
+        display: flex; gap: 12px; padding: 0 16px;
+        overflow-x: auto; scroll-snap-type: x mandatory;
+        -webkit-overflow-scrolling: touch; scrollbar-width: none;
+      }
+      .mobile-neighbor-row::-webkit-scrollbar { display: none; }
+
+      .mobile-neighbor-card {
+        flex-shrink: 0; width: 160px;
+        background: var(--card-bg); border: 1px solid var(--card-border);
+        border-radius: var(--card-radius); padding: 10px;
+        box-shadow: var(--card-shadow); scroll-snap-align: start;
+        transition: box-shadow 0.2s; cursor: pointer;
+      }
+      .mobile-neighbor-card:active { box-shadow: var(--card-hover-shadow); }
+
+      .mobile-neighbor-card .album-art {
+        width: 100%; aspect-ratio: 1; border-radius: var(--art-radius);
+        object-fit: cover; display: block; background: #d9d1c7; margin-bottom: 8px;
+      }
+      .mobile-neighbor-card .mn-title {
+        font-size: 14px; font-weight: 600; line-height: 1.3; margin-bottom: 2px;
+        overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+      }
+      .mobile-neighbor-card .mn-artist {
+        font-size: 12px; font-weight: 300; color: var(--text-secondary); line-height: 1.3;
+        overflow: hidden; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical;
+      }
+      .mobile-neighbor-card .mn-dj {
+        font-size: 11px; font-weight: 300; color: var(--text-tertiary);
+        margin-top: 3px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+      }
+
+      /* R2 row — slightly smaller cards */
+      .mobile-r2-row .mobile-neighbor-card { width: 140px; }
+      .mobile-r2-row .mobile-neighbor-card .album-art { border-radius: 4px; }
+      .mobile-r2-row .mobile-neighbor-card .mn-title { font-size: 13px; }
+      .mobile-r2-row .mobile-neighbor-card .mn-artist { font-size: 11px; }
+
+      /* Source pills row */
+      .mobile-source-row {
+        display: flex; gap: 8px; padding: 0 16px;
+        overflow-x: auto; scrollbar-width: none;
+        -webkit-overflow-scrolling: touch;
+      }
+      .mobile-source-row::-webkit-scrollbar { display: none; }
+
+      .mobile-source-pill {
+        flex-shrink: 0;
+        font-family: var(--font);
+        font-size: 12px;
+        font-weight: 400;
+        color: var(--text-secondary);
+        background: var(--card-bg);
+        border: 1px solid var(--card-border);
+        border-radius: 20px;
+        padding: 7px 14px;
+        white-space: nowrap;
+        cursor: pointer;
+        transition: background 0.15s, color 0.15s;
+        text-decoration: none;
+      }
+      .mobile-source-pill:active {
+        background: var(--card-border);
+        color: var(--text-primary);
+      }
+
+      /* Mobile fade-in animation */
+      @keyframes mobileFadeIn {
+        from { opacity: 0; transform: translateY(8px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+      .mobile-animate-in { animation: mobileFadeIn 0.4s ease both; }
+
+      /* Theme toggle: adjust for safe area */
+      #theme-toggle {
+        bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+      }
+    }
+
   </style>
 </head>
 <body>
@@ -1434,9 +1688,13 @@
   <div id="toolbar">
     <div id="toolbar-row">
       <div class="toolbar-side toolbar-left">
-        <button id="help-btn" title="How it works"><svg class="help-info-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg> What is B2B?</button>
+        <button id="help-btn" title="How it works"><svg class="help-info-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg> <span class="help-btn-text">What is B2B?</span></button>
       </div>
       <div id="center-btns">
+        <button id="mobile-shuffle-btn" style="display:none">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 3h5v5"/><path d="M4 20L21 3"/><path d="M21 16v5h-5"/><path d="M15 15l6 6"/><path d="M4 4l5 5"/></svg>
+          shuffle
+        </button>
         <div id="mode-tabs">
           <button class="mode-tab active" data-mode="tracks">Tracks</button>
           <button class="mode-tab" data-mode="crates">Crates</button>
@@ -1554,10 +1812,18 @@
         <div id="nodes-layer"></div>
       </div>
     </div>
+    <div id="mobile-tracks" style="display:none">
+      <div id="mobile-root-sticky" class="mobile-root-sticky" style="display:none">
+        <div class="mobile-root-expanded" id="mobile-root-expanded"></div>
+      </div>
+      <div id="mobile-scroll-area">
+        <div id="mobile-content"></div>
+      </div>
+    </div>
   </div>
   <div id="crates-view" class="hidden"><div id="crates-surface"></div></div>
 
-  <iframe id="sc-widget" src="about:blank" style="position:absolute;width:0;height:0;border:0;overflow:hidden;" allow="autoplay"></iframe>
+  <iframe id="sc-widget" src="about:blank" style="position:fixed;top:-1px;left:-1px;width:1px;height:1px;border:0;opacity:0.01;pointer-events:none;" allow="autoplay"></iframe>
   <div id="mc-player">
     <div class="mc-bar">
       <span class="mc-label">press play on the mixcloud widget to start</span>
@@ -1699,8 +1965,45 @@
     let progressInterval = null;
     let isSeeking = false;
     let playingSetOffset = 0;   // track start offset in set (ms)
+    let scPlayTimeout = null;
     const ASSUMED_TRACK_DUR = 5 * 60 * 1000; // 5 min fallback for set tracks
     var seekResumeDelay = 300;
+
+    function clearPlayTimeout() {
+      if (scPlayTimeout) { clearTimeout(scPlayTimeout); scPlayTimeout = null; }
+    }
+
+    // Mobile browsers block auto_play in cross-origin iframes.
+    // After load, retry .play() once; if still stuck, reset UI.
+    function startPlayTimeout(nodeId, fallbackToSet) {
+      clearPlayTimeout();
+      let retried = false;
+      scPlayTimeout = setTimeout(() => {
+        if (currentlyPlayingId !== nodeId) return;
+        const card = findCardForNode(nodeId);
+        const stillLoading = card && card.classList.contains('loading');
+        if (!stillLoading) return; // PLAY fired, all good
+        // First retry: explicitly call play()
+        if (!retried) {
+          retried = true;
+          try { scWidget.play(); } catch (e) {}
+          scPlayTimeout = setTimeout(() => {
+            if (currentlyPlayingId !== nodeId) return;
+            const c = findCardForNode(nodeId);
+            if (c && c.classList.contains('loading')) {
+              // Still stuck — give up
+              resetCardUI(nodeId);
+              currentlyPlayingId = null;
+              currentBackend = null;
+              if (fallbackToSet) {
+                const node = nodeMap[nodeId];
+                if (node && node.setUrl) playSet(nodeId);
+              }
+            }
+          }, 4000);
+        }
+      }, 6000);
+    }
 
     function initSCWidget() {
       if (scWidget) return true;
@@ -1733,7 +2036,7 @@
 
     function resetCardUI(nodeId) {
       stopProgressPolling();
-      const card = document.querySelector(`.node-card[data-node-id="${nodeId}"]`);
+      const card = findCardForNode(nodeId);
       if (card) {
         card.classList.remove('playing');
         clearGlow(card);
@@ -1747,6 +2050,7 @@
     }
 
     function stopCurrentPlayback() {
+      clearPlayTimeout();
       if (!currentlyPlayingId) return;
       if (currentBackend === 'sc' && scWidget) {
         try { scWidget.pause(); } catch (e) {}
@@ -1776,7 +2080,7 @@
       stopProgressPolling();
       progressInterval = setInterval(() => {
         if (isSeeking || !currentlyPlayingId) return;
-        const card = document.querySelector(`.node-card[data-node-id="${currentlyPlayingId}"]`);
+        const card = findCardForNode(currentlyPlayingId);
         if (!card) return;
         const fill = card.querySelector('.bar-fill');
         if (!fill) return;
@@ -1881,7 +2185,7 @@
         return;
       }
 
-      const card = document.querySelector(`.node-card[data-node-id="${nodeId}"]`);
+      const card = findCardForNode(nodeId);
       const btn = card ? card.querySelector('.play-btn') : null;
 
       currentlyPlayingId = nodeId;
@@ -1903,6 +2207,7 @@
         scWidgetReady = true;
       });
       scWidget.bind(SC.Widget.Events.PLAY, () => {
+        clearPlayTimeout();
         if (card) { hideLoading(card); card.classList.add('playing'); applyGlow(card); }
         startProgressPolling();
       });
@@ -1916,12 +2221,13 @@
       });
 
       scWidget.load(trackUrl, { auto_play: true, show_artwork: false });
+      startPlayTimeout(nodeId, true);
     }
 
     function playSCSet(nodeId, setUrl, offsetSec) {
       if (!initSCWidget()) return;
 
-      const card = document.querySelector(`.node-card[data-node-id="${nodeId}"]`);
+      const card = findCardForNode(nodeId);
       const btn = card ? card.querySelector('.play-btn') : null;
 
       currentlyPlayingId = nodeId;
@@ -1946,6 +2252,7 @@
         }
       });
       scWidget.bind(SC.Widget.Events.PLAY, () => {
+        clearPlayTimeout();
         if (card) { hideLoading(card); card.classList.add('playing'); applyGlow(card); }
         startProgressPolling();
       });
@@ -1953,6 +2260,7 @@
       scWidget.bind(SC.Widget.Events.ERROR, onPlaybackEnded);
 
       scWidget.load(setUrl, { auto_play: true, show_artwork: false });
+      startPlayTimeout(nodeId, false);
     }
 
     function showMcPlayer() {
@@ -1967,7 +2275,7 @@
     }
 
     function playMixcloud(nodeId, mixcloudUrl, offsetSec) {
-      const card = document.querySelector(`.node-card[data-node-id="${nodeId}"]`);
+      const card = findCardForNode(nodeId);
       const btn = card ? card.querySelector('.play-btn') : null;
 
       currentlyPlayingId = nodeId;
@@ -2031,6 +2339,11 @@
       return true;
     }
 
+    function findCardForNode(nodeId) {
+      return document.querySelector(`.node-card[data-node-id="${nodeId}"]`)
+          || document.querySelector(`#mobile-root-sticky[data-node-id="${nodeId}"]`);
+    }
+
     function togglePlay(nodeId) {
       const node = nodeMap[nodeId];
       if (!node) return;
@@ -2038,7 +2351,7 @@
       const hasAudio = node.scTrackUrl || node.setUrl;
       if (!hasAudio) return;
 
-      const card = document.querySelector(`.node-card[data-node-id="${nodeId}"]`);
+      const card = findCardForNode(nodeId);
       const btn = card ? card.querySelector('.play-btn') : null;
 
       // Same track — toggle pause/play (or cancel loading)
@@ -2680,7 +2993,155 @@
       console.groupEnd();
     }
 
+    function isMobileView() {
+      return window.innerWidth <= 768;
+    }
+
+    function mobileArtHtml(node) {
+      const cached = audioCache[node.graphId];
+      const url = cached && cached.artUrl;
+      if (url) return `<img class="album-art" src="${url}" loading="lazy">`;
+      return `<div class="album-art" style="background: ${generateGradient(node.title, node.artist)}"></div>`;
+    }
+
+    function showClusterMobile(cluster) {
+      stopCurrentPlayback();
+      nodes = cluster.nodes;
+      edges = cluster.edges;
+      nodeMap = {};
+      nodes.forEach(n => nodeMap[n.id] = n);
+      currentRootId = cluster.nodes[0].graphId;
+      document.getElementById('cluster-id').textContent = currentRootId;
+      const newHash = '#' + encodeURIComponent(currentRootId);
+      if (window.location.hash !== newHash) history.pushState(null, '', newHash);
+      logCluster(cluster);
+
+      const root = cluster.nodes.find(n => n.rank === 'root');
+      const r1Nodes = cluster.nodes.filter(n => n.rank === '1');
+      const r2Nodes = cluster.nodes.filter(n => n.rank === '2');
+      const djs = collectDjs(root.graphId);
+      const djsHtml = djs.length > 0 ? `<div class="mobile-root-djs">Mixed by ${djs.slice(0, 3).map(d => d.name).join(', ')}</div>` : '';
+
+      const sticky = document.getElementById('mobile-root-sticky');
+      sticky.style.display = '';
+      sticky.classList.remove('playing');
+      sticky.setAttribute('data-node-id', 'root');
+
+      document.getElementById('mobile-root-expanded').innerHTML = `
+        <div class="mobile-root-art-wrap">
+          ${mobileArtHtml(root)}
+          <button class="play-btn">${PLAY_SVG}</button>
+          <div class="progress-bar"><div class="bar-track"><div class="bar-fill"></div></div></div>
+        </div>
+        <div class="mobile-root-title">${root.title}</div>
+        <div class="mobile-root-artist">${root.artist}</div>
+        ${djsHtml}
+      `;
+
+      // Wire root play button
+      const rootPlayBtn = sticky.querySelector('.play-btn');
+      if (rootPlayBtn) {
+        rootPlayBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          togglePlay('root');
+        });
+      }
+
+      // Wire root progress bar seeking (pass sticky as the "card" since it has data-node-id)
+      initProgressBarInteraction(sticky);
+
+      const content = document.getElementById('mobile-content');
+      content.innerHTML = '';
+
+      if (r1Nodes.length > 0) {
+        const label1 = document.createElement('div');
+        label1.className = 'mobile-section-label mobile-animate-in';
+        label1.textContent = 'Played next to';
+        content.appendChild(label1);
+
+        const row1 = document.createElement('div');
+        row1.className = 'mobile-neighbor-row mobile-animate-in';
+        row1.style.animationDelay = '0.05s';
+        r1Nodes.forEach(node => row1.appendChild(makeMobileCard(node)));
+        content.appendChild(row1);
+      }
+
+      if (r2Nodes.length > 0) {
+        const label2 = document.createElement('div');
+        label2.className = 'mobile-section-label mobile-animate-in';
+        label2.style.animationDelay = '0.15s';
+        label2.textContent = '2 tracks away';
+        content.appendChild(label2);
+
+        const row2 = document.createElement('div');
+        row2.className = 'mobile-neighbor-row mobile-r2-row mobile-animate-in';
+        row2.style.animationDelay = '0.2s';
+        r2Nodes.forEach(node => row2.appendChild(makeMobileCard(node)));
+        content.appendChild(row2);
+      }
+
+      // Collect unique DJ sets from all edges
+      const sources = new Map();
+      for (const node of cluster.nodes) {
+        const gn = graphNodes[node.graphId];
+        if (!gn || !gn.edges) continue;
+        for (const edge of gn.edges) {
+          for (const ctx of (edge.contexts || [])) {
+            const dj = (ctx.dj || '').trim();
+            const url = ctx.episode_url || '';
+            if (dj && url) {
+              const key = `${dj}|${url}`;
+              if (!sources.has(key)) sources.set(key, { dj, url, date: ctx.date || '' });
+            }
+          }
+        }
+      }
+
+      if (sources.size > 0) {
+        const label3 = document.createElement('div');
+        label3.className = 'mobile-section-label mobile-animate-in';
+        label3.style.animationDelay = '0.3s';
+        label3.textContent = 'Sourced from';
+        content.appendChild(label3);
+
+        const row3 = document.createElement('div');
+        row3.className = 'mobile-source-row mobile-animate-in';
+        row3.style.animationDelay = '0.35s';
+        for (const src of sources.values()) {
+          const pill = document.createElement('a');
+          pill.className = 'mobile-source-pill';
+          pill.href = src.url;
+          pill.target = '_blank';
+          pill.rel = 'noopener';
+          pill.textContent = src.dj;
+          row3.appendChild(pill);
+        }
+        content.appendChild(row3);
+      }
+
+      document.getElementById('mobile-scroll-area').scrollTop = 0;
+    }
+
+    function makeMobileCard(node) {
+      const card = document.createElement('div');
+      card.className = 'mobile-neighbor-card';
+      card.dataset.nodeId = node.id;
+      const djLine = node.djs && node.djs.length > 0
+        ? `<div class="mn-dj">via ${node.djs[0].name || node.djs[0]}</div>` : '';
+      card.innerHTML = `${mobileArtHtml(node)}<div class="mn-title">${node.title}</div><div class="mn-artist">${node.artist}</div>${djLine}`;
+      card.addEventListener('click', () => {
+        const graphId = node.graphId;
+        const cluster = selectCluster(graphId);
+        showCluster(cluster);
+      });
+      return card;
+    }
+
     function showCluster(cluster) {
+      if (isMobileView()) {
+        showClusterMobile(cluster);
+        return;
+      }
       clearGraph();
       nodes = cluster.nodes;
       edges = cluster.edges;
@@ -2905,6 +3366,9 @@
         label.textContent = 'copied!';
         setTimeout(() => { btn.classList.remove('copied'); label.textContent = 'share'; }, 1500);
       });
+
+      // Wire mobile shuffle button
+      document.getElementById('mobile-shuffle-btn').addEventListener('click', shuffle);
 
       // Wire help modal
       const helpOverlay = document.getElementById('help-overlay');
@@ -3225,6 +3689,11 @@
           el.style.width = w + 'px'; el.style.height = h + 'px';
 
           const artKeys = item.artKeys || [];
+          // If seed has no art, promote a member with art to the top
+          const seedCached = audioCache[item.seedKey];
+          const seedHasArt = seedCached && seedCached.artUrl;
+          const topKey = seedHasArt ? item.seedKey
+            : artKeys.length > 0 ? artKeys[0] : item.seedKey;
           for (let i = 0; i < numCards; i++) {
             const card = document.createElement('div');
             card.className = 'crate-card placeholder';
@@ -3238,8 +3707,8 @@
             const base = 148 + Math.floor(crateRand() * 40) - 20;
             card.style.background = `rgb(${base}, ${base - 4}, ${base - 8})`;
 
-            // Top card shows seed track; others cycle through artKeys
-            const mKey = (i === numCards - 1) ? item.seedKey
+            // Top card shows track with art (or seed if none have art); others cycle
+            const mKey = (i === numCards - 1) ? topKey
               : artKeys.length > 0 ? artKeys[i % artKeys.length] : null;
             const mNode = mKey && graphNodes[mKey];
             const info = document.createElement('div');
@@ -3338,10 +3807,12 @@
             const cards = stackEl.querySelectorAll('.crate-card');
             const last = cards.length - 1;
             cards.forEach((card, i) => {
-              // Top card uses seed artwork; others cycle through artworks array
+              // Top card uses best available artwork; others cycle
               const seedCached = audioCache[item.seedKey];
-              const url = (i === last && seedCached && seedCached.artUrl)
-                ? seedCached.artUrl
+              const seedHasArt = seedCached && seedCached.artUrl;
+              const topUrl = seedHasArt ? seedCached.artUrl
+                : item.artworks.length > 0 ? item.artworks[0] : null;
+              const url = (i === last) ? topUrl
                 : item.artworks.length > 0 ? item.artworks[i % item.artworks.length] : null;
               if (url) {
                 const img = document.createElement('img');
