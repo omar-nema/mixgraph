@@ -1871,7 +1871,7 @@
   </div>
   <div id="crates-view" class="hidden"><div id="crates-surface"></div></div>
 
-  <iframe id="sc-widget" src="about:blank" style="position:absolute;width:0;height:0;border:0;overflow:hidden;" allow="autoplay"></iframe>
+  <iframe id="sc-widget" src="https://w.soundcloud.com/player/?url=&show_artwork=false" style="position:absolute;width:0;height:0;border:0;overflow:hidden;" allow="autoplay"></iframe>
   <div id="mc-player">
     <div class="mc-bar">
       <span class="mc-label">press play on the mixcloud widget to start</span>
@@ -2058,7 +2058,7 @@
       try {
         if (typeof SC === 'undefined' || !SC.Widget) return false;
         const iframe = document.getElementById('sc-widget');
-        iframe.src = 'https://w.soundcloud.com/player/?url=&show_artwork=false';
+        // iframe src is already set in HTML — don't reset it
         scWidget = SC.Widget(iframe);
         return true;
       } catch (e) {
