@@ -1884,6 +1884,8 @@
     let candidates = [];    // node IDs with 3+ edges
     let currentRootId = null;
     let frozen = false;
+    let maxR1 = 4;
+    let r2PerR1 = 1;
     let artistFilter = null; // { display, trackIds } when artist search is active
     let djFilter = null;     // { display, trackIds } when DJ search is active
     let nodes = [];
@@ -2518,7 +2520,6 @@
     }
 
     function selectCluster(rootId) {
-      const r2PerR1 = 2;
 
       const rootNode = graphNodes[rootId];
       const clusterNodes = [];
@@ -2555,7 +2556,7 @@
       const deadEnds = r1All.filter(c => r1ChildCount(c) === 0);
       shuffleArray(withKids);
       shuffleArray(deadEnds);
-      const r1Selected = [...withKids, ...deadEnds];
+      const r1Selected = [...withKids, ...deadEnds].slice(0, maxR1);
 
       for (let i = 0; i < r1Selected.length; i++) {
         const r1GraphId = r1Selected[i];
@@ -4003,6 +4004,15 @@
         if (currentRootId) navigator.clipboard.writeText(currentRootId);
       });
 
+      document.getElementById('max-r1').addEventListener('change', (e) => {
+        maxR1 = parseInt(e.target.value);
+        if (currentRootId) shuffle();
+      });
+      document.getElementById('r2-per-r1').addEventListener('change', (e) => {
+        r2PerR1 = parseInt(e.target.value);
+        if (currentRootId) shuffle();
+      });
+
       document.getElementById('cluster-input').addEventListener('keydown', (e) => {
         if (e.key === 'Enter') {
           loadClusterById(e.target.value);
@@ -4365,6 +4375,31 @@
     </div>
     <div class="dev-row">
       <input id="cluster-input" type="text" placeholder="enter cluster id">
+    </div>
+
+    <h4>cluster limits</h4>
+    <div class="dev-row">
+      <label for="max-r1">R1 max</label>
+      <select id="max-r1">
+        <option value="1">1</option>
+        <option value="2">2</option>
+        <option value="3">3</option>
+        <option value="4" selected>4</option>
+        <option value="5">5</option>
+        <option value="6">6</option>
+        <option value="7">7</option>
+        <option value="8">8</option>
+      </select>
+    </div>
+    <div class="dev-row">
+      <label for="r2-per-r1">R2 per R1</label>
+      <select id="r2-per-r1">
+        <option value="0">0</option>
+        <option value="1" selected>1</option>
+        <option value="2">2</option>
+        <option value="3">3</option>
+        <option value="4">4</option>
+      </select>
     </div>
 
     <h4>filter</h4>
