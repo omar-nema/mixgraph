@@ -301,6 +301,29 @@
       100% { background-position: -200% 0; }
     }
 
+    /* Flying artwork transition (crates → tracks) */
+    .flying-art {
+      position: fixed;
+      border-radius: 4px;
+      overflow: hidden;
+      z-index: 250;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.12);
+      transition: all 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+      object-fit: cover;
+    }
+    .node-card.fly-hidden { opacity: 0 !important; animation: none !important; }
+    .node-card.fly-reveal { opacity: 1 !important; animation: none !important; }
+    .connection-path.fly-waiting { animation: none !important; stroke-dashoffset: 2000 !important; }
+    #crates-view.fading {
+      position: fixed;
+      inset: 0;
+      top: 52px;
+      z-index: 150;
+      opacity: 0;
+      transition: opacity 0.4s ease;
+      pointer-events: none;
+    }
+
     .crate-page { position: absolute; top: 0; left: 0; }
 
     #tracks-view.hidden, #crates-view.hidden {
@@ -2552,10 +2575,11 @@
       document.getElementById('nodes-layer').innerHTML = '';
       document.getElementById('connections-layer').innerHTML = '';
 
-      // Reset transform
+      // Reset transform and any inline overrides from fly-out transition
       const container = document.getElementById('graph-container');
       container.style.transform = '';
       container.style.marginTop = '';
+      container.style.transition = '';
     }
 
     function logCluster(cluster) {
@@ -2810,6 +2834,130 @@
         localStorage.setItem('b2b-theme', isNight ? 'night' : 'day');
       });
 
+      // ── Crates → Tracks fly-out transition ──
+      function transitionToTracks(seedKey, stackEl) {
+        const cluster = selectCluster(seedKey);
+        const cratesView = document.getElementById('crates-view');
+        const tracksView = document.getElementById('tracks-view');
+
+        // Capture stack position before anything moves
+        const stackRect = stackEl.getBoundingClientRect();
+        const srcX = stackRect.left + stackRect.width / 2;
+        const srcY = stackRect.top + stackRect.height / 2;
+
+        // Fade out crates
+        cratesView.classList.add('fading');
+
+        // Show tracks view (but cards will be hidden)
+        tracksView.classList.remove('hidden');
+        document.querySelectorAll('.mode-tab').forEach(t => t.classList.remove('active'));
+        document.querySelector('.mode-tab[data-mode="tracks"]').classList.add('active');
+        document.getElementById('shuffle-row').style.display = '';
+        document.getElementById('share-btn').style.display = '';
+        document.getElementById('dj-search-wrap').style.display = '';
+
+        // Kill graph-container transition so scale applies instantly for measurement
+        const graphContainer = document.getElementById('graph-container');
+        graphContainer.style.transition = 'none';
+
+        // Build cluster using normal showCluster (renders cards, layouts, zoom-to-fit)
+        showCluster(cluster);
+
+        // Force reflow so scale is applied before we measure
+        graphContainer.offsetHeight;
+
+        // Immediately hide all cards and suppress their fadeInUp
+        const allCards = document.querySelectorAll('#nodes-layer .node-card');
+        allCards.forEach(card => card.classList.add('fly-hidden'));
+
+        // Suppress connection animations
+        const allPaths = document.querySelectorAll('#connections-layer .connection-path');
+        allPaths.forEach(p => p.classList.add('fly-waiting'));
+
+        // Create flying images from stack center → card art-wrap positions
+        const flyingEls = [];
+        requestAnimationFrame(() => {
+          nodes.forEach((n, idx) => {
+            const card = document.querySelector(`.node-card[data-node-id="${n.id}"]`);
+            if (!card) return;
+            const artWrap = card.querySelector('.art-wrap');
+            if (!artWrap || !n.artUrl) return;
+            // Measure the art-wrap's exact screen position (accounts for container scale)
+            const wrapRect = artWrap.getBoundingClientRect();
+
+            const startSize = Math.min(stackRect.width, stackRect.height) * 0.4;
+
+            const fly = document.createElement('img');
+            fly.className = 'flying-art';
+            fly.src = n.artUrl;
+            fly.style.width = startSize + 'px';
+            fly.style.height = startSize + 'px';
+            fly.style.left = (srcX - startSize / 2) + 'px';
+            fly.style.top = (srcY - startSize / 2) + 'px';
+            const delay = n.rank === 'root' ? 0 : n.rank === '1' ? 0.05 : 0.12;
+            fly.style.transitionDelay = `${delay + idx * 0.02}s`;
+
+            document.body.appendChild(fly);
+            flyingEls.push({ el: fly, rect: wrapRect });
+          });
+
+          // Trigger fly animation next frame
+          requestAnimationFrame(() => {
+            flyingEls.forEach(f => {
+              f.el.style.width = f.rect.width + 'px';
+              f.el.style.height = f.rect.height + 'px';
+              f.el.style.left = f.rect.left + 'px';
+              f.el.style.top = f.rect.top + 'px';
+              f.el.style.borderRadius = 'var(--art-radius)';
+            });
+          });
+        });
+
+        // After flight lands (~800ms): reveal cards, dissolve flyers
+        setTimeout(() => {
+          // Reveal cards instantly underneath flyers
+          allCards.forEach(card => {
+            card.classList.remove('fly-hidden');
+            card.classList.add('fly-reveal');
+          });
+
+          // Dissolve flying images
+          flyingEls.forEach(f => {
+            f.el.style.transition = 'opacity 0.5s ease';
+            f.el.style.opacity = '0';
+            setTimeout(() => f.el.remove(), 600);
+          });
+
+          // After flyers gone: settle cards, then draw connections
+          setTimeout(() => {
+            // Lock cards visible
+            allCards.forEach(card => {
+              card.style.animation = 'none';
+              card.style.opacity = '1';
+              card.classList.remove('fly-reveal');
+              card.classList.add('settled');
+            });
+
+            // Draw connections after cards are settled
+            requestAnimationFrame(() => {
+              allPaths.forEach((path, i) => {
+                path.classList.remove('fly-waiting');
+                const len = path.getTotalLength();
+                path.style.strokeDasharray = len;
+                path.style.strokeDashoffset = len;
+                path.style.animation = `drawLine 1s ease forwards`;
+                path.style.animationDelay = `${i * 0.03}s`;
+              });
+            });
+
+            // Restore graph-container transition, hide crates
+            graphContainer.style.transition = '';
+            cratesView.classList.add('hidden');
+            cratesView.classList.remove('fading');
+          }, 600);
+        }, 800);
+      }
+
       // ── Crates view (infinite canvas) ──
       let cratesInitialized = false;
 
@@ -2894,6 +3042,25 @@
         // Canvas bounds (grow dynamically)
         let minCol = 0, maxCol = 0, minRow = 0, maxRow = 0;
 
+        // Estimate how many nodes selectCluster will produce for a seed
+        function estimateClusterSize(seedKey) {
+          const root = graphNodes[seedKey];
+          if (!root || !root.edges) return 1;
+          const used = new Set([seedKey]);
+          const r1Ids = root.edges.map(e => e.node).filter(id => id in graphNodes && !used.has(id));
+          r1Ids.forEach(id => used.add(id));
+          let total = 1 + r1Ids.length; // root + R1
+          for (const r1Id of r1Ids) {
+            const r1Node = graphNodes[r1Id];
+            if (!r1Node || !r1Node.edges) continue;
+            const r2 = r1Node.edges.map(e => e.node).filter(id => id in graphNodes && !used.has(id));
+            const r2Count = Math.min(2, r2.length);
+            total += r2Count;
+            for (let i = 0; i < r2Count; i++) used.add(r2[i]);
+          }
+          return total;
+        }
+
         function generateClusters(count) {
           const clusters = [];
           while (clusters.length < count && seedIdx < seedPool.length) {
@@ -2911,10 +3078,11 @@
               if (cached && cached.artUrl) artworks.push(cached.artUrl);
             }
             const [artist, title] = seedKey.split(':::');
+            const displayCount = estimateClusterSize(seedKey);
             clusters.push({
               seedKey, label: artist || 'unknown',
               title: title || '', artist: artist || '',
-              count: members.length, artworks,
+              count: displayCount, artworks,
               memberKeys: members, weight: members.length,
             });
           }
@@ -2968,16 +3136,9 @@
           label.textContent = item.label + ' — ' + item.count + ' tracks';
           el.appendChild(label);
 
-          // Click → switch to Tracks and load cluster
+          // Click → fly-out transition to Tracks view
           el.addEventListener('click', () => {
-            document.querySelectorAll('.mode-tab').forEach(t => t.classList.remove('active'));
-            document.querySelector('.mode-tab[data-mode="tracks"]').classList.add('active');
-            document.getElementById('tracks-view').classList.remove('hidden');
-            document.getElementById('crates-view').classList.add('hidden');
-            document.getElementById('shuffle-row').style.display = '';
-            document.getElementById('share-btn').style.display = '';
-            document.getElementById('dj-search-wrap').style.display = '';
-            loadClusterById(item.seedKey);
+            transitionToTracks(item.seedKey, el);
           });
 
           return el;
