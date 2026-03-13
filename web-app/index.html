@@ -304,16 +304,32 @@
     /* Flying artwork transition (crates → tracks) */
     .flying-art {
       position: fixed;
-      border-radius: 4px;
-      overflow: hidden;
       z-index: 250;
+      border-radius: 4px;
+      border: 1px solid transparent;
+      background: transparent;
       box-shadow: 0 4px 20px rgba(0,0,0,0.12);
       transition: all 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    .flying-art img {
+      position: absolute;
+      top: 0;
+      left: 0;
       object-fit: cover;
+      border-radius: 4px;
+      transition: all 0.8s cubic-bezier(0.22, 1, 0.36, 1);
     }
     .node-card.fly-hidden { opacity: 0 !important; animation: none !important; }
-    .node-card.fly-reveal { opacity: 1 !important; animation: none !important; }
-    .connection-path.fly-waiting { animation: none !important; stroke-dashoffset: 2000 !important; }
+    .connection-path.fly-waiting { opacity: 0 !important; animation: none !important; stroke-dashoffset: 2000 !important; }
+
+    /* Text fades in after card shell appears */
+    .node-card.fly-text-hidden .track-title,
+    .node-card.fly-text-hidden .artist-name,
+    .node-card.fly-text-hidden .dj-line,
+    .node-card.fly-text-hidden .rank-tooltip { opacity: 0; }
+    .node-card .track-title,
+    .node-card .artist-name,
+    .node-card .dj-line { transition: opacity 0.3s ease; }
     #crates-view.fading {
       position: fixed;
       inset: 0;
@@ -2575,11 +2591,10 @@
       document.getElementById('nodes-layer').innerHTML = '';
       document.getElementById('connections-layer').innerHTML = '';
 
-      // Reset transform and any inline overrides from fly-out transition
+      // Reset transform
       const container = document.getElementById('graph-container');
       container.style.transform = '';
       container.style.marginTop = '';
-      container.style.transition = '';
     }
 
     function logCluster(cluster) {
@@ -2856,15 +2871,19 @@
         document.getElementById('share-btn').style.display = '';
         document.getElementById('dj-search-wrap').style.display = '';
 
-        // Kill graph-container transition so scale applies instantly for measurement
         const graphContainer = document.getElementById('graph-container');
-        graphContainer.style.transition = 'none';
 
         // Build cluster using normal showCluster (renders cards, layouts, zoom-to-fit)
         showCluster(cluster);
 
-        // Force reflow so scale is applied before we measure
-        graphContainer.offsetHeight;
+        // Kill the CSS transition AFTER showCluster (so clearGraph can't undo it),
+        // then re-apply the current transform instantly so positions are final
+        graphContainer.style.transition = 'none';
+        const currentTransform = graphContainer.style.transform;
+        graphContainer.style.transform = 'none';
+        graphContainer.offsetHeight; // force reflow
+        graphContainer.style.transform = currentTransform;
+        graphContainer.offsetHeight; // force reflow at final scale
 
         // Immediately hide all cards and suppress their fadeInUp
         const allCards = document.querySelectorAll('#nodes-layer .node-card');
@@ -2874,87 +2893,110 @@
         const allPaths = document.querySelectorAll('#connections-layer .connection-path');
         allPaths.forEach(p => p.classList.add('fly-waiting'));
 
-        // Create flying images from stack center → card art-wrap positions
+        // Create flyers: divs that morph from bare image → card shape
         const flyingEls = [];
         requestAnimationFrame(() => {
           nodes.forEach((n, idx) => {
             const card = document.querySelector(`.node-card[data-node-id="${n.id}"]`);
             if (!card) return;
+            const cardRect = card.getBoundingClientRect();
             const artWrap = card.querySelector('.art-wrap');
-            if (!artWrap || !n.artUrl) return;
-            // Measure the art-wrap's exact screen position (accounts for container scale)
-            const wrapRect = artWrap.getBoundingClientRect();
+            const artRect = artWrap ? artWrap.getBoundingClientRect() : null;
+            const hasArt = artWrap && n.artUrl;
 
             const startSize = Math.min(stackRect.width, stackRect.height) * 0.4;
 
-            const fly = document.createElement('img');
+            // Wrapper div — starts as small shape at stack center, morphs to card-sized
+            const fly = document.createElement('div');
             fly.className = 'flying-art';
-            fly.src = n.artUrl;
             fly.style.width = startSize + 'px';
             fly.style.height = startSize + 'px';
             fly.style.left = (srcX - startSize / 2) + 'px';
             fly.style.top = (srcY - startSize / 2) + 'px';
+            fly.style.opacity = hasArt ? '' : '0.6';
             const delay = n.rank === 'root' ? 0 : n.rank === '1' ? 0.05 : 0.12;
             fly.style.transitionDelay = `${delay + idx * 0.02}s`;
 
+            let img = null;
+            if (hasArt) {
+              // Image inside — starts filling wrapper, shrinks to art area within card
+              img = document.createElement('img');
+              img.src = n.artUrl;
+              img.style.width = startSize + 'px';
+              img.style.height = startSize + 'px';
+              img.style.transitionDelay = `${delay + idx * 0.02}s`;
+              fly.appendChild(img);
+            }
+
             document.body.appendChild(fly);
-            flyingEls.push({ el: fly, rect: wrapRect });
+            flyingEls.push({
+              el: fly, img,
+              cardRect, artRect,
+            });
           });
 
-          // Trigger fly animation next frame
+          // Trigger morph: image → card shape
           requestAnimationFrame(() => {
             flyingEls.forEach(f => {
-              f.el.style.width = f.rect.width + 'px';
-              f.el.style.height = f.rect.height + 'px';
-              f.el.style.left = f.rect.left + 'px';
-              f.el.style.top = f.rect.top + 'px';
-              f.el.style.borderRadius = 'var(--art-radius)';
+              // Wrapper grows to card size with card styling
+              f.el.style.width = f.cardRect.width + 'px';
+              f.el.style.height = f.cardRect.height + 'px';
+              f.el.style.left = f.cardRect.left + 'px';
+              f.el.style.top = f.cardRect.top + 'px';
+              f.el.style.opacity = '1';
+              f.el.style.background = 'var(--card-bg)';
+              f.el.style.border = '1px solid var(--card-border)';
+              f.el.style.borderRadius = 'var(--card-radius)';
+              f.el.style.boxShadow = 'var(--card-shadow)';
+
+              // Image settles into art position within the card
+              if (f.img && f.artRect) {
+                const artOffX = f.artRect.left - f.cardRect.left;
+                const artOffY = f.artRect.top - f.cardRect.top;
+                f.img.style.left = artOffX + 'px';
+                f.img.style.top = artOffY + 'px';
+                f.img.style.width = f.artRect.width + 'px';
+                f.img.style.height = f.artRect.height + 'px';
+                f.img.style.borderRadius = 'var(--art-radius)';
+              }
             });
           });
         });
 
-        // After flight lands (~800ms): reveal cards, dissolve flyers
+        // After morph lands (~800ms): reveal cards with text hidden, remove flyers, fade text in
         setTimeout(() => {
-          // Reveal cards instantly underneath flyers
+          // Show cards with text hidden, remove flyers
           allCards.forEach(card => {
+            card.style.animation = 'none';
+            card.style.opacity = '1';
             card.classList.remove('fly-hidden');
-            card.classList.add('fly-reveal');
+            card.classList.add('fly-text-hidden');
+            card.classList.add('settled');
+          });
+          flyingEls.forEach(f => f.el.remove());
+
+          // Fade text in
+          requestAnimationFrame(() => {
+            allCards.forEach(card => card.classList.remove('fly-text-hidden'));
           });
 
-          // Dissolve flying images
-          flyingEls.forEach(f => {
-            f.el.style.transition = 'opacity 0.5s ease';
-            f.el.style.opacity = '0';
-            setTimeout(() => f.el.remove(), 600);
-          });
-
-          // After flyers gone: settle cards, then draw connections
+          // Draw connections after text starts appearing
           setTimeout(() => {
-            // Lock cards visible
-            allCards.forEach(card => {
-              card.style.animation = 'none';
-              card.style.opacity = '1';
-              card.classList.remove('fly-reveal');
-              card.classList.add('settled');
+            allPaths.forEach((path, i) => {
+              path.classList.remove('fly-waiting');
+              path.style.opacity = '';
+              const len = path.getTotalLength();
+              path.style.strokeDasharray = len;
+              path.style.strokeDashoffset = len;
+              path.style.animation = `drawLine 1s ease forwards`;
+              path.style.animationDelay = `${i * 0.03}s`;
             });
+          }, 150);
 
-            // Draw connections after cards are settled
-            requestAnimationFrame(() => {
-              allPaths.forEach((path, i) => {
-                path.classList.remove('fly-waiting');
-                const len = path.getTotalLength();
-                path.style.strokeDasharray = len;
-                path.style.strokeDashoffset = len;
-                path.style.animation = `drawLine 1s ease forwards`;
-                path.style.animationDelay = `${i * 0.03}s`;
-              });
-            });
-
-            // Restore graph-container transition, hide crates
-            graphContainer.style.transition = '';
-            cratesView.classList.add('hidden');
-            cratesView.classList.remove('fading');
-          }, 600);
+          // Restore graph-container transition, hide crates
+          graphContainer.style.transition = '';
+          cratesView.classList.add('hidden');
+          cratesView.classList.remove('fading');
         }, 800);
       }
 
