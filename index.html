@@ -1861,7 +1861,7 @@
   </div>
   <div id="crates-view" class="hidden"><div id="crates-surface"></div></div>
 
-  <iframe id="sc-widget" src="about:blank" style="width:300px;height:166px;border:0;position:fixed;bottom:0;left:0;opacity:0;pointer-events:none;z-index:-1;" allow="autoplay; encrypted-media"></iframe>
+  <iframe id="sc-widget" src="https://w.soundcloud.com/player/?show_artwork=false&auto_play=false" style="width:300px;height:166px;border:0;position:fixed;bottom:0;left:0;opacity:0;pointer-events:none;z-index:-1;" allow="autoplay; encrypted-media"></iframe>
   <div id="mc-player">
     <div class="mc-bar">
       <span class="mc-label">press play on the mixcloud widget to start</span>
@@ -2043,43 +2043,21 @@
       }, 5000);
     }
 
-    // SC widget iframe starts as about:blank to avoid Safari CORS errors.
-    // On first play, we set the iframe src to the SC player with the real
-    // track URL, then wrap with SC.Widget once the player loads.
+    // SC widget iframe is pre-loaded with the bare SC player (no track).
+    // This avoids CORS errors from dummy tracks while keeping the widget
+    // ready for immediate use when the user clicks play.
     let scWidgetInitQueue = null;
     function initSCWidget() {
       if (scWidget) return true;
       try {
         if (typeof SC === 'undefined' || !SC.Widget) return false;
         const iframe = document.getElementById('sc-widget');
-        // Only wrap if the iframe already has the SC player loaded
-        if (!iframe.src || iframe.src === 'about:blank') return false;
         scWidget = SC.Widget(iframe);
         return true;
       } catch (e) {
         console.warn('SC Widget init failed:', e);
         return false;
       }
-    }
-
-    // Bootstrap the SC player iframe (no track), then call cb once ready.
-    // Loading the bare player avoids the duplicate-track issue where
-    // scWidget.load(sameUrl) silently no-ops in Safari.
-    function ensureSCWidget(trackOrSetUrl, cb) {
-      if (scWidget) { cb(); return; }
-      if (typeof SC === 'undefined' || !SC.Widget) return;
-      const iframe = document.getElementById('sc-widget');
-      iframe.src = 'https://w.soundcloud.com/player/?show_artwork=false&auto_play=false';
-      // Wait for iframe to load the SC player, then init the widget
-      iframe.addEventListener('load', function onLoad() {
-        iframe.removeEventListener('load', onLoad);
-        try {
-          scWidget = SC.Widget(iframe);
-          cb();
-        } catch (e) {
-          console.warn('SC Widget init failed:', e);
-        }
-      }, { once: true });
     }
 
 
@@ -2242,102 +2220,90 @@
     }
 
     function playSC(nodeId, trackUrl) {
-      const doPlay = () => {
-        const card = findCardForNode(nodeId);
-        const btn = card ? card.querySelector('.play-btn') : null;
+      if (!initSCWidget()) {
+        const node = nodeMap[nodeId];
+        if (node && node.setUrl) { playSet(nodeId); }
+        return;
+      }
 
-        currentlyPlayingId = nodeId;
-        currentBackend = 'sc';
-        playingSetOffset = 0;
-        if (btn) btn.innerHTML = PAUSE_SVG;
-        if (card) {
-          showLoading(card);
-          card.setAttribute('data-source', 'soundcloud');
-        }
-
-        scWidgetReady = false;
-        scWidget.unbind(SC.Widget.Events.READY);
-        scWidget.unbind(SC.Widget.Events.PLAY);
-        scWidget.unbind(SC.Widget.Events.FINISH);
-        scWidget.unbind(SC.Widget.Events.ERROR);
-
-        scWidget.bind(SC.Widget.Events.READY, () => {
-          scWidgetReady = true;
-          try { scWidget.play(); } catch (e) {}
-        });
-        scWidget.bind(SC.Widget.Events.PLAY, () => {
-          clearPlayTimeout();
-          if (card) { hideLoading(card); card.classList.add('playing'); applyGlow(card); }
-          startProgressPolling();
-        });
-        scWidget.bind(SC.Widget.Events.FINISH, onPlaybackEnded);
-        scWidget.bind(SC.Widget.Events.ERROR, () => {
-          resetCardUI(nodeId);
-          currentlyPlayingId = null;
-          currentBackend = null;
-          const node = nodeMap[nodeId];
-          if (node && node.setUrl) { playSet(nodeId); }
-        });
-
-        scWidget.load(trackUrl, { auto_play: true, show_artwork: false });
-        startPlayTimeout(nodeId, true);
-      };
-
-      if (initSCWidget()) { doPlay(); return; }
-      // First play — bootstrap the SC player iframe with this track
-      ensureSCWidget(trackUrl, doPlay);
-      // Show loading state while iframe bootstraps
       const card = findCardForNode(nodeId);
-      if (card) showLoading(card);
+      const btn = card ? card.querySelector('.play-btn') : null;
+
       currentlyPlayingId = nodeId;
       currentBackend = 'sc';
+      playingSetOffset = 0;
+      if (btn) btn.innerHTML = PAUSE_SVG;
+      if (card) {
+        showLoading(card);
+        card.setAttribute('data-source', 'soundcloud');
+      }
+
+      scWidgetReady = false;
+      scWidget.unbind(SC.Widget.Events.READY);
+      scWidget.unbind(SC.Widget.Events.PLAY);
+      scWidget.unbind(SC.Widget.Events.FINISH);
+      scWidget.unbind(SC.Widget.Events.ERROR);
+
+      scWidget.bind(SC.Widget.Events.READY, () => {
+        scWidgetReady = true;
+        try { scWidget.play(); } catch (e) {}
+      });
+      scWidget.bind(SC.Widget.Events.PLAY, () => {
+        clearPlayTimeout();
+        if (card) { hideLoading(card); card.classList.add('playing'); applyGlow(card); }
+        startProgressPolling();
+      });
+      scWidget.bind(SC.Widget.Events.FINISH, onPlaybackEnded);
+      scWidget.bind(SC.Widget.Events.ERROR, () => {
+        resetCardUI(nodeId);
+        currentlyPlayingId = null;
+        currentBackend = null;
+        const node = nodeMap[nodeId];
+        if (node && node.setUrl) { playSet(nodeId); }
+      });
+
+      scWidget.load(trackUrl, { auto_play: true, show_artwork: false });
+      startPlayTimeout(nodeId, true);
     }
 
     function playSCSet(nodeId, setUrl, offsetSec) {
-      const doPlay = () => {
-        const card = findCardForNode(nodeId);
-        const btn = card ? card.querySelector('.play-btn') : null;
+      if (!initSCWidget()) return;
 
-        currentlyPlayingId = nodeId;
-        currentBackend = 'sc';
-        playingSetOffset = offsetSec ? offsetSec * 1000 : 0;
-        if (btn) btn.innerHTML = PAUSE_SVG;
-        if (card) {
-          showLoading(card);
-          card.setAttribute('data-source', 'set');
-        }
-
-        scWidgetReady = false;
-        scWidget.unbind(SC.Widget.Events.READY);
-        scWidget.unbind(SC.Widget.Events.PLAY);
-        scWidget.unbind(SC.Widget.Events.FINISH);
-        scWidget.unbind(SC.Widget.Events.ERROR);
-
-        scWidget.bind(SC.Widget.Events.READY, () => {
-          scWidgetReady = true;
-          try { scWidget.play(); } catch (e) {}
-          if (offsetSec) {
-            setTimeout(() => scWidget.seekTo(offsetSec * 1000), 800);
-          }
-        });
-        scWidget.bind(SC.Widget.Events.PLAY, () => {
-          clearPlayTimeout();
-          if (card) { hideLoading(card); card.classList.add('playing'); applyGlow(card); }
-          startProgressPolling();
-        });
-        scWidget.bind(SC.Widget.Events.FINISH, onPlaybackEnded);
-        scWidget.bind(SC.Widget.Events.ERROR, onPlaybackEnded);
-
-        scWidget.load(setUrl, { auto_play: true, show_artwork: false });
-        startPlayTimeout(nodeId, false);
-      };
-
-      if (initSCWidget()) { doPlay(); return; }
-      ensureSCWidget(setUrl, doPlay);
       const card = findCardForNode(nodeId);
-      if (card) showLoading(card);
+      const btn = card ? card.querySelector('.play-btn') : null;
+
       currentlyPlayingId = nodeId;
       currentBackend = 'sc';
+      playingSetOffset = offsetSec ? offsetSec * 1000 : 0;
+      if (btn) btn.innerHTML = PAUSE_SVG;
+      if (card) {
+        showLoading(card);
+        card.setAttribute('data-source', 'set');
+      }
+
+      scWidgetReady = false;
+      scWidget.unbind(SC.Widget.Events.READY);
+      scWidget.unbind(SC.Widget.Events.PLAY);
+      scWidget.unbind(SC.Widget.Events.FINISH);
+      scWidget.unbind(SC.Widget.Events.ERROR);
+
+      scWidget.bind(SC.Widget.Events.READY, () => {
+        scWidgetReady = true;
+        try { scWidget.play(); } catch (e) {}
+        if (offsetSec) {
+          setTimeout(() => scWidget.seekTo(offsetSec * 1000), 800);
+        }
+      });
+      scWidget.bind(SC.Widget.Events.PLAY, () => {
+        clearPlayTimeout();
+        if (card) { hideLoading(card); card.classList.add('playing'); applyGlow(card); }
+        startProgressPolling();
+      });
+      scWidget.bind(SC.Widget.Events.FINISH, onPlaybackEnded);
+      scWidget.bind(SC.Widget.Events.ERROR, onPlaybackEnded);
+
+      scWidget.load(setUrl, { auto_play: true, show_artwork: false });
+      startPlayTimeout(nodeId, false);
     }
 
     function showMcPlayer() {
