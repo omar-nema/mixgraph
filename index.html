@@ -1562,14 +1562,14 @@
       /* ── Carousel ── */
       #mobile-carousel {
         display: flex;
-        align-items: flex-start;
+        align-items: center;
         gap: 12px;
         overflow-x: auto;
         scroll-snap-type: x mandatory;
         -webkit-overflow-scrolling: touch;
         scrollbar-width: none;
-        padding: 12px calc((100vw - 52vw) / 2);
-        scroll-padding-inline: calc((100vw - 52vw) / 2);
+        padding: 12px calc((100vw - 70vw) / 2 + 5vw) 12px calc((100vw - 70vw) / 2 - 5vw);
+        scroll-padding-inline: calc((100vw - 70vw) / 2 - 5vw) calc((100vw - 70vw) / 2 + 5vw);
         flex-shrink: 0;
       }
       #mobile-carousel::-webkit-scrollbar { display: none; }
