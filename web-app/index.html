@@ -224,14 +224,85 @@
     }
     #crates-view {
       flex: 1;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: var(--text-tertiary);
-      font-family: var(--font);
-      font-size: 14px;
+      position: relative;
+      overflow: hidden;
+      cursor: grab;
+      transition: opacity 0.3s ease;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    #crates-view.dragging { cursor: grabbing; }
+
+    #crates-surface {
+      position: absolute;
+      transform-origin: 0 0;
+    }
+
+    .crate-stack {
+      position: absolute;
+      cursor: pointer;
       transition: opacity 0.3s ease;
     }
+
+    #crates-surface.has-hover .crate-stack.hovered { z-index: 100 !important; }
+
+    .crate-card {
+      position: absolute;
+      top: 0; left: 0;
+      border-radius: 2px;
+      overflow: hidden;
+      background: #b0aaa4;
+      transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1), z-index 0s, box-shadow 0.25s ease;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+    }
+    .crate-card.active { box-shadow: 0 6px 24px rgba(0,0,0,0.15); }
+    .crate-card img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+    .crate-label {
+      position: absolute;
+      bottom: -20px; left: 2px;
+      font-family: var(--font);
+      font-size: 10px;
+      color: var(--text-secondary);
+      white-space: nowrap;
+      opacity: 0;
+      transition: opacity 0.2s ease;
+      z-index: 50;
+    }
+    .crate-stack:hover .crate-label { opacity: 1; }
+
+    .crate-info {
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      padding: 10px 12px;
+      background: rgba(42, 37, 32, 0.55);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border-radius: 0 0 2px 2px;
+      opacity: 0;
+      transition: opacity 0.25s ease;
+      pointer-events: none;
+    }
+    .crate-card.active .crate-info { opacity: 1; }
+    .crate-info .ci-title { font-family: var(--font); font-size: 13px; font-weight: 600; color: #fff; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .crate-info .ci-artist { font-family: var(--font); font-size: 11px; font-weight: 300; color: rgba(255,255,255,0.75); line-height: 1.3; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .crate-info .ci-count { font-family: var(--font); font-size: 9px; color: rgba(255,255,255,0.4); margin-top: 4px; }
+
+    .crate-card.placeholder::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(90deg, transparent 25%, rgba(255,255,255,0.08) 50%, transparent 75%);
+      background-size: 200% 100%;
+      animation: crate-shimmer 2s ease-in-out infinite;
+    }
+    @keyframes crate-shimmer {
+      0%   { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+
+    .crate-page { position: absolute; top: 0; left: 0; }
+
     #tracks-view.hidden, #crates-view.hidden {
       display: none;
     }
@@ -1409,7 +1480,7 @@
       </div>
     </div>
   </div>
-  <div id="crates-view" class="hidden"></div>
+  <div id="crates-view" class="hidden"><div id="crates-surface"></div></div>
 
   <iframe id="sc-widget" src="about:blank" style="position:absolute;width:0;height:0;border:0;overflow:hidden;" allow="autoplay"></iframe>
   <div id="mc-player">
@@ -2739,6 +2810,362 @@
         localStorage.setItem('b2b-theme', isNight ? 'night' : 'day');
       });
 
+      // ── Crates view (infinite canvas) ──
+      let cratesInitialized = false;
+
+      function cratesTreemap(items, x, y, w, h) {
+        if (items.length === 0) return [];
+        if (items.length === 1) { items[0].rect = { x, y, w, h }; return items; }
+        const total = items.reduce((s, it) => s + it.weight, 0);
+        const sorted = [...items].sort((a, b) => b.weight - a.weight);
+        let bestDiff = Infinity, splitIdx = 1, runSum = 0;
+        for (let i = 0; i < sorted.length - 1; i++) {
+          runSum += sorted[i].weight;
+          const diff = Math.abs(runSum - (total - runSum));
+          if (diff < bestDiff) { bestDiff = diff; splitIdx = i + 1; }
+        }
+        const left = sorted.slice(0, splitIdx);
+        const right = sorted.slice(splitIdx);
+        const ratio = left.reduce((s, it) => s + it.weight, 0) / total;
+        if (w >= h) {
+          const sw = w * ratio;
+          cratesTreemap(left, x, y, sw, h);
+          cratesTreemap(right, x + sw, y, w - sw, h);
+        } else {
+          const sh = h * ratio;
+          cratesTreemap(left, x, y, w, sh);
+          cratesTreemap(right, x, y + sh, w, h - sh);
+        }
+        return sorted;
+      }
+
+      function cratesBfs(startKey, maxNodes) {
+        const visited = new Set();
+        const queue = [startKey];
+        visited.add(startKey);
+        while (queue.length && visited.size < maxNodes) {
+          const key = queue.shift();
+          const node = graphNodes[key];
+          if (!node || !node.edges) continue;
+          for (const edge of node.edges) {
+            if (visited.size >= maxNodes) break;
+            if (!visited.has(edge.node) && graphNodes[edge.node]) {
+              visited.add(edge.node);
+              queue.push(edge.node);
+            }
+          }
+        }
+        return [...visited];
+      }
+
+      function initCrates() {
+        if (cratesInitialized) return;
+        cratesInitialized = true;
+
+        const cap = s => s.replace(/\b\w/g, c => c.toUpperCase());
+        const gap = 25, pad = 0, STEP = 3;
+        const CLUSTERS_PER_PAGE = 20;
+
+        const cratesView = document.getElementById('crates-view');
+        const surface = document.getElementById('crates-surface');
+        const vw = cratesView.clientWidth || window.innerWidth;
+        const vh = cratesView.clientHeight || (window.innerHeight - 60);
+
+        // Seeded random for deterministic layout
+        let crateSeed = 42;
+        function crateRand() {
+          crateSeed = (crateSeed * 16807) % 2147483647;
+          return (crateSeed - 1) / 2147483646;
+        }
+
+        // Build shuffled seed pool (nodes with 4+ edges)
+        const allKeys = Object.keys(graphNodes);
+        const seedPool = allKeys.filter(k => graphNodes[k].edges && graphNodes[k].edges.length >= 4);
+        for (let i = seedPool.length - 1; i > 0; i--) {
+          const j = Math.floor(crateRand() * (i + 1));
+          [seedPool[i], seedPool[j]] = [seedPool[j], seedPool[i]];
+        }
+        let seedIdx = 0;
+        const usedNodes = new Set();
+
+        // Page grid: each page is viewport-sized, keyed by "col,row"
+        const pages = {};       // "col,row" -> { clusters, el, stacks, artLoaded }
+
+        // Canvas bounds (grow dynamically)
+        let minCol = 0, maxCol = 0, minRow = 0, maxRow = 0;
+
+        function generateClusters(count) {
+          const clusters = [];
+          while (clusters.length < count && seedIdx < seedPool.length) {
+            const seedKey = seedPool[seedIdx++];
+            if (usedNodes.has(seedKey)) continue;
+            const size = 15 + Math.floor(crateRand() * 40);
+            const members = cratesBfs(seedKey, size);
+            const overlap = members.filter(m => usedNodes.has(m)).length;
+            if (overlap > members.length * 0.3) continue;
+            members.forEach(m => usedNodes.add(m));
+
+            const artworks = [];
+            for (const key of members) {
+              const cached = audioCache[key];
+              if (cached && cached.artUrl) artworks.push(cached.artUrl);
+            }
+            const [artist, title] = seedKey.split(':::');
+            clusters.push({
+              seedKey, label: artist || 'unknown',
+              title: title || '', artist: artist || '',
+              count: members.length, artworks,
+              memberKeys: members, weight: members.length,
+            });
+          }
+          return clusters;
+        }
+
+        function renderStack(item, pageOffsetX, pageOffsetY) {
+          const r = item.rect;
+          const x = pageOffsetX + r.x + gap / 2;
+          const y = pageOffsetY + r.y + gap / 2;
+          const w = r.w - gap, h = r.h - gap;
+          if (w < 20 || h < 20) return null;
+          const numCards = Math.min(item.count, 6);
+          const pileOffset = (numCards - 1) * STEP;
+          const cardW = w - pileOffset, cardH = h - pileOffset;
+
+          const el = document.createElement('div');
+          el.className = 'crate-stack';
+          el.style.left = x + 'px'; el.style.top = y + 'px';
+          el.style.width = w + 'px'; el.style.height = h + 'px';
+
+          const memberKeys = item.memberKeys || [];
+          for (let i = 0; i < numCards; i++) {
+            const card = document.createElement('div');
+            card.className = 'crate-card placeholder';
+            if (i === numCards - 1) card.classList.add('active');
+            const offset = i * STEP;
+            card.style.left = offset + 'px'; card.style.top = offset + 'px';
+            card.style.width = cardW + 'px'; card.style.height = cardH + 'px';
+            card.style.zIndex = i;
+
+            // Start as placeholder — artwork loads after
+            const base = 148 + Math.floor(crateRand() * 40) - 20;
+            card.style.background = `rgb(${base}, ${base - 4}, ${base - 8})`;
+
+            const mKey = memberKeys[i % memberKeys.length];
+            const mNode = mKey && graphNodes[mKey];
+            const info = document.createElement('div');
+            info.className = 'crate-info';
+            info.innerHTML = `
+              <div class="ci-title">${cap(mNode ? mNode.title : item.title)}</div>
+              <div class="ci-artist">${cap(mNode ? mNode.artist : item.artist)}</div>
+              <div class="ci-count">${item.count} tracks</div>
+            `;
+            card.appendChild(info);
+            el.appendChild(card);
+          }
+
+          const label = document.createElement('div');
+          label.className = 'crate-label';
+          label.textContent = item.label + ' — ' + item.count + ' tracks';
+          el.appendChild(label);
+
+          // Click → switch to Tracks and load cluster
+          el.addEventListener('click', () => {
+            document.querySelectorAll('.mode-tab').forEach(t => t.classList.remove('active'));
+            document.querySelector('.mode-tab[data-mode="tracks"]').classList.add('active');
+            document.getElementById('tracks-view').classList.remove('hidden');
+            document.getElementById('crates-view').classList.add('hidden');
+            document.getElementById('shuffle-row').style.display = '';
+            document.getElementById('share-btn').style.display = '';
+            document.getElementById('dj-search-wrap').style.display = '';
+            loadClusterById(item.seedKey);
+          });
+
+          return el;
+        }
+
+        function attachHover(stack) {
+          const cards = [...stack.querySelectorAll('.crate-card')];
+          const numCards = cards.length;
+          let activeIdx = numCards - 1, lastX = 0, lastY = 0, accum = 0;
+          const threshold = 30;
+          function applyActive() {
+            cards.forEach((card, i) => {
+              card.classList.toggle('active', i === activeIdx);
+              card.style.zIndex = i === activeIdx ? numCards + 1 : i;
+            });
+          }
+          stack.addEventListener('mouseenter', e => {
+            activeIdx = 0; accum = 0; lastX = e.clientX; lastY = e.clientY;
+            applyActive(); surface.classList.add('has-hover'); stack.classList.add('hovered');
+          });
+          stack.addEventListener('mousemove', e => {
+            const dx = e.clientX - lastX, dy = e.clientY - lastY;
+            lastX = e.clientX; lastY = e.clientY;
+            accum += (dx + dy);
+            if (accum > threshold && activeIdx < numCards - 1) { activeIdx++; accum = 0; applyActive(); }
+            else if (accum < -threshold && activeIdx > 0) { activeIdx--; accum = 0; applyActive(); }
+            accum = Math.max(-threshold, Math.min(threshold, accum));
+          });
+          stack.addEventListener('mouseleave', () => {
+            activeIdx = numCards - 1; accum = 0; applyActive();
+            surface.classList.remove('has-hover'); stack.classList.remove('hovered');
+          });
+        }
+
+        // Build a page: generate data, create placeholder DOM, add to surface permanently
+        function buildPage(col, row) {
+          const key = `${col},${row}`;
+          if (pages[key]) return pages[key];
+          const clusters = generateClusters(CLUSTERS_PER_PAGE);
+          if (clusters.length === 0) return null;
+          const items = clusters.map((c, i) => ({ ...c, idx: i }));
+          cratesTreemap(items, pad, pad, vw - pad * 2, vh - pad * 2);
+          minCol = Math.min(minCol, col);
+          maxCol = Math.max(maxCol, col);
+          minRow = Math.min(minRow, row);
+          maxRow = Math.max(maxRow, row);
+
+          // Create DOM (placeholders) and append permanently
+          const pageOffsetX = col * vw;
+          const pageOffsetY = row * vh;
+          const container = document.createElement('div');
+          container.className = 'crate-page';
+
+          const stacks = [];
+          items.forEach(item => {
+            const stackEl = renderStack(item, pageOffsetX, pageOffsetY);
+            if (stackEl) {
+              container.appendChild(stackEl);
+              stacks.push({ el: stackEl, item });
+              attachHover(stackEl);
+            }
+          });
+          surface.appendChild(container);
+
+          const page = { clusters: items, el: container, stacks, artLoaded: false };
+          pages[key] = page;
+          return page;
+        }
+
+        // Load artwork images into a page's stacks
+        function loadPageArt(page) {
+          if (page.artLoaded) return;
+          page.artLoaded = true;
+          page.stacks.forEach(({ el: stackEl, item }) => {
+            const cards = stackEl.querySelectorAll('.crate-card');
+            cards.forEach((card, i) => {
+              if (item.artworks.length > 0) {
+                const img = document.createElement('img');
+                img.src = item.artworks[i % item.artworks.length];
+                img.loading = 'lazy'; img.draggable = false;
+                img.onload = () => {
+                  card.style.background = '';
+                  card.classList.remove('placeholder');
+                };
+                card.insertBefore(img, card.firstChild);
+              }
+            });
+          });
+        }
+
+        // Strip artwork images from a page to free memory
+        function unloadPageArt(page) {
+          if (!page.artLoaded) return;
+          page.artLoaded = false;
+          page.stacks.forEach(({ el: stackEl, item }) => {
+            const cards = stackEl.querySelectorAll('.crate-card');
+            cards.forEach((card, i) => {
+              const img = card.querySelector('img');
+              if (img) img.remove();
+              const base = 148 + ((i * 17 + 3) % 40) - 20;
+              card.style.background = `rgb(${base}, ${base - 4}, ${base - 8})`;
+              card.classList.add('placeholder');
+            });
+          });
+        }
+
+        function updateVisible() {
+          // Viewport in canvas coords
+          const viewL = -panX;
+          const viewT = -panY;
+          const viewR = viewL + vw;
+          const viewB = viewT + vh;
+
+          // Pages to build (visible + 1 buffer for placeholders)
+          const colMin = Math.floor(viewL / vw) - 1;
+          const colMax = Math.floor(viewR / vw) + 1;
+          const rowMin = Math.floor(viewT / vh) - 1;
+          const rowMax = Math.floor(viewB / vh) + 1;
+
+          // Build placeholder DOM for all nearby pages
+          for (let c = colMin; c <= colMax; c++) {
+            for (let r = rowMin; r <= rowMax; r++) {
+              buildPage(c, r);
+            }
+          }
+
+          // Load artwork only for pages overlapping the viewport
+          const colVis0 = Math.floor(viewL / vw);
+          const colVis1 = Math.floor(viewR / vw);
+          const rowVis0 = Math.floor(viewT / vh);
+          const rowVis1 = Math.floor(viewB / vh);
+
+          for (const [key, page] of Object.entries(pages)) {
+            const [c, r] = key.split(',').map(Number);
+            const near = c >= colVis0 - 1 && c <= colVis1 + 1 && r >= rowVis0 - 1 && r <= rowVis1 + 1;
+            if (near) {
+              loadPageArt(page);
+            } else if (c < colMin - 2 || c > colMax + 2 || r < rowMin - 2 || r > rowMax + 2) {
+              unloadPageArt(page);
+            }
+          }
+        }
+
+        // Pan state — start at origin
+        let panX = 0, panY = 0;
+        surface.style.transform = `translate(${panX}px, ${panY}px)`;
+
+        // Drag-to-pan
+        let isDragging = false, didDrag = false, dragStartX, dragStartY, panStartX, panStartY;
+        const DRAG_THRESHOLD = 5;
+        cratesView.onmousedown = e => {
+          isDragging = true; didDrag = false;
+          dragStartX = e.clientX; dragStartY = e.clientY;
+          panStartX = panX; panStartY = panY;
+        };
+        cratesView.onmousemove = e => {
+          if (!isDragging) return;
+          const dx = e.clientX - dragStartX, dy = e.clientY - dragStartY;
+          if (!didDrag && Math.abs(dx) + Math.abs(dy) > DRAG_THRESHOLD) {
+            didDrag = true;
+            cratesView.classList.add('dragging');
+          }
+          if (didDrag) {
+            panX = panStartX + dx; panY = panStartY + dy;
+            surface.style.transform = `translate(${panX}px, ${panY}px)`;
+            updateVisible();
+          }
+        };
+        cratesView.onmouseup = () => {
+          isDragging = false;
+          cratesView.classList.remove('dragging');
+        };
+        cratesView.addEventListener('click', e => {
+          if (didDrag) { e.stopPropagation(); didDrag = false; }
+        }, true);
+        cratesView.onwheel = e => {
+          e.preventDefault();
+          panX -= e.deltaX; panY -= e.deltaY;
+          surface.style.transform = `translate(${panX}px, ${panY}px)`;
+          updateVisible();
+        };
+
+        // Initial render: center page + neighbors
+        buildPage(0, 0);
+        updateVisible();
+        console.log(`Crates: infinite canvas initialized (${seedPool.length} seeds available)`);
+      }
+
       // Wire mode tabs
       document.querySelectorAll('.mode-tab').forEach(tab => {
         tab.addEventListener('click', () => {
@@ -2751,6 +3178,8 @@
           document.getElementById('shuffle-row').style.display = mode === 'tracks' ? '' : 'none';
           document.getElementById('share-btn').style.display = mode === 'tracks' ? '' : 'none';
           document.getElementById('dj-search-wrap').style.display = mode === 'tracks' ? '' : 'none';
+          // Lazy init crates — defer so tab switch is instant
+          if (mode === 'crates') requestAnimationFrame(() => initCrates());
         });
       });
 
