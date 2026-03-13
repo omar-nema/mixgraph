@@ -1886,7 +1886,7 @@
   </div>
   <div id="crates-view" class="hidden"><div id="crates-surface"></div></div>
 
-  <iframe id="sc-widget" src="https://w.soundcloud.com/player/?show_artwork=false&auto_play=false" allow="autoplay; encrypted-media"></iframe>
+  <iframe id="sc-widget" src="https://w.soundcloud.com/player/?show_artwork=false&auto_play=false&visual=false&show_teaser=false&sharing=false&buying=false" allow="autoplay; encrypted-media"></iframe>
   <div id="mc-player">
     <div class="mc-bar">
       <span class="mc-label">press play on the mixcloud widget to start</span>
@@ -2300,7 +2300,7 @@
         if (node && node.setUrl) { playSet(nodeId); }
       });
 
-      scWidget.load(trackUrl, { auto_play: true, show_artwork: false });
+      scWidget.load(trackUrl, { auto_play: true, show_artwork: false, visual: false, show_teaser: false, sharing: false, buying: false });
       startPlayTimeout(nodeId, true);
     }
 
@@ -2341,7 +2341,7 @@
       scWidget.bind(SC.Widget.Events.FINISH, onPlaybackEnded);
       scWidget.bind(SC.Widget.Events.ERROR, () => { hideScPlayer(); onPlaybackEnded(); });
 
-      scWidget.load(setUrl, { auto_play: true, show_artwork: false });
+      scWidget.load(setUrl, { auto_play: true, show_artwork: false, visual: false, show_teaser: false, sharing: false, buying: false });
       startPlayTimeout(nodeId, false);
     }
 
