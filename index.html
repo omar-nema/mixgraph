@@ -1701,10 +1701,27 @@
 
       /* Mobile fade-in animation */
       @keyframes mobileFadeIn {
-        from { opacity: 0; transform: translateY(8px); }
-        to { opacity: 1; transform: translateY(0); }
+        from { opacity: 0; transform: translateY(12px) scale(0.95); }
+        to { opacity: 1; transform: translateY(0) scale(1); }
       }
-      .mobile-animate-in { animation: mobileFadeIn 0.4s ease both; }
+      .mobile-animate-in { animation: mobileFadeIn 0.35s ease both; }
+
+      /* Shuffle button feedback */
+      #mobile-shuffle-area button {
+        transition: transform 0.15s ease, background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+      }
+      #mobile-shuffle-area button.shuffling {
+        transform: scale(0.92);
+        background: var(--connection-highlight);
+        border-color: var(--connection-highlight);
+        color: #fff;
+      }
+
+      /* Carousel exit animation */
+      @keyframes mobileSlideOut {
+        to { opacity: 0; transform: translateY(-10px) scale(0.97); }
+      }
+      .mobile-animate-out { animation: mobileSlideOut 0.2s ease both; }
 
       /* Theme toggle: adjust for safe area */
       #theme-toggle {
@@ -3086,7 +3103,21 @@
       // Shuffle button above carousel
       const shuffleArea = document.getElementById('mobile-shuffle-area');
       shuffleArea.innerHTML = `<button><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/><line x1="4" y1="4" x2="9" y2="9"/></svg> shuffle</button>`;
-      shuffleArea.querySelector('button').addEventListener('click', shuffle);
+      const shuffleBtn = shuffleArea.querySelector('button');
+      shuffleBtn.addEventListener('click', () => {
+        // Tactile feedback: press + color flash
+        shuffleBtn.classList.add('shuffling');
+        // Animate out current cards
+        carousel.querySelectorAll('.mobile-carousel-item').forEach(el => {
+          el.classList.add('mobile-animate-out');
+        });
+        const sourcesEl = document.getElementById('mobile-sources');
+        sourcesEl.classList.add('mobile-animate-out');
+        setTimeout(() => {
+          shuffleBtn.classList.remove('shuffling');
+          shuffle();
+        }, 250);
+      });
 
       const root = cluster.nodes.find(n => n.rank === 'root');
       const r1Nodes = cluster.nodes.filter(n => n.rank === '1').slice(0, 2);
@@ -3096,7 +3127,12 @@
       const allCards = [root, ...r1Nodes, ...r2Nodes];
       const carousel = document.getElementById('mobile-carousel');
       carousel.innerHTML = '';
-      allCards.forEach(node => carousel.appendChild(makeCarouselCard(node)));
+      allCards.forEach((node, i) => {
+        const item = makeCarouselCard(node);
+        item.classList.add('mobile-animate-in');
+        item.style.animationDelay = `${i * 0.06}s`;
+        carousel.appendChild(item);
+      });
 
       // Scroll to root (first card)
       requestAnimationFrame(() => {
@@ -3113,6 +3149,7 @@
     function updateMobileSources(graphId) {
       const sourcesEl = document.getElementById('mobile-sources');
       sourcesEl.innerHTML = '';
+      sourcesEl.classList.remove('mobile-animate-out');
       const gn = graphNodes[graphId];
       if (!gn || !gn.edges) return;
       const sources = new Map();
