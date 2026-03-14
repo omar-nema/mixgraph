@@ -3143,6 +3143,8 @@
       const r2Nodes = cluster.nodes.filter(n => n.rank === '2').slice(0, 2);
 
       // Build carousel: root first, then rank 1, then rank 2 (capped for mobile)
+      // Tag R1 nodes with their index for context labels
+      r1Nodes.forEach((n, i) => { n._r1Index = i; });
       const allCards = [root, ...r1Nodes, ...r2Nodes];
       const carousel = document.getElementById('mobile-carousel');
       carousel.innerHTML = '';
@@ -3279,7 +3281,7 @@
 
       let contextText = '';
       if (node.rank === 'root') contextText = 'if you like this track, swipe \u2192';
-      else if (node.rank === '1') contextText = 'played after in same set';
+      else if (node.rank === '1') contextText = node._r1Index === 0 ? 'played before in same set' : 'played after in same set';
       else if (node.rank === '2') contextText = 'played 2 tracks away';
       if (contextText) {
         const label = document.createElement('div');
