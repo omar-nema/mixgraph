@@ -1509,6 +1509,7 @@
         cursor: pointer;
         align-items: center;
         gap: 6px;
+        box-shadow: 0 1px 4px rgba(42, 37, 32, 0.08);
         transition: color 0.2s, background 0.2s;
       }
       #mobile-shuffle-area button:active { background: var(--card-border); }
@@ -1528,10 +1529,12 @@
       #help-btn {
         padding: 6px 10px !important;
         border-radius: var(--card-radius) !important;
+        box-shadow: none !important;
       }
       #help-btn .help-info-icon { width: 13px; height: 13px; }
       #help-btn .help-btn-text { display: inline; font-size: 12px; }
       #help-btn { gap: 4px !important; }
+      #share-btn { box-shadow: none !important; }
 
       /* Help modal: full screen on mobile */
       #help-overlay {
@@ -1667,15 +1670,16 @@
         flex-shrink: 0;
         padding: 4px 16px 0;
       }
-      .mobile-source-label {
-        font-size: 11px; font-weight: 500; letter-spacing: 0.08em;
-        text-transform: uppercase; color: var(--text-tertiary);
-        padding: 8px 0 8px;
-      }
       .mobile-source-row {
         display: flex; gap: 8px;
+        align-items: center;
         overflow-x: auto; scrollbar-width: none;
         -webkit-overflow-scrolling: touch;
+      }
+      .mobile-source-label {
+        flex-shrink: 0;
+        font-size: 10px; font-weight: 500; letter-spacing: 0.06em;
+        text-transform: uppercase; color: var(--text-tertiary);
       }
       .mobile-source-row::-webkit-scrollbar { display: none; }
 
@@ -3163,12 +3167,12 @@
         }
       }
       if (sources.size > 0) {
-        const label = document.createElement('div');
-        label.className = 'mobile-source-label';
-        label.textContent = 'Sourced from';
-        sourcesEl.appendChild(label);
         const row = document.createElement('div');
         row.className = 'mobile-source-row';
+        const label = document.createElement('span');
+        label.className = 'mobile-source-label';
+        label.textContent = 'Sourced from';
+        row.appendChild(label);
         for (const src of sources.values()) {
           const pill = document.createElement('a');
           pill.className = 'mobile-source-pill';
