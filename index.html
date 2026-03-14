@@ -1486,11 +1486,8 @@
       #mobile-shuffle-btn { display: none !important; }
 
       #mobile-shuffle-area {
-        display: flex;
-        justify-content: center;
         flex-shrink: 0;
-        padding: 0 16px;
-        margin-top: -15px;
+        margin-top: -30px;
       }
       #mobile-shuffle-area button {
         display: flex;
@@ -1501,8 +1498,10 @@
         font-weight: 400;
         color: var(--text-primary);
         background: var(--card-bg);
-        border: 1px solid var(--card-border);
-        border-radius: var(--card-radius);
+        border: none;
+        border-top: 1px solid var(--card-border);
+        border-bottom: 1px solid var(--card-border);
+        border-radius: 0;
         padding: 10px 14px;
         cursor: pointer;
         align-items: center;
