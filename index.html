@@ -3137,10 +3137,17 @@
       scWidget.bind(SC.Widget.Events.READY, () => {
         scWidgetReady = true;
         if (card) card.classList.remove('loading');
-        if (offsetSec) {
-          setTimeout(() => scWidget.seekTo(offsetSec * 1000), 800);
-        }
       });
+
+      // On mobile Safari, seekTo doesn't work until the user presses play.
+      // Seek after PLAY event fires instead of after READY.
+      if (offsetSec) {
+        scWidget.unbind(SC.Widget.Events.PLAY);
+        scWidget.bind(SC.Widget.Events.PLAY, () => {
+          setTimeout(() => scWidget.seekTo(offsetSec * 1000), 500);
+          scWidget.unbind(SC.Widget.Events.PLAY);
+        });
+      }
 
       scWidget.load(url, { auto_play: true, show_artwork: false, visual: false, show_teaser: false, sharing: false, buying: false, show_user: false, color: 'B5705A' });
     }
