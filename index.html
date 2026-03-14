@@ -1642,7 +1642,7 @@
       .mobile-carousel-card:active { box-shadow: var(--card-hover-shadow); }
       .mc-context {
         font-size: 11px; font-weight: 400; color: var(--text-tertiary);
-        text-align: center; margin-top: 8px;
+        text-align: center; margin-bottom: 6px;
       }
 
       .mobile-carousel-card .mc-art-wrap {
@@ -3286,8 +3286,6 @@
         else updateMobileSources(node.graphId);
       });
 
-      item.appendChild(card);
-
       let contextText = '';
       if (node.rank === 'root') contextText = 'if you like this track, swipe \u2192';
       else if (node.rank === '1') contextText = node._r1Index === 0 ? 'played before in same set' : 'played after in same set';
@@ -3298,6 +3296,8 @@
         label.textContent = contextText;
         item.appendChild(label);
       }
+
+      item.appendChild(card);
 
       return item;
     }
