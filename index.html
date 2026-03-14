@@ -1663,6 +1663,10 @@
       }
 
       /* ── Source pills ── */
+      #mobile-sources {
+        flex-shrink: 0;
+        padding: 4px 16px 0;
+      }
       .mobile-source-label {
         font-size: 11px; font-weight: 500; letter-spacing: 0.08em;
         text-transform: uppercase; color: var(--text-tertiary);
@@ -1856,6 +1860,7 @@
     <div id="mobile-tracks" style="display:none">
       <div id="mobile-shuffle-area"></div>
       <div id="mobile-carousel"></div>
+      <div id="mobile-sources"></div>
     </div>
   </div>
   <div id="crates-view" class="hidden"><div id="crates-surface"></div></div>
@@ -3097,6 +3102,43 @@
       requestAnimationFrame(() => {
         carousel.scrollTo({ left: 0, behavior: 'instant' });
       });
+
+      // Source pills
+      const sourcesEl = document.getElementById('mobile-sources');
+      sourcesEl.innerHTML = '';
+      const sources = new Map();
+      for (const node of cluster.nodes) {
+        const gn = graphNodes[node.graphId];
+        if (!gn || !gn.edges) continue;
+        for (const edge of gn.edges) {
+          for (const ctx of (edge.contexts || [])) {
+            const dj = (ctx.dj || '').trim();
+            const url = ctx.episode_url || '';
+            if (dj && url) {
+              const key = `${dj}|${url}`;
+              if (!sources.has(key)) sources.set(key, { dj, url });
+            }
+          }
+        }
+      }
+      if (sources.size > 0) {
+        const label = document.createElement('div');
+        label.className = 'mobile-source-label';
+        label.textContent = 'Sourced from';
+        sourcesEl.appendChild(label);
+        const row = document.createElement('div');
+        row.className = 'mobile-source-row';
+        for (const src of sources.values()) {
+          const pill = document.createElement('a');
+          pill.className = 'mobile-source-pill';
+          pill.href = src.url;
+          pill.target = '_blank';
+          pill.rel = 'noopener';
+          pill.textContent = src.dj;
+          row.appendChild(pill);
+        }
+        sourcesEl.appendChild(row);
+      }
 
       // Auto-load first track with audio into SC widget
       const firstWithAudio = allCards.find(n => n.scTrackUrl || n.setUrl);
