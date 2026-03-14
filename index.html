@@ -3111,12 +3111,19 @@
 
       scWidgetReady = false;
       scWidget.unbind(SC.Widget.Events.READY);
+
+      // Prefer individual track, fall back to set
+      const url = node.scTrackUrl || node.setUrl;
+      const offsetSec = !node.scTrackUrl && node.setOffsetSec ? node.setOffsetSec : 0;
+
       scWidget.bind(SC.Widget.Events.READY, () => {
         scWidgetReady = true;
         if (card) card.classList.remove('loading');
+        if (offsetSec) {
+          setTimeout(() => scWidget.seekTo(offsetSec * 1000), 800);
+        }
       });
 
-      const url = node.scTrackUrl || node.setUrl;
       scWidget.load(url, { auto_play: true, show_artwork: false, visual: false, show_teaser: false, sharing: false, buying: false });
     }
 
