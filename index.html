@@ -3082,10 +3082,10 @@
       shuffleArea.querySelector('button').addEventListener('click', shuffle);
 
       const root = cluster.nodes.find(n => n.rank === 'root');
-      const r1Nodes = cluster.nodes.filter(n => n.rank === '1');
-      const r2Nodes = cluster.nodes.filter(n => n.rank === '2');
+      const r1Nodes = cluster.nodes.filter(n => n.rank === '1').slice(0, 2);
+      const r2Nodes = cluster.nodes.filter(n => n.rank === '2').slice(0, 2);
 
-      // Build carousel: root first, then rank 1, then rank 2
+      // Build carousel: root first, then rank 1, then rank 2 (capped for mobile)
       const allCards = [root, ...r1Nodes, ...r2Nodes];
       const carousel = document.getElementById('mobile-carousel');
       carousel.innerHTML = '';
