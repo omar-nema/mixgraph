@@ -3103,21 +3103,26 @@
         carousel.scrollTo({ left: 0, behavior: 'instant' });
       });
 
-      // Source pills
+      // Auto-load first track with audio into SC widget (also sets source pills)
+      const firstWithAudio = allCards.find(n => n.scTrackUrl || n.setUrl);
+      if (firstWithAudio) {
+        requestAnimationFrame(() => selectMobileTrack(firstWithAudio.id));
+      }
+    }
+
+    function updateMobileSources(graphId) {
       const sourcesEl = document.getElementById('mobile-sources');
       sourcesEl.innerHTML = '';
+      const gn = graphNodes[graphId];
+      if (!gn || !gn.edges) return;
       const sources = new Map();
-      for (const node of cluster.nodes) {
-        const gn = graphNodes[node.graphId];
-        if (!gn || !gn.edges) continue;
-        for (const edge of gn.edges) {
-          for (const ctx of (edge.contexts || [])) {
-            const dj = (ctx.dj || '').trim();
-            const url = ctx.episode_url || '';
-            if (dj && url) {
-              const key = `${dj}|${url}`;
-              if (!sources.has(key)) sources.set(key, { dj, url });
-            }
+      for (const edge of gn.edges) {
+        for (const ctx of (edge.contexts || [])) {
+          const dj = (ctx.dj || '').trim();
+          const url = ctx.episode_url || '';
+          if (dj && url) {
+            const key = `${dj}|${url}`;
+            if (!sources.has(key)) sources.set(key, { dj, url });
           }
         }
       }
@@ -3139,12 +3144,6 @@
         }
         sourcesEl.appendChild(row);
       }
-
-      // Auto-load first track with audio into SC widget
-      const firstWithAudio = allCards.find(n => n.scTrackUrl || n.setUrl);
-      if (firstWithAudio) {
-        requestAnimationFrame(() => selectMobileTrack(firstWithAudio.id));
-      }
     }
 
     // Mobile: select a card to load it into the SC widget. No play/pause
@@ -3154,6 +3153,9 @@
       if (!node) return;
       const hasAudio = !!(node.scTrackUrl || node.setUrl);
       if (!hasAudio) return;
+
+      // Update source pills for this track
+      updateMobileSources(node.graphId);
 
       // Deselect previous
       document.querySelectorAll('.mobile-carousel-card.selected').forEach(c => {
@@ -3205,22 +3207,16 @@
       card.dataset.rank = node.rank || '';
       const hasAudio = !!(node.scTrackUrl || node.setUrl);
 
-      const djs = node.rank === 'root' ? collectDjs(node.graphId) : (node.djs || []);
-      const djLine = djs.length > 0
-        ? `<div class="mc-dj">${node.rank === 'root' ? 'Mixed by ' : 'via '}${
-            djs.slice(0, 3).map(d => d.name || d).join(', ')
-          }</div>` : '';
-
       card.innerHTML = `
         <div class="mc-art-wrap">
           ${mobileArtHtml(node)}
         </div>
         <div class="mc-title">${node.title}</div>
-        <div class="mc-artist">${node.artist}</div>
-        ${djLine}`;
+        <div class="mc-artist">${node.artist}</div>`;
 
       card.addEventListener('click', () => {
         if (hasAudio) selectMobileTrack(node.id);
+        else updateMobileSources(node.graphId);
       });
 
       item.appendChild(card);
