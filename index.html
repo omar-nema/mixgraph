@@ -1525,7 +1525,7 @@
       /* Help button: icon-only pill on mobile, matching share button */
       #help-btn {
         padding: 6px 10px !important;
-        gap: 0 !important;
+        border-radius: var(--card-radius) !important;
       }
       #help-btn .help-info-icon { width: 13px; height: 13px; }
       #help-btn .help-btn-text { display: inline; font-size: 12px; }
@@ -1609,6 +1609,7 @@
         cursor: pointer;
         height: 100%;
         overflow: hidden;
+        touch-action: manipulation;
       }
       .mobile-carousel-card:active { box-shadow: var(--card-hover-shadow); }
       .mc-context {
