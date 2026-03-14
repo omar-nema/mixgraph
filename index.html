@@ -1571,14 +1571,22 @@
         -webkit-backdrop-filter: blur(20px) saturate(1.4);
         backdrop-filter: blur(20px) saturate(1.4);
       }
+      #help-modal .help-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 32px;
+      }
       #help-modal .help-close {
-        top: calc(24px + env(safe-area-inset-top, 0px));
-        right: 20px;
+        position: static !important;
         font-size: 28px;
         color: var(--text-primary);
+        padding: 0 4px;
+        order: 2;
       }
       #help-modal h2 {
-        margin-bottom: 40px;
+        margin-bottom: 0;
+        order: 1;
       }
       #help-modal p {
         margin-bottom: 8px;
@@ -1795,8 +1803,10 @@
 
   <div id="help-overlay">
     <div id="help-modal" style="position:relative;">
-      <button class="help-close">&times;</button>
-      <h2>B2B: Curated Music Discovery</h2>
+      <div class="help-header">
+        <button class="help-close">&times;</button>
+        <h2>B2B: Curated Music Discovery</h2>
+      </div>
       <p>Back2Back is a music discovery tool built from DJ set tracklists.</p>
       <p>I find that algorithmic music discovery tools don't end up exposing me to new sounds. More and more I rely on DJ sets to find new music. With B2B, my goal is to continue to discover music through curators, but in a more immediate way.</p>
       <p>Here's how it works: B2B shows you a random track. The songs that are directly connected to it are songs played right before, or right after in a DJ set. Hit shuffle until you find a track you like, and explore the adjacent songs :)</p>
