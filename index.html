@@ -1514,27 +1514,41 @@
       }
       #mobile-shuffle-area button:active { background: var(--card-border); }
 
-      /* Toolbar: reorder for mobile — share (left) | shuffle (center) | b2b (right) */
-      #toolbar { padding: 0; }
+      /* Toolbar: two-section header on mobile */
+      #toolbar { padding: 0; border-bottom: 1px solid var(--card-border); }
       #toolbar-row {
-        padding: 8px 12px;
-        padding-top: calc(8px + env(safe-area-inset-top, 0px));
-        gap: 8px;
+        padding: 0;
+        padding-top: env(safe-area-inset-top, 0px);
+        gap: 0;
+        display: flex;
       }
-      .toolbar-left { order: 2; flex: 0 !important; }
+      #center-btns { display: none !important; }
+      .toolbar-left {
+        order: 2; flex: 1 !important;
+        border-left: 1px solid var(--card-border);
+      }
       .toolbar-right { order: 0; flex: 0 !important; }
-      #center-btns { order: 1; flex: 1; }
 
-      /* Help button: icon-only pill on mobile, matching share button */
       #help-btn {
-        padding: 6px 10px !important;
-        border-radius: var(--card-radius) !important;
+        width: 100%;
+        padding: 10px 14px !important;
+        border: none !important;
+        border-radius: 0 !important;
         box-shadow: none !important;
+        background: transparent !important;
+        justify-content: center;
       }
       #help-btn .help-info-icon { width: 13px; height: 13px; }
-      #help-btn .help-btn-text { display: inline; font-size: 12px; }
+      #help-btn .help-btn-text { display: inline; font-size: 13px; }
       #help-btn { gap: 4px !important; }
-      #share-btn { box-shadow: none !important; }
+
+      #share-btn {
+        padding: 10px 14px !important;
+        border: none !important;
+        border-radius: 0 !important;
+        box-shadow: none !important;
+        background: transparent !important;
+      }
 
       /* Help modal: full screen on mobile */
       #help-overlay {
