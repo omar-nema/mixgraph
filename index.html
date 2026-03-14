@@ -2278,7 +2278,7 @@
       });
 
       showScPlayer();
-      scWidget.load(trackUrl, { auto_play: true, show_artwork: false, visual: false, show_teaser: false, sharing: false, buying: false, show_user: false });
+      scWidget.load(trackUrl, { auto_play: true, show_artwork: false, visual: false, show_teaser: false, sharing: false, buying: false, show_user: false, color: 'f5f0eb' });
       startPlayTimeout(nodeId, true);
     }
 
@@ -2320,7 +2320,7 @@
       scWidget.bind(SC.Widget.Events.ERROR, () => { hideScPlayer(); onPlaybackEnded(); });
 
       showScPlayer();
-      scWidget.load(setUrl, { auto_play: true, show_artwork: false, visual: false, show_teaser: false, sharing: false, buying: false, show_user: false });
+      scWidget.load(setUrl, { auto_play: true, show_artwork: false, visual: false, show_teaser: false, sharing: false, buying: false, show_user: false, color: 'f5f0eb' });
       startPlayTimeout(nodeId, false);
     }
 
@@ -3140,7 +3140,7 @@
         }
       });
 
-      scWidget.load(url, { auto_play: true, show_artwork: false, visual: false, show_teaser: false, sharing: false, buying: false, show_user: false });
+      scWidget.load(url, { auto_play: true, show_artwork: false, visual: false, show_teaser: false, sharing: false, buying: false, show_user: false, color: 'f5f0eb' });
     }
 
     function makeCarouselCard(node) {
