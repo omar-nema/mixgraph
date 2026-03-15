@@ -1549,7 +1549,7 @@
 
       #mobile-shuffle-area {
         flex-shrink: 0;
-        margin-bottom: 40px;
+        margin-bottom: 20px;
         display: flex;
         justify-content: center;
         gap: 8px;
@@ -1596,7 +1596,6 @@
         background: var(--card-bg);
         border: 1px solid var(--card-border);
         border-radius: var(--card-radius);
-        box-shadow: var(--card-shadow);
         cursor: pointer;
         color: var(--text-secondary);
         font-family: var(--font);
@@ -1717,6 +1716,9 @@
       .mobile-carousel-card.selected .mc-art-wrap {
         animation: breathe 3s ease-in-out infinite;
       }
+      .mobile-carousel-card.selected .mc-art-wrap:has(.no-art) {
+        animation: none;
+      }
       .mobile-carousel-card.loading .mc-art-wrap::after {
         content: '';
         position: absolute; inset: 0;
@@ -1804,6 +1806,12 @@
         to { opacity: 0; transform: translateY(-10px) scale(0.97); }
       }
       .mobile-animate-out { animation: mobileSlideOut 0.2s ease both; }
+
+      /* Smaller cards on short phones */
+      @media (max-height: 750px) {
+        .mobile-carousel-item { width: 54vw; }
+        .mobile-carousel-item[data-rank="root"] { width: 63vw; }
+      }
 
       /* Theme toggle: adjust for safe area */
       #theme-toggle {
@@ -3684,7 +3692,8 @@
       // Wire theme toggle
       const themeBtn = document.getElementById('theme-toggle');
       const savedTheme = localStorage.getItem('b2b-theme');
-      if (savedTheme === 'night') {
+      const defaultNight = savedTheme === null && isMobileView();
+      if (savedTheme === 'night' || defaultNight) {
         document.body.classList.add('night');
         themeBtn.querySelector('.theme-label').textContent = 'day';
         themeBtn.querySelectorAll('.sun-icon').forEach(el => el.style.display = 'none');
