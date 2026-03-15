@@ -1549,9 +1549,10 @@
 
       #mobile-shuffle-area {
         flex-shrink: 0;
-        margin-bottom: 20px;
+        margin-bottom: 40px;
         display: flex;
         justify-content: center;
+        gap: 8px;
       }
       #mobile-shuffle-area button {
         display: flex;
@@ -1572,89 +1573,82 @@
         transition: color 0.2s, background 0.2s;
       }
       #mobile-shuffle-area button:active { background: var(--card-border); }
+      #mobile-shuffle-area .mobile-shuffle { padding: 6px 20px; }
+      #mobile-shuffle-area .mobile-share { padding: 6px 10px; }
+      #mobile-shuffle-area .mobile-share svg .check { display: none; }
+      #mobile-shuffle-area .mobile-share.copied { color: var(--connection-highlight); border-color: var(--connection-highlight); }
+      #mobile-shuffle-area .mobile-share.copied svg .check { display: block; }
+      #mobile-shuffle-area .mobile-share.copied svg .link { display: none; }
 
-      /* Toolbar: two-section header on mobile */
-      #toolbar { padding: 0; border-bottom: 1px solid var(--card-border); background: var(--card-bg); }
-      #toolbar-row {
+      /* Hide toolbar on mobile, float help button */
+      #toolbar { display: none !important; }
+
+      #mobile-help-btn {
+        display: flex !important;
+        position: fixed;
+        top: calc(8px + env(safe-area-inset-top, 0px));
+        right: 8px;
+        z-index: 200;
+        width: 32px;
+        height: 32px;
+        align-items: center;
+        justify-content: center;
+        background: var(--card-bg);
+        border: 1px solid var(--card-border);
+        border-radius: var(--card-radius);
+        box-shadow: var(--card-shadow);
+        cursor: pointer;
+        color: var(--text-secondary);
+        font-family: var(--font);
+        font-size: 16px;
+        font-weight: 500;
         padding: 0;
-        padding-top: env(safe-area-inset-top, 0px);
-        gap: 0;
-        display: flex;
       }
-      #center-btns { display: none !important; }
-      .toolbar-left {
-        order: 2; flex: 1 !important;
-        border-left: 1px solid var(--card-border);
-      }
-      .toolbar-right { order: 0; flex: 0 0 30% !important; }
+      #mobile-help-btn:active { background: var(--card-border); }
+      #mobile-help-btn.open { color: var(--text-primary); }
 
-      #help-btn {
-        width: 100%;
-        padding: 6px 14px !important;
-        border: none !important;
-        border-radius: 0 !important;
-        box-shadow: none !important;
-        background: transparent !important;
-        justify-content: center;
-      }
-      #help-btn .help-info-icon { width: 13px; height: 13px; }
-      #help-btn .help-btn-text { display: inline; font-size: 13px; }
-      #help-btn { gap: 4px !important; }
-
-      #share-btn {
-        width: 100%;
-        padding: 6px 14px !important;
-        border: none !important;
-        border-radius: 0 !important;
-        box-shadow: none !important;
-        background: transparent !important;
-        justify-content: center;
-      }
-
-      /* Help modal: full screen on mobile */
-      #help-overlay {
-        background: none !important;
-        backdrop-filter: none !important;
-      }
-      #help-modal {
-        max-width: 100% !important;
-        width: 100% !important;
-        max-height: 100% !important;
-        height: 100% !important;
-        border-radius: 0 !important;
-        border: none !important;
-        box-shadow: none !important;
-        padding: 24px 20px !important;
-        padding-top: calc(24px + env(safe-area-inset-top, 0px)) !important;
-        background: color-mix(in srgb, var(--bg) 85%, transparent) !important;
+      #mobile-help-panel {
+        display: none;
+        position: fixed;
+        top: calc(48px + env(safe-area-inset-top, 0px));
+        right: 8px;
+        z-index: 199;
+        width: calc(100vw - 16px);
+        max-height: 60vh;
+        overflow-y: auto;
+        background: color-mix(in srgb, var(--card-bg) 92%, transparent);
         -webkit-backdrop-filter: blur(20px) saturate(1.4);
         backdrop-filter: blur(20px) saturate(1.4);
+        border: 1px solid var(--card-border);
+        border-radius: var(--card-radius);
+        box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+        padding: 20px;
+        font-family: var(--font);
+        transform-origin: top right;
+        animation: mobile-help-in 0.2s ease;
       }
-      #help-modal .help-header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        margin-bottom: 32px;
-      }
-      #help-modal .help-close {
-        position: static !important;
-        font-size: 28px;
+      #mobile-help-panel.visible { display: block; }
+      #mobile-help-panel h3 {
+        font-size: 16px;
+        font-weight: 600;
         color: var(--text-primary);
-        padding: 0 4px;
-        order: 2;
+        margin: 0 0 12px 0;
       }
-      #help-modal h2 {
-        margin-bottom: 0;
-        order: 1;
-      }
-      #help-modal p {
-        margin-bottom: 8px;
+      #mobile-help-panel p {
+        font-size: 13px;
         line-height: 1.5;
+        color: var(--text-secondary);
+        margin: 0 0 8px 0;
       }
-      .help-diagram { display: none !important; }
+      #mobile-help-panel p:last-child { margin-bottom: 0; }
+      @keyframes mobile-help-in {
+        from { opacity: 0; transform: scale(0.95); }
+        to { opacity: 1; transform: scale(1); }
+      }
 
-      /* Share button: simpler on mobile */
-      #share-btn .share-label { display: inline; font-size: 13px; }
+      /* Hide desktop help overlay on mobile — use mobile-help-panel instead */
+      #help-overlay { display: none !important; }
+      .help-diagram { display: none !important; }
 
       /* Mobile tracks layout */
       #mobile-tracks {
@@ -1662,7 +1656,7 @@
         flex: 1;
         overflow: hidden;
         justify-content: center;
-        padding: 20px 0;
+        padding: 40px 0;
       }
 
       /* ── Carousel ── */
@@ -1677,6 +1671,7 @@
         padding: 0 calc((100vw - 70vw) / 2 + 5vw) 0 calc((100vw - 70vw) / 2 - 5vw);
         scroll-padding-inline: calc((100vw - 70vw) / 2 - 5vw) calc((100vw - 70vw) / 2 + 5vw);
         flex-shrink: 0;
+        margin-bottom: 12px;
       }
       #mobile-carousel::-webkit-scrollbar { display: none; }
 
@@ -1834,6 +1829,15 @@
       <feComposite id="ft-grain-mix" in="blurred" in2="grained" operator="arithmetic" k1="0" k2="1" k3="0" k4="0"/>
     </filter>
   </svg>
+  <button id="mobile-help-btn" style="display:none" title="How it works">?</button>
+  <div id="mobile-help-panel">
+    <h3>B2B: Curated Music Discovery</h3>
+    <p>Back2Back is a music discovery tool built from DJ set tracklists.</p>
+    <p>I find that algorithmic music discovery tools don't end up exposing me to new sounds. More and more I rely on DJ sets to find new music. With B2B, my goal is to continue to discover music through curators, but in a more immediate way.</p>
+    <p>Here's how it works: B2B shows you a random track. The songs that are directly connected to it are songs played right before, or right after in a DJ set. Hit shuffle until you find a track you like, and explore the adjacent songs :)</p>
+    <p>Mixes are sourced from <strong>Lot Radio</strong> and <strong>NTS Radio</strong>.</p>
+    <p>- Omar</p>
+  </div>
   <div id="toolbar">
     <div id="toolbar-row">
       <div class="toolbar-side toolbar-left">
@@ -2392,7 +2396,7 @@
       });
 
       showScPlayer();
-      scWidget.load(trackUrl, { auto_play: true, show_artwork: false, visual: false, show_teaser: false, sharing: false, buying: false, show_user: false, color: 'B5705A' });
+      scWidget.load(trackUrl, { auto_play: true, show_artwork: false, visual: false, show_teaser: false, sharing: false, buying: false, show_user: true, color: 'B5705A' });
       startPlayTimeout(nodeId, true);
     }
 
@@ -2434,7 +2438,7 @@
       scWidget.bind(SC.Widget.Events.ERROR, () => { hideScPlayer(); onPlaybackEnded(); });
 
       showScPlayer();
-      scWidget.load(setUrl, { auto_play: true, show_artwork: false, visual: false, show_teaser: false, sharing: false, buying: false, show_user: false, color: 'B5705A' });
+      scWidget.load(setUrl, { auto_play: true, show_artwork: false, visual: false, show_teaser: false, sharing: false, buying: false, show_user: true, color: 'B5705A' });
       startPlayTimeout(nodeId, false);
     }
 
@@ -3219,8 +3223,8 @@
 
       // Shuffle button above carousel
       const shuffleArea = document.getElementById('mobile-shuffle-area');
-      shuffleArea.innerHTML = `<button><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/><line x1="4" y1="4" x2="9" y2="9"/></svg> shuffle</button>`;
-      const shuffleBtn = shuffleArea.querySelector('button');
+      shuffleArea.innerHTML = `<button class="mobile-shuffle"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/><line x1="4" y1="4" x2="9" y2="9"/></svg> shuffle</button><button class="mobile-share" title="Copy link"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><g class="link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></g><g class="check"><polyline points="20 6 9 17 4 12"/></g></svg></button>`;
+      const shuffleBtn = shuffleArea.querySelector('.mobile-shuffle');
       shuffleBtn.addEventListener('click', () => {
         // Tactile feedback: press + color flash
         shuffleBtn.classList.add('shuffling');
@@ -3234,6 +3238,12 @@
           shuffleBtn.classList.remove('shuffling');
           shuffle();
         }, 250);
+      });
+      const mobileShareBtn = shuffleArea.querySelector('.mobile-share');
+      mobileShareBtn.addEventListener('click', () => {
+        navigator.clipboard.writeText(window.location.href);
+        mobileShareBtn.classList.add('copied');
+        setTimeout(() => mobileShareBtn.classList.remove('copied'), 1500);
       });
 
       const root = cluster.nodes.find(n => n.rank === 'root');
@@ -3271,11 +3281,21 @@
       sourcesEl.classList.remove('mobile-animate-out');
       const gn = graphNodes[graphId];
       if (!gn || !gn.edges) return;
+      const cached = audioCache[graphId];
+      let setLink = null;
+      if (cached && cached.setUrl && cached.setSource !== 'mixcloud') {
+        setLink = cached.setUrl;
+        if (cached.setOffsetSec) {
+          const m = Math.floor(cached.setOffsetSec / 60);
+          const s = cached.setOffsetSec % 60;
+          setLink += `#t=${m}m${s}s`;
+        }
+      }
       const sources = new Map();
       for (const edge of gn.edges) {
         for (const ctx of (edge.contexts || [])) {
           const dj = (ctx.dj || '').trim();
-          const url = ctx.episode_url || '';
+          const url = setLink || ctx.episode_url || '';
           if (dj && url) {
             const key = `${dj}|${url}`;
             if (!sources.has(key)) sources.set(key, { dj, url });
@@ -3349,7 +3369,7 @@
         });
       }
 
-      scWidget.load(url, { auto_play: true, show_artwork: false, visual: false, show_teaser: false, sharing: false, buying: false, show_user: false, color: 'B5705A' });
+      scWidget.load(url, { auto_play: true, show_artwork: false, visual: false, show_teaser: false, sharing: false, buying: false, show_user: true, color: 'B5705A' });
     }
 
     function makeCarouselCard(node) {
@@ -3650,6 +3670,13 @@
       // Wire help modal
       const helpOverlay = document.getElementById('help-overlay');
       document.getElementById('help-btn').addEventListener('click', () => helpOverlay.classList.add('open'));
+      const mobileHelpBtn = document.getElementById('mobile-help-btn');
+      const mobileHelpPanel = document.getElementById('mobile-help-panel');
+      mobileHelpBtn.addEventListener('click', () => {
+        const isOpen = mobileHelpPanel.classList.toggle('visible');
+        mobileHelpBtn.textContent = isOpen ? '×' : '?';
+        mobileHelpBtn.classList.toggle('open', isOpen);
+      });
       helpOverlay.addEventListener('click', (e) => { if (e.target === helpOverlay) helpOverlay.classList.remove('open'); });
       helpOverlay.querySelector('.help-close').addEventListener('click', () => helpOverlay.classList.remove('open'));
       document.addEventListener('keydown', (e) => { if (e.key === 'Escape') helpOverlay.classList.remove('open'); });
@@ -4239,33 +4266,60 @@
           // Lazy init crates — defer so tab switch is instant
           if (mode === 'crates') {
             requestAnimationFrame(() => initCrates());
-            showCratesHelper();
+            showHelper(cratesHelperToast, 'b2b-crates-helper-dismissed');
           }
+          // Hide the other mode's toast when switching
+          if (mode === 'tracks') {
+            cratesHelperToast.classList.remove('visible');
+            // Prevent connection arrows from replaying draw animation
+            document.querySelectorAll('.connection-path').forEach(p => {
+              p.style.animation = 'none';
+              p.style.strokeDasharray = 'none';
+              p.style.strokeDashoffset = '0';
+            });
+          }
+          if (mode === 'crates') tracksHelperToast.classList.remove('visible');
         });
       });
 
       // Helper toast logic
       const helpersCheckbox = document.getElementById('show-helpers');
+      const tracksHelperToast = document.getElementById('tracks-helper-toast');
       const cratesHelperToast = document.getElementById('crates-helper-toast');
       helpersCheckbox.checked = false;
 
-      function showCratesHelper() {
+      function showHelper(toast, storageKey) {
         if (window.innerWidth < 768) return;
-        if (!helpersCheckbox.checked) return;
-        if (localStorage.getItem('b2b-crates-helper-dismissed')) return;
-        cratesHelperToast.classList.add('visible');
+        if (!helpersCheckbox.checked && localStorage.getItem(storageKey)) return;
+        toast.classList.add('visible');
       }
 
+      function dismissHelper(toast, storageKey) {
+        toast.classList.remove('visible');
+        localStorage.setItem(storageKey, '1');
+      }
+
+      tracksHelperToast.querySelector('.toast-close').addEventListener('click', () => {
+        dismissHelper(tracksHelperToast, 'b2b-tracks-helper-dismissed');
+      });
+
       cratesHelperToast.querySelector('.toast-close').addEventListener('click', () => {
-        cratesHelperToast.classList.remove('visible');
-        localStorage.setItem('b2b-crates-helper-dismissed', '1');
+        dismissHelper(cratesHelperToast, 'b2b-crates-helper-dismissed');
       });
 
       helpersCheckbox.addEventListener('change', () => {
-        if (!helpersCheckbox.checked) {
+        if (helpersCheckbox.checked) {
+          const isCrates = !document.getElementById('crates-view').classList.contains('hidden');
+          if (isCrates) showHelper(cratesHelperToast, 'b2b-crates-helper-dismissed');
+          else showHelper(tracksHelperToast, 'b2b-tracks-helper-dismissed');
+        } else {
+          tracksHelperToast.classList.remove('visible');
           cratesHelperToast.classList.remove('visible');
         }
       });
+
+      // Show tracks helper on first load
+      showHelper(tracksHelperToast, 'b2b-tracks-helper-dismissed');
 
       // Dev panel controls
       document.getElementById('freeze-btn').addEventListener('click', () => {
@@ -4704,6 +4758,10 @@
     <div class="tune-row"><label>grain</label><input type="range" id="tune-grain" min="0" max="100" value="0"><span class="tune-val">0%</span></div>
     <div class="tune-row"><label>saturate</label><input type="range" id="tune-saturate" min="0" max="300" value="50"><span class="tune-val">50%</span></div>
     <div class="tune-row"><label>hue shift</label><input type="range" id="tune-hue" min="0" max="360" value="46"><span class="tune-val">46°</span></div>
+  </div>
+  <div id="tracks-helper-toast" class="helper-toast">
+    Below, a random track from a DJ set, and tracks played before and after it. Shuffle until you find a song you like, and explore connections
+    <button class="toast-close">&times;</button>
   </div>
   <div id="crates-helper-toast" class="helper-toast">
     Dig through clusters of connected songs and click to explore
