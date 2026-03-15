@@ -58,7 +58,7 @@
        ═══════════════════════════════════════════ */
     body.night {
       --bg: #141414;
-      --card-bg: #1e1e1e;
+      --card-bg: #242424;
       --card-border: #333;
       --text-primary: #e8e4e0;
       --text-secondary: #9a9590;
@@ -202,6 +202,12 @@
     .card-toolbar #shuffle-btn:active { background: #dfa998; }
     .card-toolbar #card-link-btn:hover { background: #f0ebe7; }
     .card-toolbar #card-link-btn:active { background: #e6dfda; }
+    body.night .card-toolbar #shuffle-btn { background: #2a2a2a; color: #d4896e; }
+    body.night .card-toolbar #shuffle-btn:hover { background: #3a2a24; }
+    body.night .card-toolbar #shuffle-btn:active { background: #4a3028; }
+    body.night .card-toolbar #card-link-btn { background: #1e1e1e; color: #d4896e; }
+    body.night .card-toolbar #card-link-btn:hover { background: rgba(255,255,255,0.06); }
+    body.night .card-toolbar #card-link-btn:active { background: rgba(255,255,255,0.1); }
     .card-toolbar button svg {
       width: 12px;
       height: 12px;
@@ -851,7 +857,7 @@
       font-family: var(--font);
       font-size: 14px;
       font-weight: 400;
-      color: #000;
+      color: var(--text-primary);
       background: var(--card-bg);
       border: 1px solid var(--card-border);
       border-radius: var(--card-radius);
@@ -887,7 +893,7 @@
       font-family: var(--font);
       font-size: 14px;
       font-weight: 400;
-      color: #000;
+      color: var(--text-primary);
       background: var(--card-bg);
       border: 1px solid var(--card-border);
       border-radius: var(--card-radius);
