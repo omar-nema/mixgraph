@@ -42,6 +42,9 @@ cd pipeline && python3 graph.py
 # Run audio enrichment (incremental, Ctrl-C safe)
 cd pipeline && python3 enrich.py
 
+# Extract DJ names from show titles (run after graph.py)
+cd pipeline && python3 extract_dj_names.py
+
 # Serve frontend locally
 python3 -m http.server 8000
 ```
@@ -67,6 +70,14 @@ python3 -m http.server 8000
 - NTS sets on 4 SC accounts: NTS Latest, NTS 2024-2025, NTS 2023, NTS 2020
 - Lot Radio sets on `soundcloud.com/thelotradio`
 - enrich.py is incremental, crash-safe, saves every 500 tracks
+
+## DJ name extraction
+
+- `extract_dj_names.py` is the **last step** after rebuilding the graph — run it after `graph.py`
+- It parses show title strings (e.g. "Soup To Nuts w/ Shy One") into actual DJ names (e.g. ["Shy One"])
+- Output: `pipeline/output/dj_name_map.json` — mapping of `{ "show title": ["dj1", "dj2"] }`
+- The pipeline does NOT depend on an LLM — extraction is pattern-based (w/, with, presents, b2b, invites)
+- The frontend loads this mapping to power DJ search with clean names
 
 ## Style preferences
 

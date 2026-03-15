@@ -46,6 +46,9 @@
       --card-shadow: 0 1px 4px rgba(42, 37, 32, 0.04);
       --card-hover-shadow: 0 4px 20px rgba(42, 37, 32, 0.08);
 
+      /* Toolbar buttons */
+      --toolbar-btn-bg: #ede7e0;
+
       /* Font */
       --font: 'Space Grotesk', sans-serif;
     }
@@ -64,6 +67,7 @@
       --connection-highlight: #d4896e;
       --card-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
       --card-hover-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+      --toolbar-btn-bg: #1a1a1a;
     }
     body.night .album-art { background: #2a2a2a; }
     body.night .album-art.no-art { background: #2a2a2a; }
@@ -171,34 +175,32 @@
       margin: -13px -13px 13px -13px;
       display: flex;
     }
-    .card-toolbar #shuffle-btn { flex: 4; }
-    .card-toolbar #card-link-btn { flex: 1; border-left: 1px solid var(--card-border); transition: color 0.2s, background 0.2s; }
+    .card-toolbar #shuffle-btn { flex: 4; color: #9a5843; background: #eaeaea; transition: background 0.2s ease; }
+    .card-toolbar #card-link-btn { flex: 1; border-left: 1px solid var(--card-border); background: #fbf7f5; color: #9a5843; transition: color 0.2s, background 0.2s; }
     .card-toolbar #card-link-btn .check-icon { display: none; }
     .card-toolbar #card-link-btn.copied { color: #c0392b; background: var(--bg); }
     .card-toolbar #card-link-btn.copied .link-icon { display: none; }
     .card-toolbar #card-link-btn.copied .check-icon { display: block; }
     .card-toolbar button {
       font-family: var(--font);
-      font-size: 13px;
+      font-size: 16px;
       font-weight: 400;
       letter-spacing: 0.03em;
       color: var(--text-primary);
       background: var(--bg);
       border: none;
-      padding: 9px 12px;
+      padding: 13px 5px;
       cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
       gap: 5px;
-      transition: background 0.15s ease;
+      transition: background 0.15s ease, color 0.15s ease;
     }
-    .card-toolbar button:hover {
-      background: var(--bg);
-    }
-    .card-toolbar button:active {
-      background: var(--card-border);
-    }
+    .card-toolbar #shuffle-btn:hover { background: #e8b8a8; }
+    .card-toolbar #shuffle-btn:active { background: #dfa998; }
+    .card-toolbar #card-link-btn:hover { background: #f0ebe7; }
+    .card-toolbar #card-link-btn:active { background: #e6dfda; }
     .card-toolbar button svg {
       width: 12px;
       height: 12px;
@@ -208,6 +210,34 @@
       stroke-linecap: round;
       stroke-linejoin: round;
     }
+
+    .card-footer {
+      border-top: 1px solid var(--card-border);
+      border-radius: 0 0 var(--card-radius) var(--card-radius);
+      overflow: hidden;
+      margin: 13px -13px -13px -13px;
+    }
+    .card-footer button, .card-footer .all-shown {
+      font-family: var(--font);
+      font-size: 14px;
+      font-weight: 400;
+      letter-spacing: 0.03em;
+      color: var(--text-secondary);
+      background: var(--card-bg);
+      border: none;
+      padding: 10px 5px;
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+    }
+    .card-footer button { cursor: pointer; transition: background 0.2s ease; }
+    .card-footer .all-shown { font-size: 13px; color: var(--text-tertiary); }
+    .card-footer button:hover { background: #f0ebe7; color: var(--text-primary); }
+    .card-footer button:active { background: #e6dfda; }
+    body.night .card-footer button:hover { background: rgba(255,255,255,0.06); }
+    body.night .card-footer button:active { background: rgba(255,255,255,0.1); }
 
     .toolbar-side {
       flex: 1;
@@ -227,7 +257,7 @@
       display: flex;
       gap: 2px;
       background: var(--card-border);
-      border-radius: 20px;
+      border-radius: var(--card-radius);
       padding: 2px;
     }
     .mode-tab {
@@ -237,13 +267,15 @@
       color: var(--text-tertiary);
       background: none;
       border: none;
-      border-radius: 18px;
+      border-radius: calc(var(--card-radius) - 2px);
       padding: 6px 16px;
       cursor: pointer;
-      transition: color 0.2s ease, background 0.2s ease;
+      transition: none;
       letter-spacing: 0.02em;
     }
-    .mode-tab:hover { color: var(--text-secondary); }
+    .mode-tab[data-mode="crates"] { color: var(--text-primary); }
+    .mode-tab:not(.active):hover { color: var(--text-primary); background: rgba(0,0,0,0.08); }
+    body.night .mode-tab:not(.active):hover { background: rgba(255,255,255,0.1); }
     .mode-tab.active {
       background: var(--card-bg);
       color: var(--text-primary);
@@ -282,6 +314,7 @@
       cursor: pointer;
       transition: opacity 0.3s ease;
     }
+    .crate-stack.fade-out { opacity: 0; transition: opacity 0.15s ease; }
 
     #crates-surface.has-hover .crate-stack.hovered { z-index: 100 !important; }
 
@@ -296,19 +329,6 @@
     }
     .crate-card.active { box-shadow: 0 6px 24px rgba(0,0,0,0.15); }
     .crate-card img { width: 100%; height: 100%; object-fit: cover; display: block; }
-
-    .crate-label {
-      position: absolute;
-      bottom: -20px; left: 2px;
-      font-family: var(--font);
-      font-size: 10px;
-      color: var(--text-secondary);
-      white-space: nowrap;
-      opacity: 0;
-      transition: opacity 0.2s ease;
-      z-index: 50;
-    }
-    .crate-stack:hover .crate-label { opacity: 1; }
 
     .crate-info {
       position: absolute;
@@ -674,7 +694,7 @@
 
     .progress-bar .bar-fill {
       height: 100%;
-      background: #fff;
+      background: var(--connection-highlight);
       width: 0%;
     }
 
@@ -721,7 +741,7 @@
     }
     .source-badge .eq-bar {
       width: 2.5px;
-      background: #fff;
+      background: var(--connection-highlight);
       border-radius: 1.5px;
       height: 2px;
     }
@@ -833,7 +853,7 @@
       color: #000;
       background: var(--card-bg);
       border: 1px solid var(--card-border);
-      border-radius: 20px;
+      border-radius: var(--card-radius);
       padding: 6px 12px;
       cursor: pointer;
       box-shadow: var(--card-shadow);
@@ -869,7 +889,7 @@
       color: #000;
       background: var(--card-bg);
       border: 1px solid var(--card-border);
-      border-radius: 20px;
+      border-radius: var(--card-radius);
       padding: 6px 12px;
       cursor: pointer;
       box-shadow: var(--card-shadow);
@@ -1795,7 +1815,7 @@
           <g class="link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></g>
           <g class="check"><polyline points="20 6 9 17 4 12"/></g>
         </svg>
-        <span class="share-label">share</span>
+        <span class="share-label">Share</span>
       </button>
     </div>
     </div>
@@ -1947,6 +1967,7 @@
     let nodes = [];
     let edges = [];
     let nodeMap = {};
+    let currentCluster = null;
 
     const cardWidths = { 'root': 280, '1': 180, '2': 155 };
     // Measured heights per node id, populated after first render pass
@@ -2627,12 +2648,14 @@
 
       // R1: all neighbors, prefer nodes with children
       const r1All = getNeighbors(rootId, usedIds);
+      const totalR1Available = r1All.length;
       const r1ChildCount = (cid) => getNeighbors(cid, new Set([...usedIds, rootId])).length;
       const withKids = r1All.filter(c => r1ChildCount(c) >= 1);
       const deadEnds = r1All.filter(c => r1ChildCount(c) === 0);
       shuffleArray(withKids);
       shuffleArray(deadEnds);
-      const r1Selected = [...withKids, ...deadEnds].slice(0, maxR1);
+      const r1Limit = arguments[1] || maxR1;
+      const r1Selected = [...withKids, ...deadEnds].slice(0, r1Limit);
 
       for (let i = 0; i < r1Selected.length; i++) {
         const r1GraphId = r1Selected[i];
@@ -2643,7 +2666,8 @@
         // R2: max 2 per R1
         const r2Candidates = getNeighbors(r1GraphId, usedIds);
         shuffleArray(r2Candidates);
-        const r2Selected = r2Candidates.slice(0, r2PerR1);
+        const r2Limit = arguments[2] != null ? arguments[2] : r2PerR1;
+        const r2Selected = r2Candidates.slice(0, r2Limit);
 
         for (let j = 0; j < r2Selected.length; j++) {
           const r2GraphId = r2Selected[j];
@@ -2661,6 +2685,9 @@
           root_id: rootId,
           found: found,
           not_found: clusterNodes.length - found,
+          totalR1: totalR1Available,
+          r1Shown: r1Selected.length,
+          expandLevel: 0,
         },
         nodes: clusterNodes,
         edges: clusterEdges,
@@ -2778,15 +2805,25 @@
           rankLabel = `2 tracks from '${rootTitle}'`;
         }
 
-        // DJ line: show all DJs, clamp to 2 lines with "(more)" if overflowing
+        // DJ line: link to SC set with timestamp if available, else episode URL
         const allDjs = node.djs || [];
         let djLine = '';
         if (allDjs.length > 0) {
-          const links = allDjs.map(d =>
-            d.episodeUrl
-              ? `<a href="${d.episodeUrl}" target="_blank" rel="noopener">${d.name}</a>`
-              : d.name
-          ).join(', ');
+          let setLink = null;
+          if (node.setUrl && node.setSource !== 'mixcloud') {
+            setLink = node.setUrl;
+            if (node.setOffsetSec) {
+              const m = Math.floor(node.setOffsetSec / 60);
+              const s = node.setOffsetSec % 60;
+              setLink += `#t=${m}m${s}s`;
+            }
+          }
+          const links = allDjs.map(d => {
+            const href = setLink || d.episodeUrl;
+            return href
+              ? `<a href="${href}" target="_blank" rel="noopener">${d.name}</a>`
+              : d.name;
+          }).join(', ');
           djLine = `<span class="dj-line">Mixed by ${links}</span>`;
         }
 
@@ -2804,13 +2841,23 @@
           <div class="card-toolbar">
             <button id="shuffle-btn" title="Shuffle">
               <svg viewBox="0 0 24 24"><path d="M16 3h5v5"/><path d="M4 20L21 3"/><path d="M21 16v5h-5"/><path d="M15 15l6 6"/><path d="M4 4l5 5"/></svg>
-              shuffle
+              Shuffle
             </button>
             <button id="card-link-btn" title="Copy link">
               <svg class="link-icon" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
               <svg class="check-icon" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
             </button>
           </div>` : '';
+
+        let showMoreFooter = '';
+        if (node.rank === 'root' && currentCluster && !isMobileView()) {
+          const m = currentCluster.meta;
+          if (m.expandLevel >= 2 || (m.expandLevel === 1 && m.totalR1 <= m.r1Shown)) {
+            showMoreFooter = `<div class="card-footer"><span class="all-shown">all connections shown</span></div>`;
+          } else if (m.totalR1 > maxR1) {
+            showMoreFooter = `<div class="card-footer"><button id="show-more-btn">show more connections</button></div>`;
+          }
+        }
 
         card.innerHTML = `
           ${cardToolbar}
@@ -2825,6 +2872,7 @@
           ${titleTag}
           <span class="artist-name">${node.artist}</span>
           ${djLine}
+          ${showMoreFooter}
         `;
 
         // Tooltips for overflow text
@@ -3309,6 +3357,7 @@
         return;
       }
       clearGraph();
+      currentCluster = cluster;
       nodes = cluster.nodes;
       edges = cluster.edges;
       nodeMap = {};
@@ -3361,6 +3410,18 @@
         cardLinkBtn.classList.add('copied');
         setTimeout(() => { cardLinkBtn.classList.remove('copied'); }, 1500);
       });
+      const showMoreBtn = document.getElementById('show-more-btn');
+      if (showMoreBtn) {
+        showMoreBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const prevLevel = currentCluster.meta.expandLevel;
+          const limit = prevLevel === 0 ? 8 : Infinity;
+          const r2Limit = prevLevel === 0 ? r2PerR1 : Infinity;
+          const expanded = selectCluster(currentRootId, limit, r2Limit);
+          expanded.meta.expandLevel = prevLevel + 1;
+          showCluster(expanded);
+        });
+      }
 
       // Measure actual card heights from DOM
       measuredHeights = {};
@@ -3488,6 +3549,16 @@
         // No cache — all nodes will show grey placeholders
       }
 
+      // Load DJ name map (optional — falls back to raw show titles)
+      let djNameMap = {};
+      try {
+        const resp = await fetch('pipeline/output/dj_name_map.json');
+        if (resp.ok) {
+          djNameMap = await resp.json();
+          console.log(`DJ name map loaded: ${Object.keys(djNameMap).length} entries`);
+        }
+      } catch (e) {}
+
       // Compute candidates (3+ edges, no mixcloud-only neighbors)
       const mcNodes = new Set(
         Object.keys(audioCache).filter(nid => audioCache[nid].source === 'mixcloud_set')
@@ -3530,7 +3601,7 @@
         const label = btn.querySelector('.share-label');
         btn.classList.add('copied');
         label.textContent = 'copied!';
-        setTimeout(() => { btn.classList.remove('copied'); label.textContent = 'share'; }, 1500);
+        setTimeout(() => { btn.classList.remove('copied'); label.textContent = 'Share'; }, 1500);
       });
 
       // Wire mobile shuffle button
@@ -3566,11 +3637,17 @@
         const cratesView = document.getElementById('crates-view');
         const tracksView = document.getElementById('tracks-view');
 
+        // Fade out all other crate stacks, keep clicked one visible
+        const allStacks = cratesView.querySelectorAll('.crate-stack');
+        allStacks.forEach(s => { if (s !== stackEl) s.classList.add('fade-out'); });
+
         // Capture stack position before anything moves
         const stackRect = stackEl.getBoundingClientRect();
         const srcX = stackRect.left + stackRect.width / 2;
         const srcY = stackRect.top + stackRect.height / 2;
 
+        // Brief pause for other stacks to vanish, then begin fly-out
+        setTimeout(() => {
         // Fade out crates
         cratesView.classList.add('fading');
 
@@ -3705,7 +3782,9 @@
           graphContainer.style.transition = '';
           cratesView.classList.add('hidden');
           cratesView.classList.remove('fading');
+          allStacks.forEach(s => s.classList.remove('fade-out'));
         }, 800);
+        }, 150); // end setTimeout for fade-out pause
       }
 
       // ── Crates view (infinite canvas) ──
@@ -3888,11 +3967,6 @@
             el.appendChild(card);
           }
 
-          const label = document.createElement('div');
-          label.className = 'crate-label';
-          label.textContent = item.label + ' — ' + item.count + ' tracks';
-          el.appendChild(label);
-
           // Click → fly-out transition to Tracks view
           el.addEventListener('click', () => {
             transitionToTracks(item.seedKey, el);
@@ -3901,11 +3975,22 @@
           return el;
         }
 
+        // Track last known mouse position from outside any stack
+        let lastOuterX = 0, lastOuterY = 0;
+        document.getElementById('crates-view').addEventListener('mousemove', e => {
+          // Only update if target is NOT inside a crate-stack
+          if (!e.target.closest('.crate-stack')) {
+            lastOuterX = e.clientX;
+            lastOuterY = e.clientY;
+          }
+        });
+
         function attachHover(stack) {
           const cards = [...stack.querySelectorAll('.crate-card')];
           const numCards = cards.length;
-          let activeIdx = numCards - 1, lastX = 0, lastY = 0, accum = 0;
+          let activeIdx = numCards - 1, lastX = 0, lastY = 0, accum = 0, enterTime = 0;
           const threshold = 30;
+          const deadZone = 150;
           function applyActive() {
             cards.forEach((card, i) => {
               card.classList.toggle('active', i === activeIdx);
@@ -3913,10 +3998,18 @@
             });
           }
           stack.addEventListener('mouseenter', e => {
-            activeIdx = 0; accum = 0; lastX = e.clientX; lastY = e.clientY;
+            // Direction from last position outside any stack
+            const dx = e.clientX - lastOuterX;
+            const dy = e.clientY - lastOuterY;
+            // Moving right/down → entering from left/top → back of stack
+            const fromBack = (dx + dy) > 0;
+            activeIdx = fromBack ? 0 : numCards - 1;
+            accum = 0; lastX = e.clientX; lastY = e.clientY;
+            enterTime = Date.now();
             applyActive(); surface.classList.add('has-hover'); stack.classList.add('hovered');
           });
           stack.addEventListener('mousemove', e => {
+            if (Date.now() - enterTime < deadZone) { lastX = e.clientX; lastY = e.clientY; return; }
             const dx = e.clientX - lastX, dy = e.clientY - lastY;
             lastX = e.clientX; lastY = e.clientY;
             accum += (dx + dy);
@@ -4283,16 +4376,20 @@
 
       // ── DJ search ──
       // Build index: DJ name -> list of track node IDs they played
-      const djIndex = {}; // { lowercase name -> { display, trackIds: [id, ...] } }
+      // Uses djNameMap to extract clean DJ names from show titles
+      const djIndex = {}; // { lowercase name -> { display, trackIds: Set } }
       for (const [id, node] of Object.entries(graphNodes)) {
         for (const edge of (node.edges || [])) {
           for (const ctx of (edge.contexts || [])) {
-            const dj = (ctx.dj || '').trim();
-            if (!dj) continue;
-            const key = dj.toLowerCase();
-            if (!djIndex[key]) djIndex[key] = { display: dj, trackIds: new Set() };
-            djIndex[key].trackIds.add(id);
-            djIndex[key].trackIds.add(edge.node);
+            const rawDj = (ctx.dj || '').trim();
+            if (!rawDj) continue;
+            const names = djNameMap[rawDj] || [rawDj];
+            for (const name of names) {
+              const key = name.toLowerCase();
+              if (!djIndex[key]) djIndex[key] = { display: name, trackIds: new Set() };
+              djIndex[key].trackIds.add(id);
+              djIndex[key].trackIds.add(edge.node);
+            }
           }
         }
       }
