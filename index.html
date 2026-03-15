@@ -57,20 +57,20 @@
        Night Mode
        ═══════════════════════════════════════════ */
     body.night {
-      --bg: #141414;
-      --card-bg: #242424;
+      --bg: #1e2228;
+      --card-bg: #2d3139;
       --card-border: #333;
       --text-primary: #e8e4e0;
       --text-secondary: #9a9590;
-      --text-tertiary: #6a6560;
+      --text-tertiary: #7f7a75;
       --connection-stroke: #444;
       --connection-highlight: #d4896e;
       --card-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
       --card-hover-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
-      --toolbar-btn-bg: #1a1a1a;
+      --toolbar-btn-bg: #252a31;
     }
-    body.night .album-art { background: #2a2a2a; }
-    body.night .album-art.no-art { background: #2a2a2a; }
+    body.night .album-art { background: #363b44; }
+    body.night .album-art.no-art { background: #363b44; }
     body.night .node-card .rank-tooltip { background: #e8e4e0; color: #141414; }
     body.night .node-card .rank-tooltip::after { border-top-color: #e8e4e0; }
     body.night .progress-bar .bar-track { background: rgba(255,255,255,0.2); border-top-color: rgba(255,255,255,0.15); }
@@ -79,12 +79,12 @@
     body.night #help-overlay { background: rgba(0, 0, 0, 0.6); }
     body.night #help-modal { box-shadow: 0 8px 40px rgba(0, 0, 0, 0.5); }
     body.night .mode-tab.active { background: var(--card-bg); box-shadow: 0 1px 3px rgba(0,0,0,0.4); }
-    body.night #mode-tabs { background: #2a2a2a; }
-    body.night #mc-player { background: #1a1a1a; }
-    body.night .help-diagram { background: #1a1a1a; }
-    body.night .help-diagram rect[fill="#faf7f4"] { fill: #1e1e1e; }
-    body.night .help-diagram rect[fill="#e8e2db"] { fill: #2a2a2a; }
-    body.night .help-diagram rect[fill="#FAF7F4"] { fill: #1e1e1e; }
+    body.night #mode-tabs { background: #252a31; }
+    body.night #mc-player { background: #1e2228; }
+    body.night .help-diagram { background: #252a31; }
+    body.night .help-diagram rect[fill="#faf7f4"] { fill: #2d3139; }
+    body.night .help-diagram rect[fill="#e8e2db"] { fill: #363b44; }
+    body.night .help-diagram rect[fill="#FAF7F4"] { fill: #2d3139; }
     body.night .help-diagram line[stroke="#c4b5a5"] { stroke: #444; }
     body.night .help-diagram rect[stroke="#d4c9bd"] { stroke: #333; }
     body.night .help-diagram rect[stroke="#D4C9BD"] { stroke: #333; }
@@ -96,7 +96,7 @@
     body.night .help-diagram path[stroke="#212121"] { stroke: #666; }
     body.night .help-diagram path[stroke="#C4B5A5"] { stroke: #444; }
     body.night .help-diagram path[fill="#2A2520"] { fill: #e8e4e0; }
-    body.night .help-diagram path[fill="#FAF7F4"] { fill: #1e1e1e; }
+    body.night .help-diagram path[fill="#FAF7F4"] { fill: #2d3139; }
     body.night .help-diagram path[stroke="#D4C9BD"] { stroke: #333; }
     body.night .help-diagram rect[fill="#E8E2DB"] { fill: #2a2a2a; }
     body.night .help-diagram text[fill="#2A2520"] { fill: #e8e4e0; }
@@ -202,10 +202,10 @@
     .card-toolbar #shuffle-btn:active { background: #dfa998; }
     .card-toolbar #card-link-btn:hover { background: #f0ebe7; }
     .card-toolbar #card-link-btn:active { background: #e6dfda; }
-    body.night .card-toolbar #shuffle-btn { background: #2a2a2a; color: #d4896e; }
-    body.night .card-toolbar #shuffle-btn:hover { background: #3a2a24; }
-    body.night .card-toolbar #shuffle-btn:active { background: #4a3028; }
-    body.night .card-toolbar #card-link-btn { background: #1e1e1e; color: #d4896e; }
+    body.night .card-toolbar #shuffle-btn { background: #353b44; color: #d4896e; }
+    body.night .card-toolbar #shuffle-btn:hover { background: #3f3530; }
+    body.night .card-toolbar #shuffle-btn:active { background: #4a3d36; }
+    body.night .card-toolbar #card-link-btn { background: #2d3139; color: #d4896e; }
     body.night .card-toolbar #card-link-btn:hover { background: rgba(255,255,255,0.06); }
     body.night .card-toolbar #card-link-btn:active { background: rgba(255,255,255,0.1); }
     .card-toolbar button svg {
@@ -254,6 +254,7 @@
     }
     .toolbar-right {
       justify-content: flex-end;
+      gap: 8px;
     }
 
 
@@ -928,6 +929,100 @@
     #share-btn.copied svg .check { display: block; }
     #share-btn.copied svg .link { display: none; }
     #share-btn:not(.copied) svg .check { display: none; }
+
+    /* Search button + popover */
+    #search-btn-wrap { position: relative; }
+    #search-btn {
+      flex-shrink: 0;
+      font-family: var(--font);
+      font-size: 14px;
+      font-weight: 400;
+      color: var(--text-primary);
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: var(--card-radius);
+      padding: 6px 12px;
+      cursor: pointer;
+      box-shadow: var(--card-shadow);
+      transition: box-shadow 0.2s ease, color 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      white-space: nowrap;
+    }
+    #search-btn svg {
+      width: 13px; height: 13px;
+      fill: none; stroke: currentColor;
+      stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+    }
+    #search-btn:hover { box-shadow: var(--card-hover-shadow); transform: translateY(-1px); }
+    #search-btn:active { transform: translateY(0); }
+    #search-btn.active { border-color: var(--connection-highlight); color: var(--connection-highlight); }
+    #search-popover {
+      display: none;
+      position: absolute;
+      top: calc(100% + 8px);
+      right: 0;
+      width: 280px;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: var(--card-radius);
+      box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+      padding: 12px;
+      z-index: 200;
+    }
+    #search-popover.open { display: block; }
+    #toolbar-search-wrap { position: relative; }
+    #toolbar-artist-search {
+      font-family: var(--font);
+      font-size: 13px;
+      font-weight: 400;
+      color: var(--text-primary);
+      background: var(--bg);
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      padding: 8px 10px 8px 32px;
+      width: 100%;
+      box-sizing: border-box;
+      outline: none;
+      transition: border-color 0.2s ease;
+    }
+    #toolbar-artist-search::placeholder { color: var(--text-tertiary); }
+    #toolbar-artist-search:focus { border-color: var(--connection-highlight); }
+    #toolbar-artist-search.filtered { border-color: var(--connection-highlight); padding-right: 28px; }
+    #toolbar-search-wrap .search-icon {
+      position: absolute;
+      left: 10px; top: 50%; transform: translateY(-50%);
+      width: 13px; height: 13px;
+      stroke: var(--text-tertiary); fill: none;
+      stroke-width: 2; stroke-linecap: round;
+      pointer-events: none;
+    }
+    #toolbar-artist-clear {
+      position: absolute;
+      right: 8px; top: 50%; transform: translateY(-50%);
+      width: 16px; height: 16px;
+      border: none; background: none;
+      cursor: pointer; color: var(--text-tertiary);
+      font-size: 14px; line-height: 1; padding: 0;
+      display: none;
+    }
+    #toolbar-artist-clear:hover { color: var(--text-primary); }
+    #toolbar-artist-search.filtered ~ #toolbar-artist-clear { display: block; }
+    #toolbar-artist-ac {
+      position: absolute;
+      top: calc(100% + 4px);
+      left: 0; width: 100%;
+      max-height: 240px;
+      overflow-y: auto;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: var(--card-radius);
+      box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+      display: none;
+      z-index: 210;
+    }
+    #toolbar-artist-ac.open { display: block; }
 
     /* Help modal */
     #help-overlay {
@@ -1871,6 +1966,20 @@
         </div>
       </div>
       <div class="toolbar-side toolbar-right">
+      <div id="search-btn-wrap">
+        <button id="search-btn" title="Search artist">
+          <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M16.5 16.5L21 21"/></svg>
+          <span class="search-label">Search</span>
+        </button>
+        <div id="search-popover">
+          <div id="toolbar-search-wrap">
+            <svg class="search-icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M16.5 16.5L21 21"/></svg>
+            <input id="toolbar-artist-search" type="text" placeholder="search artist..." autocomplete="off">
+            <button id="toolbar-artist-clear">&times;</button>
+            <div id="toolbar-artist-ac"></div>
+          </div>
+        </div>
+      </div>
       <button id="share-btn" title="Copy link">
         <svg viewBox="0 0 24 24">
           <g class="link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></g>
@@ -3701,12 +3810,22 @@
       // Wire theme toggle
       const themeBtn = document.getElementById('theme-toggle');
       const savedTheme = localStorage.getItem('b2b-theme');
-      if (savedTheme === 'night') {
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      const startNight = savedTheme ? savedTheme === 'night' : prefersDark;
+      if (startNight) {
         document.body.classList.add('night');
         themeBtn.querySelector('.theme-label').textContent = 'day';
         themeBtn.querySelectorAll('.sun-icon').forEach(el => el.style.display = 'none');
         themeBtn.querySelector('.moon-icon').style.display = '';
       }
+      window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+        if (localStorage.getItem('b2b-theme')) return;
+        const isNight = e.matches;
+        document.body.classList.toggle('night', isNight);
+        themeBtn.querySelector('.theme-label').textContent = isNight ? 'day' : 'night';
+        themeBtn.querySelectorAll('.sun-icon').forEach(el => el.style.display = isNight ? 'none' : '');
+        themeBtn.querySelector('.moon-icon').style.display = isNight ? '' : 'none';
+      });
       themeBtn.addEventListener('click', () => {
         const isNight = document.body.classList.toggle('night');
         themeBtn.querySelector('.theme-label').textContent = isNight ? 'day' : 'night';
@@ -4511,6 +4630,119 @@
         if (!e.target.closest('#dj-search-wrap')) {
           closeDjAc();
         }
+        if (!e.target.closest('#search-btn-wrap')) {
+          searchPopover.classList.remove('open');
+          searchBtnEl.classList.toggle('active', !!artistFilter);
+        }
+      });
+
+      // ── Toolbar artist search (popover) ──
+      const searchBtnEl = document.getElementById('search-btn');
+      const searchPopover = document.getElementById('search-popover');
+      const tbSearchInput = document.getElementById('toolbar-artist-search');
+      const tbClearBtn = document.getElementById('toolbar-artist-clear');
+      const tbAcDropdown = document.getElementById('toolbar-artist-ac');
+      let tbAcItems = [], tbAcActiveIdx = -1;
+
+      searchBtnEl.addEventListener('click', () => {
+        const opening = !searchPopover.classList.contains('open');
+        searchPopover.classList.toggle('open');
+        if (opening) {
+          tbSearchInput.value = artistFilter ? artistFilter.display : '';
+          if (artistFilter) tbSearchInput.classList.add('filtered');
+          else tbSearchInput.classList.remove('filtered');
+          setTimeout(() => tbSearchInput.focus(), 50);
+        }
+      });
+
+      function closeTbAc() {
+        tbAcDropdown.classList.remove('open');
+        tbAcDropdown.innerHTML = '';
+        tbAcItems = [];
+        tbAcActiveIdx = -1;
+      }
+
+      function showTbAc(query) {
+        const q = query.toLowerCase().trim();
+        let results;
+        if (!q) {
+          results = artistListAlpha.slice(0, 50);
+        } else {
+          const starts = [], contains = [];
+          for (const entry of artistListAlpha) {
+            const name = entry.display.toLowerCase();
+            if (name.startsWith(q)) starts.push(entry);
+            else if (name.includes(q)) contains.push(entry);
+            if (starts.length + contains.length >= 30) break;
+          }
+          results = [...starts, ...contains].slice(0, 30);
+        }
+        if (results.length === 0) { closeTbAc(); return; }
+        tbAcDropdown.innerHTML = '';
+        tbAcItems = [];
+        tbAcActiveIdx = -1;
+        results.forEach((entry, i) => {
+          const div = document.createElement('div');
+          div.className = 'ac-item';
+          const count = entry.trackIds.length;
+          div.innerHTML = `<span class="ac-name">${escHtml(entry.display)}</span><span class="ac-count">${count} track${count !== 1 ? 's' : ''}</span>`;
+          div.addEventListener('click', () => {
+            closeTbAc();
+            setArtistFilter(entry);
+            tbSearchInput.value = entry.display;
+            tbSearchInput.classList.add('filtered');
+            searchBtnEl.classList.add('active');
+            searchPopover.classList.remove('open');
+          });
+          div.addEventListener('mouseenter', () => {
+            tbAcItems.forEach(el => el.classList.remove('active'));
+            div.classList.add('active');
+            tbAcActiveIdx = i;
+          });
+          tbAcDropdown.appendChild(div);
+          tbAcItems.push(div);
+        });
+        tbAcDropdown.classList.add('open');
+      }
+
+      tbSearchInput.addEventListener('input', () => {
+        if (artistFilter && tbSearchInput.value !== artistFilter.display) {
+          clearArtistFilter();
+          tbSearchInput.classList.remove('filtered');
+          searchBtnEl.classList.remove('active');
+        }
+        showTbAc(tbSearchInput.value);
+      });
+      tbSearchInput.addEventListener('focus', () => {
+        if (!artistFilter) showTbAc(tbSearchInput.value);
+      });
+      tbSearchInput.addEventListener('keydown', (e) => {
+        if (!tbAcDropdown.classList.contains('open')) return;
+        if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          tbAcActiveIdx = Math.min(tbAcActiveIdx + 1, tbAcItems.length - 1);
+          tbAcItems.forEach((el, i) => el.classList.toggle('active', i === tbAcActiveIdx));
+          tbAcItems[tbAcActiveIdx]?.scrollIntoView({ block: 'nearest' });
+        } else if (e.key === 'ArrowUp') {
+          e.preventDefault();
+          tbAcActiveIdx = Math.max(tbAcActiveIdx - 1, 0);
+          tbAcItems.forEach((el, i) => el.classList.toggle('active', i === tbAcActiveIdx));
+          tbAcItems[tbAcActiveIdx]?.scrollIntoView({ block: 'nearest' });
+        } else if (e.key === 'Enter') {
+          e.preventDefault();
+          if (tbAcActiveIdx >= 0 && tbAcActiveIdx < tbAcItems.length) tbAcItems[tbAcActiveIdx].click();
+        } else if (e.key === 'Escape') {
+          closeTbAc();
+          searchPopover.classList.remove('open');
+        }
+      });
+      tbClearBtn.addEventListener('click', () => {
+        clearArtistFilter();
+        tbSearchInput.value = '';
+        tbSearchInput.classList.remove('filtered');
+        searchBtnEl.classList.remove('active');
+        closeTbAc();
+        shuffle();
       });
 
       // ── DJ search ──
