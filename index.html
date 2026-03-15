@@ -160,7 +160,8 @@
       display: flex;
       flex-direction: column;
       flex-shrink: 0;
-      z-index: 10;
+      position: relative;
+      z-index: 200;
     }
     #toolbar-row {
       display: flex;
@@ -1271,6 +1272,45 @@
       font-variant-numeric: tabular-nums;
       color: var(--text-primary);
     }
+
+    /* Helper toast */
+    .helper-toast {
+      position: fixed;
+      top: 64px;
+      left: 50%;
+      transform: translateX(-50%) translateY(-20px);
+      font-family: var(--font);
+      font-size: 14px;
+      color: var(--text-primary);
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: var(--card-radius);
+      padding: 12px 40px 12px 16px;
+      box-shadow: 0 4px 20px rgba(42, 37, 32, 0.1);
+      z-index: 500;
+      opacity: 0;
+      transition: opacity 0.3s ease, transform 0.3s ease;
+      pointer-events: none;
+    }
+    .helper-toast.visible {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+      pointer-events: auto;
+    }
+    .helper-toast .toast-close {
+      position: absolute;
+      top: 50%;
+      right: 10px;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      font-size: 16px;
+      color: var(--text-tertiary);
+      cursor: pointer;
+      padding: 2px 6px;
+      line-height: 1;
+    }
+    .helper-toast .toast-close:hover { color: var(--text-primary); }
 
     /* ═══════════════════════════════════════════
        Artist Search
@@ -3952,9 +3992,10 @@
             const base = 148 + Math.floor(crateRand() * 40) - 20;
             card.style.background = `rgb(${base}, ${base - 4}, ${base - 8})`;
 
-            // Top card shows track with art (or seed if none have art); others cycle
+            // Top card shows seed track; others cycle through remaining members
+            const otherKeys = artKeys.filter(k => k !== topKey);
             const mKey = (i === numCards - 1) ? topKey
-              : artKeys.length > 0 ? artKeys[i % artKeys.length] : null;
+              : otherKeys.length > 0 ? otherKeys[i % otherKeys.length] : null;
             const mNode = mKey && graphNodes[mKey];
             const info = document.createElement('div');
             info.className = 'crate-info';
@@ -4071,8 +4112,9 @@
               const seedHasArt = seedCached && seedCached.artUrl;
               const topUrl = seedHasArt ? seedCached.artUrl
                 : item.artworks.length > 0 ? item.artworks[0] : null;
+              const otherArt = item.artworks.filter(u => u !== topUrl);
               const url = (i === last) ? topUrl
-                : item.artworks.length > 0 ? item.artworks[i % item.artworks.length] : null;
+                : otherArt.length > 0 ? otherArt[i % otherArt.length] : null;
               if (url) {
                 const img = document.createElement('img');
                 img.src = url.replace('-t500x500', '-t120x120');
@@ -4195,8 +4237,34 @@
           document.getElementById('tracks-view').classList.toggle('hidden', mode !== 'tracks');
           document.getElementById('crates-view').classList.toggle('hidden', mode !== 'crates');
           // Lazy init crates — defer so tab switch is instant
-          if (mode === 'crates') requestAnimationFrame(() => initCrates());
+          if (mode === 'crates') {
+            requestAnimationFrame(() => initCrates());
+            showCratesHelper();
+          }
         });
+      });
+
+      // Helper toast logic
+      const helpersCheckbox = document.getElementById('show-helpers');
+      const cratesHelperToast = document.getElementById('crates-helper-toast');
+      helpersCheckbox.checked = false;
+
+      function showCratesHelper() {
+        if (window.innerWidth < 768) return;
+        if (!helpersCheckbox.checked) return;
+        if (localStorage.getItem('b2b-crates-helper-dismissed')) return;
+        cratesHelperToast.classList.add('visible');
+      }
+
+      cratesHelperToast.querySelector('.toast-close').addEventListener('click', () => {
+        cratesHelperToast.classList.remove('visible');
+        localStorage.setItem('b2b-crates-helper-dismissed', '1');
+      });
+
+      helpersCheckbox.addEventListener('change', () => {
+        if (!helpersCheckbox.checked) {
+          cratesHelperToast.classList.remove('visible');
+        }
       });
 
       // Dev panel controls
@@ -4623,6 +4691,12 @@
       <option value="lotradio">has lot radio set</option>
     </select>
 
+    <h4>helpers</h4>
+    <div class="dev-row">
+      <label for="show-helpers">show helper text</label>
+      <input type="checkbox" id="show-helpers">
+    </div>
+
     <h4>gradient art</h4>
     <div class="tune-row"><label>warp</label><input type="range" id="tune-warp" min="0" max="80" value="16"><span class="tune-val">16</span></div>
     <div class="tune-row"><label>frequency</label><input type="range" id="tune-freq" min="1" max="50" value="19" step="1"><span class="tune-val">0.019</span></div>
@@ -4630,6 +4704,10 @@
     <div class="tune-row"><label>grain</label><input type="range" id="tune-grain" min="0" max="100" value="0"><span class="tune-val">0%</span></div>
     <div class="tune-row"><label>saturate</label><input type="range" id="tune-saturate" min="0" max="300" value="50"><span class="tune-val">50%</span></div>
     <div class="tune-row"><label>hue shift</label><input type="range" id="tune-hue" min="0" max="360" value="46"><span class="tune-val">46°</span></div>
+  </div>
+  <div id="crates-helper-toast" class="helper-toast">
+    Dig through clusters of connected songs and click to explore
+    <button class="toast-close">&times;</button>
   </div>
 </body>
 </html>
