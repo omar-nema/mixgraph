@@ -3695,8 +3695,7 @@
       // Wire theme toggle
       const themeBtn = document.getElementById('theme-toggle');
       const savedTheme = localStorage.getItem('b2b-theme');
-      const defaultNight = savedTheme === null && isMobileView();
-      if (savedTheme === 'night' || defaultNight) {
+      if (savedTheme === 'night') {
         document.body.classList.add('night');
         themeBtn.querySelector('.theme-label').textContent = 'day';
         themeBtn.querySelectorAll('.sun-icon').forEach(el => el.style.display = 'none');
