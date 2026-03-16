@@ -195,7 +195,7 @@
     right: 8px;
     z-index: 199;
     width: calc(100vw - 16px);
-    max-height: 60vh;
+    max-height: calc(100vh - 64px - env(safe-area-inset-top, 0px));
     overflow-y: auto;
     background: color-mix(in srgb, var(--card-bg) 92%, transparent);
     -webkit-backdrop-filter: blur(20px) saturate(1.4);
@@ -375,10 +375,10 @@
 
   /* Shuffle button feedback */
   #mobile-shuffle-area button {
-    transition: transform 0.15s ease, background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+    transition: transform 0.2s cubic-bezier(0.22, 1, 0.36, 1), background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
   }
   #mobile-shuffle-area button.shuffling {
-    transform: scale(0.92);
+    transform: scale(0.97);
     border-color: var(--connection-highlight);
     color: var(--connection-highlight);
   }
