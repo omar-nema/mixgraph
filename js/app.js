@@ -87,6 +87,23 @@ function showCluster(cluster) {
     }
   });
 
+  // Filter label above root card
+  const filterLabel = document.getElementById('filter-label');
+  const activeFilter = artistFilter || djFilter;
+  if (activeFilter) {
+    const rootNode = nodes.find(n => n.rank === 'root');
+    const rootEl = document.querySelector('.node-card[data-node-id="root"]');
+    if (rootNode && rootEl) {
+      filterLabel.textContent = `filtering for "${activeFilter.display}"`;
+      filterLabel.style.left = rootNode.x + 'px';
+      filterLabel.style.top = (rootNode.y - 20) + 'px';
+      filterLabel.style.width = rootEl.offsetWidth + 'px';
+      filterLabel.style.textAlign = 'center';
+    }
+  } else {
+    filterLabel.textContent = '';
+  }
+
   renderConnections();
   setupHovers();
 
@@ -1166,7 +1183,6 @@ document.addEventListener('DOMContentLoaded', async () => {
           tbSearchInput.value = entry.display;
           tbSearchInput.classList.add('filtered');
           searchWrap.classList.add('active');
-          searchWrap.classList.remove('open');
         });
         div.addEventListener('mouseenter', () => {
           tbAcItems.forEach(el => el.classList.remove('active'));
