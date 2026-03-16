@@ -211,6 +211,13 @@ function makeCarouselCard(node) {
     <div class="mc-artist">${node.artist}</div>`;
 
   card.addEventListener('click', () => {
+    // Scroll item to center if not already centered
+    const carousel = document.getElementById('mobile-carousel');
+    const itemCenter = item.offsetLeft + item.offsetWidth / 2;
+    const viewCenter = carousel.scrollLeft + carousel.clientWidth / 2;
+    if (Math.abs(itemCenter - viewCenter) > 20) {
+      carousel.scrollTo({ left: item.offsetLeft - (carousel.clientWidth - item.offsetWidth) / 2, behavior: 'smooth' });
+    }
     if (hasAudio) selectMobileTrack(node.id);
     else updateMobileSources(node.graphId);
   });
