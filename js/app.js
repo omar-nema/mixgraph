@@ -801,6 +801,15 @@ document.addEventListener('DOMContentLoaded', async () => {
       });
     }
 
+    let visibleTimer = null;
+    function scheduleUpdateVisible() {
+      if (visibleTimer) return;
+      visibleTimer = setTimeout(() => {
+        visibleTimer = null;
+        updateVisible();
+      }, 250);
+    }
+
     function updateVisible() {
       // Viewport in canvas coords (account for scale)
       const viewL = -panX;
@@ -861,7 +870,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (didDrag) {
         panX = panStartX + dx; panY = panStartY + dy;
         surface.style.transform = `scale(${crateScale}) translate(${panX}px, ${panY}px)`;
-        updateVisible();
+        scheduleUpdateVisible();
       }
     };
     cratesView.onmouseup = () => {
@@ -875,7 +884,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       e.preventDefault();
       panX -= e.deltaX; panY -= e.deltaY;
       surface.style.transform = `scale(${crateScale}) translate(${panX}px, ${panY}px)`;
-      updateVisible();
+      scheduleUpdateVisible();
     };
 
     // Touch pan + pinch-to-zoom (mobile)
@@ -915,7 +924,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         );
         crateScale = Math.max(0.2, Math.min(2, pinchStartScale * (dist / lastPinchDist)));
         applyTransform();
-        updateVisible();
+        scheduleUpdateVisible();
       } else if (e.touches.length === 1 && touchDragging) {
         const dx = e.touches[0].clientX - touchStartX;
         const dy = e.touches[0].clientY - touchStartY;
@@ -927,7 +936,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           panX = touchPanStartX + dx;
           panY = touchPanStartY + dy;
           applyTransform();
-          updateVisible();
+          scheduleUpdateVisible();
         }
       }
     }, { passive: false });

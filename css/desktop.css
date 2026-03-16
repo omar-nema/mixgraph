@@ -309,6 +309,7 @@ body.night .mode-tab:not(.active):hover { background: rgba(255,255,255,0.1); }
 #crates-surface {
   position: absolute;
   transform-origin: 0 0;
+  will-change: transform;
 }
 
 .crate-stack {
