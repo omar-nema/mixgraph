@@ -73,7 +73,7 @@ body.night .node-card.loading::after { background: linear-gradient(90deg, transp
 body.night #help-overlay { background: rgba(0, 0, 0, 0.6); }
 body.night #help-modal { box-shadow: 0 8px 40px rgba(0, 0, 0, 0.5); }
 body.night .mode-tab.active { background: #3f3530; color: #d4896e; box-shadow: none; }
-body.night #mode-tabs { background: #252a31; }
+body.night #mode-tabs, body.night #mobile-mode-tabs { background: #252a31; }
 body.night #mc-player { background: #1e2228; }
 body.night .help-diagram { background: #252a31; }
 body.night .help-diagram rect[fill="#faf7f4"] { fill: #2d3139; }
@@ -1106,7 +1106,7 @@ a.track-title:hover {
 #help-modal .help-close:hover { color: var(--text-primary); }
 
 /* Mobile-only elements: hidden on desktop */
-#mobile-help-btn, #mobile-help-panel, #mobile-search-wrap, #mobile-title { display: none; }
+#mobile-help-btn, #mobile-help-panel, #mobile-search-wrap, #mobile-title, #mobile-mode-tabs { display: none; }
 
 /* (debug-bar and filter-select moved into dev panel) */
 

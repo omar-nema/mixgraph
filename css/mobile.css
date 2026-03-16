@@ -49,14 +49,57 @@
 @media (max-width: 768px) {
   /* Hide desktop-only elements */
   #graph-viewport { display: none !important; }
-  .mode-tab[data-mode="crates"] { display: none !important; }
-  #mode-tabs { display: none !important; }
   #dev-toggle { display: none !important; }
   #dev-panel { display: none !important; }
+  #toolbar { display: none !important; }
 
+  /* Mode tabs in mobile header */
+  #mode-tabs { display: none !important; }
+  #mobile-mode-tabs {
+    display: flex !important;
+    position: fixed;
+    top: calc(8px + env(safe-area-inset-top, 0px));
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 200;
+    gap: 2px;
+    background: var(--card-border);
+    border-radius: var(--card-radius);
+    padding: 2px;
+    height: 32px;
+    box-sizing: border-box;
+    align-items: center;
+  }
+  #mobile-mode-tabs .mode-tab {
+    font-family: var(--font);
+    font-size: 12px;
+    font-weight: 400;
+    color: var(--text-tertiary);
+    background: none;
+    border: none;
+    border-radius: calc(var(--card-radius) - 2px);
+    padding: 0 14px;
+    height: 100%;
+    cursor: pointer;
+    transition: none;
+    display: flex;
+    align-items: center;
+  }
+  #mobile-mode-tabs .mode-tab.active {
+    background: var(--card-bg);
+    color: var(--text-primary);
+    font-weight: 500;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  }
 
   /* Show mobile tracks container */
   #mobile-tracks { display: flex !important; }
+  body.crates-mode #mobile-tracks { display: none !important; }
+  body.crates-mode #mobile-shuffle-area { display: none !important; }
+  body.crates-mode #mobile-sources { display: none !important; }
+
+  /* Crates view on mobile */
+  #crates-view { touch-action: none; }
 
   /* Mobile shuffle button — fills center */
   #mobile-shuffle-btn { display: none !important; }
@@ -94,12 +137,9 @@
   #mobile-shuffle-area .mobile-share.copied svg .check { display: block; }
   #mobile-shuffle-area .mobile-share.copied svg .link { display: none; }
 
-  /* Hide toolbar on mobile, float help button */
-  #toolbar { display: none !important; }
-
-  /* Mobile header title */
+  /* Mobile header title — hidden, replaced by mode tabs */
   #mobile-title {
-    display: block !important;
+    display: none !important;
     position: fixed;
     top: calc(8px + env(safe-area-inset-top, 0px));
     left: 0; right: 0;

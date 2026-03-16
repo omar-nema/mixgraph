@@ -323,6 +323,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     const cratesView = document.getElementById('crates-view');
     const tracksView = document.getElementById('tracks-view');
 
+    if (isMobileView()) {
+      document.querySelectorAll('.mode-tab').forEach(t => t.classList.remove('active'));
+      document.querySelector('.mode-tab[data-mode="tracks"]').classList.add('active');
+      document.body.classList.remove('crates-mode');
+      tracksView.classList.remove('hidden');
+      cratesView.classList.add('hidden');
+      showClusterMobile(cluster);
+      return;
+    }
+
     // Fade out all other crate stacks, keep clicked one visible
     const allStacks = cratesView.querySelectorAll('.crate-stack');
     allStacks.forEach(s => { if (s !== stackEl) s.classList.add('fade-out'); });
@@ -527,7 +537,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const cap = s => s.replace(/\b\w/g, c => c.toUpperCase());
     const gap = 25, pad = 0, STEP = 3;
-    const CLUSTERS_PER_PAGE = 20;
+    const CLUSTERS_PER_PAGE = isMobileView() ? 10 : 20;
 
     const cratesView = document.getElementById('crates-view');
     const surface = document.getElementById('crates-surface');
@@ -735,7 +745,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (stackEl) {
           container.appendChild(stackEl);
           stacks.push({ el: stackEl, item });
-          attachHover(stackEl);
+          if (!isMobileView()) attachHover(stackEl);
         }
       });
       surface.appendChild(container);
@@ -828,8 +838,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
     }
 
-    // Pan state — start at origin, zoomed out 20% for crisper thumbnails
-    const crateScale = 0.8;
+    // Pan state
+    let crateScale = isMobileView() ? 0.75 : 0.8;
     let panX = 0, panY = 0;
     surface.style.transform = `scale(${crateScale}) translate(${panX}px, ${panY}px)`;
 
@@ -868,6 +878,73 @@ document.addEventListener('DOMContentLoaded', async () => {
       updateVisible();
     };
 
+    // Touch pan + pinch-to-zoom (mobile)
+    let touchDragging = false, touchDidDrag = false;
+    let touchStartX, touchStartY, touchPanStartX, touchPanStartY;
+    let pinchActive = false, lastPinchDist = 0, pinchStartScale = 0;
+
+    function applyTransform() {
+      surface.style.transform = `scale(${crateScale}) translate(${panX}px, ${panY}px)`;
+    }
+
+    cratesView.addEventListener('touchstart', e => {
+      if (e.touches.length === 2) {
+        pinchActive = true;
+        touchDragging = false;
+        pinchStartScale = crateScale;
+        lastPinchDist = Math.hypot(
+          e.touches[1].clientX - e.touches[0].clientX,
+          e.touches[1].clientY - e.touches[0].clientY
+        );
+      } else if (e.touches.length === 1 && !pinchActive) {
+        touchDragging = true;
+        touchDidDrag = false;
+        touchStartX = e.touches[0].clientX;
+        touchStartY = e.touches[0].clientY;
+        touchPanStartX = panX;
+        touchPanStartY = panY;
+      }
+    }, { passive: true });
+
+    cratesView.addEventListener('touchmove', e => {
+      e.preventDefault();
+      if (e.touches.length === 2 && pinchActive) {
+        const dist = Math.hypot(
+          e.touches[1].clientX - e.touches[0].clientX,
+          e.touches[1].clientY - e.touches[0].clientY
+        );
+        crateScale = Math.max(0.2, Math.min(2, pinchStartScale * (dist / lastPinchDist)));
+        applyTransform();
+        updateVisible();
+      } else if (e.touches.length === 1 && touchDragging) {
+        const dx = e.touches[0].clientX - touchStartX;
+        const dy = e.touches[0].clientY - touchStartY;
+        if (!touchDidDrag && Math.abs(dx) + Math.abs(dy) > DRAG_THRESHOLD) {
+          touchDidDrag = true;
+          cratesView.classList.add('dragging');
+        }
+        if (touchDidDrag) {
+          panX = touchPanStartX + dx;
+          panY = touchPanStartY + dy;
+          applyTransform();
+          updateVisible();
+        }
+      }
+    }, { passive: false });
+
+    cratesView.addEventListener('touchend', e => {
+      if (e.touches.length < 2) pinchActive = false;
+      if (e.touches.length === 0) {
+        touchDragging = false;
+        cratesView.classList.remove('dragging');
+      }
+    });
+
+    // Suppress click after touch drag
+    cratesView.addEventListener('click', e => {
+      if (touchDidDrag) { e.stopPropagation(); touchDidDrag = false; }
+    }, true);
+
     // Initial render: center page + neighbors
     buildPage(0, 0);
     updateVisible();
@@ -882,6 +959,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       const mode = tab.dataset.mode;
       document.getElementById('tracks-view').classList.toggle('hidden', mode !== 'tracks');
       document.getElementById('crates-view').classList.toggle('hidden', mode !== 'crates');
+      document.body.classList.toggle('crates-mode', mode === 'crates');
       // Lazy init crates — defer so tab switch is instant
       if (mode === 'crates') {
         requestAnimationFrame(() => initCrates());
