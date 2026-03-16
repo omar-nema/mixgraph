@@ -5,7 +5,16 @@ Music discovery app. Scrapes DJ set tracklists from radio stations (Lot Radio, N
 ## Project structure
 
 ```
-index.html              # Single-file vanilla HTML/CSS/JS app (project root)
+index.html              # HTML markup only (loads external CSS/JS)
+css/
+  desktop.css           # All desktop styles: tokens, night mode, components
+  mobile.css            # All mobile styles: @media (max-width: 768px) rules
+js/
+  data.js               # State variables, SVG icons, glow/gradient palettes
+  audio.js              # Playback engine: SC widget, Mixcloud, progress bar
+  graph.js              # Cluster selection (BFS), layout engine, card/connection rendering
+  mobile.js             # Mobile carousel, track selection, source pills
+  app.js                # Init, crates view, search, theme toggle, event wiring
 web-app/
   output/               # Static data files (combined_graph.json, audio_cache.json)
 scrapers/
@@ -51,7 +60,7 @@ python3 -m http.server 8000
 
 ## Frontend
 
-- **No build tools, no frameworks** — plain HTML/CSS/JS in a single file (`index.html`)
+- **No build tools, no frameworks** — plain HTML/CSS/JS split across `index.html`, `css/`, and `js/`
 - Uses CSS custom properties for theming (`:root` design tokens)
 - Space Grotesk font via Google Fonts CDN
 - SoundCloud widget API for individual tracks + DJ sets, Mixcloud widget as fallback
@@ -104,7 +113,9 @@ Mobile and desktop are **completely separate layouts** that must not leak into e
 - Keep things simple — this is a personal project, not production
 - Prefer inline solutions over new files/abstractions
 - No TypeScript, no bundlers, no package.json for the frontend
-- When editing index.html, preserve the existing CSS token system and code organization
+- When editing frontend files, preserve the existing CSS token system and code organization
+- CSS is split: `css/desktop.css` for desktop, `css/mobile.css` for mobile — keep them separate
+- JS is split by concern: `data.js` → `audio.js` → `graph.js` → `mobile.js` → `app.js` (load order matters)
 - Concise comments only where logic isn't obvious
 - **Use flexbox for layout** — never use absolute positioning for standard UI elements like toolbars, navs, or button groups. Reserve absolute positioning for overlays, tooltips, and things that genuinely need to escape the flow
 
