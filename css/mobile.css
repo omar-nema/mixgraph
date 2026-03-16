@@ -97,20 +97,35 @@
   /* Hide toolbar on mobile, float help button */
   #toolbar { display: none !important; }
 
-  /* Mobile search bar — fixed top-left */
-  #mobile-search-wrap {
+  /* Mobile header title */
+  #mobile-title {
     display: block !important;
+    position: fixed;
+    top: calc(8px + env(safe-area-inset-top, 0px));
+    left: 0; right: 0;
+    z-index: 190;
+    text-align: center;
+    font-family: var(--font);
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--text-primary);
+    line-height: 32px;
+    pointer-events: none;
+  }
+
+  /* Mobile search — icon that expands */
+  #mobile-search-wrap {
+    display: flex !important;
     position: fixed;
     top: calc(8px + env(safe-area-inset-top, 0px));
     left: 8px;
     z-index: 200;
-    max-width: 200px;
-    width: 50vw;
+    align-items: center;
   }
   #mobile-search-wrap .search-icon {
     position: absolute;
-    left: 10px; top: 50%; transform: translateY(-50%);
-    width: 13px; height: 13px;
+    left: 8px; top: 50%; transform: translateY(-50%);
+    width: 14px; height: 14px;
     stroke: var(--text-secondary); fill: none;
     stroke-width: 2; stroke-linecap: round;
     pointer-events: none;
@@ -118,21 +133,29 @@
   }
   #mobile-search-input {
     font-family: var(--font);
-    font-size: 13px;
+    font-size: 16px;
     font-weight: 400;
     color: var(--text-primary);
     background: var(--card-bg);
     border: 1px solid var(--card-border);
     border-radius: var(--card-radius);
-    padding: 7px 10px 7px 32px;
-    width: 100%;
+    padding: 6px 6px 6px 30px;
+    width: 32px;
+    height: 32px;
     box-sizing: border-box;
     outline: none;
+    cursor: pointer;
+    transition: width 0.25s cubic-bezier(0.22, 1, 0.36, 1);
   }
-  #mobile-search-input::placeholder { color: var(--text-secondary); }
-  #mobile-search-input:focus::placeholder { color: var(--text-tertiary); }
+  #mobile-search-wrap.open #mobile-search-input {
+    width: calc(100vw - 16px);
+    cursor: text;
+  }
+  #mobile-search-input::placeholder { color: transparent; }
+  #mobile-search-wrap.open #mobile-search-input::placeholder { color: var(--text-tertiary); }
   #mobile-search-input:focus { border-color: var(--connection-highlight); }
-  #mobile-search-input.filtered { border-color: var(--connection-highlight); padding-right: 28px; }
+  #mobile-search-input.filtered { border-color: var(--connection-highlight); }
+  #mobile-search-wrap.open #mobile-search-input.filtered { padding-right: 28px; }
   #mobile-search-clear {
     position: absolute;
     right: 8px; top: 50%; transform: translateY(-50%);
@@ -142,13 +165,12 @@
     font-size: 14px; line-height: 1; padding: 0;
     display: none;
   }
-  #mobile-search-clear:hover { color: var(--text-primary); }
-  #mobile-search-input.filtered ~ #mobile-search-clear { display: block; }
+  #mobile-search-wrap.open #mobile-search-input.filtered ~ #mobile-search-clear { display: block; }
   #mobile-search-ac {
     position: absolute;
     top: calc(100% + 4px);
-    left: 0; width: 100%;
-    min-width: 250px;
+    left: 0;
+    width: calc(100vw - 16px);
     max-height: 300px;
     overflow-y: auto;
     background: var(--card-bg);

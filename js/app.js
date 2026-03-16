@@ -1290,6 +1290,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           mobileSearchInput.value = entry.display;
           mobileSearchInput.classList.add('filtered');
           mobileSearchInput.blur();
+          mobileSearchWrap.classList.remove('open');
         });
         mobileSearchAc.appendChild(div);
         mobileAcItems.push(div);
@@ -1300,7 +1301,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     mobileSearchAc.classList.add('open');
   }
 
+  const mobileSearchWrap = document.getElementById('mobile-search-wrap');
   mobileSearchInput.addEventListener('focus', () => {
+    mobileSearchWrap.classList.add('open');
     if (!activeSearchFilter()) showMobileAc(mobileSearchInput.value);
   });
   mobileSearchInput.addEventListener('input', () => {
@@ -1341,7 +1344,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     shuffle();
   });
   document.addEventListener('click', (e) => {
-    if (!e.target.closest('#mobile-search-wrap')) closeMobileAc();
+    if (!e.target.closest('#mobile-search-wrap')) {
+      closeMobileAc();
+      mobileSearchWrap.classList.remove('open');
+    }
   });
 
   // ── DJ search ──
