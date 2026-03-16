@@ -803,6 +803,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     let visibleTimer = null;
     function scheduleUpdateVisible() {
+      if (!isMobileView()) { updateVisible(); return; }
       if (visibleTimer) return;
       visibleTimer = setTimeout(() => {
         visibleTimer = null;
@@ -908,12 +909,19 @@ document.addEventListener('DOMContentLoaded', async () => {
       } else if (e.touches.length === 1 && !pinchActive) {
         touchDragging = true;
         touchDidDrag = false;
+        velX = 0; velY = 0;
         touchStartX = e.touches[0].clientX;
         touchStartY = e.touches[0].clientY;
+        lastTouchX = touchStartX;
+        lastTouchY = touchStartY;
+        lastTouchTime = performance.now();
         touchPanStartX = panX;
         touchPanStartY = panY;
       }
     }, { passive: true });
+
+    let lastTouchX = 0, lastTouchY = 0, lastTouchTime = 0;
+    let velX = 0, velY = 0, momentumId = null;
 
     cratesView.addEventListener('touchmove', e => {
       e.preventDefault();
@@ -926,13 +934,20 @@ document.addEventListener('DOMContentLoaded', async () => {
         applyTransform();
         scheduleUpdateVisible();
       } else if (e.touches.length === 1 && touchDragging) {
-        const dx = e.touches[0].clientX - touchStartX;
-        const dy = e.touches[0].clientY - touchStartY;
+        const now = performance.now();
+        const cx = e.touches[0].clientX, cy = e.touches[0].clientY;
+        const dx = cx - touchStartX;
+        const dy = cy - touchStartY;
         if (!touchDidDrag && Math.abs(dx) + Math.abs(dy) > DRAG_THRESHOLD) {
           touchDidDrag = true;
           cratesView.classList.add('dragging');
+          if (momentumId) { cancelAnimationFrame(momentumId); momentumId = null; }
         }
         if (touchDidDrag) {
+          const dt = now - lastTouchTime || 16;
+          velX = (cx - lastTouchX) / dt * 16;
+          velY = (cy - lastTouchY) / dt * 16;
+          lastTouchX = cx; lastTouchY = cy; lastTouchTime = now;
           panX = touchPanStartX + dx;
           panY = touchPanStartY + dy;
           applyTransform();
@@ -941,11 +956,29 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
     }, { passive: false });
 
+    function momentumStep() {
+      velX *= 0.92;
+      velY *= 0.92;
+      if (Math.abs(velX) < 0.5 && Math.abs(velY) < 0.5) {
+        momentumId = null;
+        updateVisible();
+        return;
+      }
+      panX += velX;
+      panY += velY;
+      applyTransform();
+      scheduleUpdateVisible();
+      momentumId = requestAnimationFrame(momentumStep);
+    }
+
     cratesView.addEventListener('touchend', e => {
       if (e.touches.length < 2) pinchActive = false;
       if (e.touches.length === 0) {
         touchDragging = false;
         cratesView.classList.remove('dragging');
+        if (touchDidDrag && (Math.abs(velX) > 1 || Math.abs(velY) > 1)) {
+          momentumId = requestAnimationFrame(momentumStep);
+        }
       }
     });
 
