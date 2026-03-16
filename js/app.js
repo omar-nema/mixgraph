@@ -87,32 +87,6 @@ function showCluster(cluster) {
     }
   });
 
-  // Filter label above root card
-  const filterLabel = document.getElementById('filter-label');
-  const activeFilter = artistFilter || djFilter;
-  if (activeFilter) {
-    const rootNode = nodes.find(n => n.rank === 'root');
-    const rootEl = document.querySelector('.node-card[data-node-id="root"]');
-    if (rootNode && rootEl) {
-      filterLabel.innerHTML = `filtering for "${escHtml(activeFilter.display)}" <button id="filter-clear">clear</button>`;
-      filterLabel.style.left = rootNode.x + 'px';
-      filterLabel.style.top = (rootNode.y - 28) + 'px';
-      filterLabel.style.width = rootEl.offsetWidth + 'px';
-      filterLabel.style.textAlign = 'center';
-      document.getElementById('filter-clear').addEventListener('click', () => {
-        clearArtistFilter();
-        clearDjFilter();
-        const tbInput = document.getElementById('toolbar-artist-search');
-        tbInput.value = '';
-        tbInput.classList.remove('filtered');
-        document.getElementById('search-btn-wrap').classList.remove('active');
-        shuffle();
-      });
-    }
-  } else {
-    filterLabel.textContent = '';
-  }
-
   renderConnections();
   setupHovers();
 
@@ -1192,6 +1166,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           tbSearchInput.value = entry.display;
           tbSearchInput.classList.add('filtered');
           searchWrap.classList.add('active');
+          searchWrap.classList.remove('open');
         });
         div.addEventListener('mouseenter', () => {
           tbAcItems.forEach(el => el.classList.remove('active'));
