@@ -424,6 +424,28 @@ body.night .mode-tab:not(.active):hover { background: rgba(255,255,255,0.1); }
   transition: transform 0.3s ease;
 }
 
+#filter-label {
+  position: absolute;
+  font-family: var(--font);
+  font-size: 12px;
+  color: var(--text-tertiary);
+  white-space: nowrap;
+  z-index: 5;
+}
+#filter-label:empty { display: none; }
+#filter-clear {
+  font-family: var(--font);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--connection-highlight);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  margin-left: 4px;
+}
+#filter-clear:hover { text-decoration: underline; }
+
 #connections-layer {
   position: absolute;
   top: 0;
@@ -957,14 +979,15 @@ a.track-title:hover {
 #search-btn-wrap.active #toolbar-artist-search {
   border-color: var(--connection-highlight);
 }
-#toolbar-artist-search::placeholder { color: var(--text-tertiary); }
+#toolbar-artist-search::placeholder { color: var(--text-primary); }
 #toolbar-artist-search:focus { border-color: var(--connection-highlight); }
+#toolbar-artist-search:focus::placeholder { color: var(--text-tertiary); }
 #toolbar-artist-search.filtered { border-color: var(--connection-highlight); padding-right: 28px; }
 #toolbar-search-wrap .search-icon {
   position: absolute;
   left: 10px; top: 50%; transform: translateY(-50%);
   width: 13px; height: 13px;
-  stroke: var(--text-tertiary); fill: none;
+  stroke: var(--text-primary); fill: none;
   stroke-width: 2; stroke-linecap: round;
   pointer-events: none;
 }
