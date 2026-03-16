@@ -57,6 +57,17 @@ python3 -m http.server 8000
 - SoundCloud widget API for individual tracks + DJ sets, Mixcloud widget as fallback
 - Graph layout is hand-rolled (no D3) — keep it that way unless I say otherwise
 
+## Mobile vs Desktop — CRITICAL
+
+Mobile and desktop are **completely separate layouts** that must not leak into each other. Breaking this rule has caused bugs before. Follow these rules strictly:
+
+- **Mobile** is defined by `@media (max-width: ...)` breakpoints in the CSS. Desktop is everything outside those breakpoints.
+- **When making a change, always ask:** "Is this for mobile, desktop, or both?" If unclear, **ask me before writing code.**
+- **Never apply a style globally when you mean it for one mode only.** If you're editing a desktop element, make sure the selector doesn't also affect the mobile version (and vice versa).
+- **Test both after every change.** Resize the browser or use devtools device mode to verify the other layout wasn't affected.
+- **Mobile has its own shuffle button, header, card carousel, etc.** These are separate DOM elements from the desktop versions — don't assume they share selectors.
+- **CSS specificity matters.** Mobile overrides in media queries must match or exceed the specificity of the desktop rule they override, or they'll silently fail.
+
 ## Backend (Python scrapers)
 
 - Python 3 with httpx, beautifulsoup4, lxml
@@ -78,6 +89,15 @@ python3 -m http.server 8000
 - Output: `pipeline/output/dj_name_map.json` — mapping of `{ "show title": ["dj1", "dj2"] }`
 - The pipeline does NOT depend on an LLM — extraction is pattern-based (w/, with, presents, b2b, invites)
 - The frontend loads this mapping to power DJ search with clean names
+
+## Light and Dark mode
+
+- The app has two themes: light (default) and dark (`body.night`).
+- **All colors must work in both modes.** Use CSS custom properties (`var(--bg)`, `var(--card-bg)`, `var(--text-primary)`, etc.) instead of hardcoded hex values whenever possible.
+- If you must use a hardcoded color (e.g. for a specific accent), add a corresponding `body.night` override.
+- Dark mode overrides live in the `body.night` block near the top of the CSS — keep them grouped there.
+- **Test both modes after any visual change.** Toggle with the night mode button in the bottom-left corner.
+- The accent color is `var(--connection-highlight)` — it already adapts between modes (`#B5705A` light, `#d4896e` dark).
 
 ## Style preferences
 
