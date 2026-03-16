@@ -431,9 +431,20 @@ body.night .mode-tab:not(.active):hover { background: rgba(255,255,255,0.1); }
   color: var(--text-tertiary);
   white-space: nowrap;
   z-index: 5;
-  pointer-events: none;
 }
 #filter-label:empty { display: none; }
+#filter-clear {
+  font-family: var(--font);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--connection-highlight);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  margin-left: 4px;
+}
+#filter-clear:hover { text-decoration: underline; }
 
 #connections-layer {
   position: absolute;

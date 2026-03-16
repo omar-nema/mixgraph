@@ -94,11 +94,20 @@ function showCluster(cluster) {
     const rootNode = nodes.find(n => n.rank === 'root');
     const rootEl = document.querySelector('.node-card[data-node-id="root"]');
     if (rootNode && rootEl) {
-      filterLabel.textContent = `filtering for "${activeFilter.display}"`;
+      filterLabel.innerHTML = `filtering for "${escHtml(activeFilter.display)}" <button id="filter-clear">clear</button>`;
       filterLabel.style.left = rootNode.x + 'px';
-      filterLabel.style.top = (rootNode.y - 20) + 'px';
+      filterLabel.style.top = (rootNode.y - 28) + 'px';
       filterLabel.style.width = rootEl.offsetWidth + 'px';
       filterLabel.style.textAlign = 'center';
+      document.getElementById('filter-clear').addEventListener('click', () => {
+        clearArtistFilter();
+        clearDjFilter();
+        const tbInput = document.getElementById('toolbar-artist-search');
+        tbInput.value = '';
+        tbInput.classList.remove('filtered');
+        document.getElementById('search-btn-wrap').classList.remove('active');
+        shuffle();
+      });
     }
   } else {
     filterLabel.textContent = '';
