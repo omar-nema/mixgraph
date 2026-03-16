@@ -951,42 +951,9 @@
       display: flex;
       align-items: center;
     }
-    #search-btn {
-      flex-shrink: 0;
-      font-family: var(--font);
-      font-size: 14px;
-      font-weight: 400;
-      color: var(--text-primary);
-      background: var(--card-bg);
-      border: 1px solid var(--card-border);
-      border-radius: var(--card-radius);
-      padding: 6px 12px;
-      cursor: pointer;
-      box-shadow: var(--card-shadow);
-      transition: box-shadow 0.2s ease, color 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
-      display: flex;
-      align-items: center;
-      gap: 5px;
-      white-space: nowrap;
-    }
-    #search-btn svg {
-      width: 13px; height: 13px;
-      fill: none; stroke: currentColor;
-      stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
-    }
-    #search-btn:hover { box-shadow: var(--card-hover-shadow); transform: translateY(-1px); }
-    #search-btn:active { transform: translateY(0); }
-    #search-btn.active { border-color: var(--connection-highlight); color: var(--connection-highlight); }
-    #search-btn-wrap.open #search-btn { display: none; }
+    #search-btn { display: none; }
     #toolbar-search-wrap {
       position: relative;
-      width: 0;
-      overflow: hidden;
-      transition: width 0.25s cubic-bezier(0.22, 1, 0.36, 1);
-    }
-    #search-btn-wrap.open #toolbar-search-wrap {
-      width: 280px;
-      overflow: visible;
     }
     #toolbar-artist-search {
       font-family: var(--font);
@@ -997,11 +964,19 @@
       border: 1px solid var(--card-border);
       border-radius: var(--card-radius);
       padding: 7px 10px 7px 32px;
-      width: 280px;
+      width: 90px;
       box-sizing: border-box;
       outline: none;
-      transition: border-color 0.2s ease;
+      cursor: pointer;
       box-shadow: var(--card-shadow);
+      transition: width 0.3s cubic-bezier(0.22, 1, 0.36, 1), border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+    #toolbar-artist-search:focus, #search-btn-wrap.open #toolbar-artist-search {
+      width: 280px;
+      cursor: text;
+    }
+    #search-btn-wrap.active #toolbar-artist-search {
+      border-color: var(--connection-highlight);
     }
     #toolbar-artist-search::placeholder { color: var(--text-tertiary); }
     #toolbar-artist-search:focus { border-color: var(--connection-highlight); }
@@ -1085,14 +1060,14 @@
     }
     #help-modal h2 {
       font-family: var(--font);
-      font-size: 18px;
+      font-size: 22px;
       font-weight: 600;
       color: var(--text-primary);
       margin-bottom: 16px;
     }
     #help-modal p {
       font-family: var(--font);
-      font-size: 14px;
+      font-size: 16px;
       font-weight: 400;
       color: var(--text-primary);
       line-height: 1.6;
@@ -1992,13 +1967,9 @@
       </div>
       <div class="toolbar-side toolbar-right">
       <div id="search-btn-wrap">
-        <button id="search-btn" title="Search artist">
-          <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M16.5 16.5L21 21"/></svg>
-          <span class="search-label">Search</span>
-        </button>
         <div id="toolbar-search-wrap">
           <svg class="search-icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M16.5 16.5L21 21"/></svg>
-          <input id="toolbar-artist-search" type="text" placeholder="search artist or DJ..." autocomplete="off">
+          <input id="toolbar-artist-search" type="text" placeholder="search..." autocomplete="off">
           <button id="toolbar-artist-clear">&times;</button>
           <div id="toolbar-artist-ac"></div>
         </div>
@@ -4652,12 +4623,12 @@
         if (!e.target.closest('#search-btn-wrap')) {
           searchWrap.classList.remove('open');
           closeTbAc();
-          searchBtnEl.classList.toggle('active', !!(artistFilter || djFilter));
+          searchWrap.classList.toggle('active', !!(artistFilter || djFilter));
         }
       });
 
       // ── Toolbar artist search (popover) ──
-      const searchBtnEl = document.getElementById('search-btn');
+      // search-btn removed — input expands inline
       // searchPopover removed — using inline expanding search
       const tbSearchInput = document.getElementById('toolbar-artist-search');
       const tbClearBtn = document.getElementById('toolbar-artist-clear');
@@ -4668,12 +4639,9 @@
       let djListAlpha = []; // populated after DJ index is built
 
       const searchWrap = document.getElementById('search-btn-wrap');
-      searchBtnEl.addEventListener('click', () => {
+      tbSearchInput.addEventListener('focus', () => {
         searchWrap.classList.add('open');
-        const active = activeSearchFilter();
-        tbSearchInput.value = active ? active.display : '';
-        tbSearchInput.classList.toggle('filtered', !!active);
-        setTimeout(() => tbSearchInput.focus(), 50);
+        if (!activeSearchFilter()) showTbAc(tbSearchInput.value);
       });
 
       function closeTbAc() {
@@ -4730,7 +4698,7 @@
               }
               tbSearchInput.value = entry.display;
               tbSearchInput.classList.add('filtered');
-              searchBtnEl.classList.add('active');
+              searchWrap.classList.add('active');
               searchWrap.classList.remove('open');
             });
             div.addEventListener('mouseenter', () => {
@@ -4754,12 +4722,9 @@
           clearArtistFilter();
           clearDjFilter();
           tbSearchInput.classList.remove('filtered');
-          searchBtnEl.classList.remove('active');
+          searchWrap.classList.remove('active');
         }
         showTbAc(tbSearchInput.value);
-      });
-      tbSearchInput.addEventListener('focus', () => {
-        if (!activeSearchFilter()) showTbAc(tbSearchInput.value);
       });
       tbSearchInput.addEventListener('keydown', (e) => {
         if (!tbAcDropdown.classList.contains('open')) return;
@@ -4786,7 +4751,7 @@
         clearDjFilter();
         tbSearchInput.value = '';
         tbSearchInput.classList.remove('filtered');
-        searchBtnEl.classList.remove('active');
+        searchWrap.classList.remove('active');
         closeTbAc();
         shuffle();
       });
