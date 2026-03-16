@@ -70,11 +70,14 @@ function showClusterMobile(cluster) {
     requestAnimationFrame(() => selectMobileTrack(firstWithAudio.id));
   }
 
-  // Auto-select card when scroll snaps to it
-  let scrollTimer;
+  // Auto-select card when scroll snap completes via user swipe
+  let scrollTimer, isUserScrolling = false;
+  carousel.addEventListener('touchstart', () => { isUserScrolling = true; }, { passive: true });
   carousel.addEventListener('scroll', () => {
     clearTimeout(scrollTimer);
+    if (!isUserScrolling) return;
     scrollTimer = setTimeout(() => {
+      isUserScrolling = false;
       const centerX = carousel.scrollLeft + carousel.clientWidth / 2;
       let closest = null, closestDist = Infinity;
       carousel.querySelectorAll('.mobile-carousel-item').forEach(item => {
@@ -91,7 +94,7 @@ function showClusterMobile(cluster) {
           else if (node) updateMobileSources(node.graphId);
         }
       }
-    }, 100);
+    }, 300);
   });
 }
 
