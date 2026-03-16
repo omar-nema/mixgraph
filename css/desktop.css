@@ -1106,7 +1106,7 @@ a.track-title:hover {
 #help-modal .help-close:hover { color: var(--text-primary); }
 
 /* Mobile-only elements: hidden on desktop */
-#mobile-help-btn, #mobile-help-panel { display: none; }
+#mobile-help-btn, #mobile-help-panel, #mobile-search-wrap { display: none; }
 
 /* (debug-bar and filter-select moved into dev panel) */
 

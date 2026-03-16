@@ -1248,6 +1248,102 @@ document.addEventListener('DOMContentLoaded', async () => {
     shuffle();
   });
 
+  // ── Mobile search ──
+  const mobileSearchInput = document.getElementById('mobile-search-input');
+  const mobileSearchClear = document.getElementById('mobile-search-clear');
+  const mobileSearchAc = document.getElementById('mobile-search-ac');
+  let mobileAcItems = [], mobileAcActiveIdx = -1;
+
+  function closeMobileAc() {
+    mobileSearchAc.classList.remove('open');
+    mobileSearchAc.innerHTML = '';
+    mobileAcItems = [];
+    mobileAcActiveIdx = -1;
+  }
+
+  function showMobileAc(query) {
+    const q = query.toLowerCase().trim();
+    const artistResults = searchIndex(artistListAlpha, q, q ? 15 : 30);
+    const djResults = searchIndex(djListAlpha, q, q ? 15 : 20);
+    if (artistResults.length === 0 && djResults.length === 0) { closeMobileAc(); return; }
+    mobileSearchAc.innerHTML = '';
+    mobileAcItems = [];
+    mobileAcActiveIdx = -1;
+    let idx = 0;
+    function addSection(label, results, type) {
+      if (results.length === 0) return;
+      const header = document.createElement('div');
+      header.className = 'ac-section-header';
+      header.textContent = label;
+      mobileSearchAc.appendChild(header);
+      results.forEach(entry => {
+        const div = document.createElement('div');
+        div.className = 'ac-item';
+        const count = entry.trackIds.length;
+        const countLabel = type === 'dj' ? `${count} track${count !== 1 ? 's' : ''} mixed` : `${count} track${count !== 1 ? 's' : ''}`;
+        div.innerHTML = `<span class="ac-name">${escHtml(entry.display)}</span><span class="ac-count">${countLabel}</span>`;
+        const myIdx = idx++;
+        div.addEventListener('click', () => {
+          closeMobileAc();
+          if (type === 'artist') { clearDjFilter(); setArtistFilter(entry); }
+          else { clearArtistFilter(); setDjFilter(entry); }
+          mobileSearchInput.value = entry.display;
+          mobileSearchInput.classList.add('filtered');
+          mobileSearchInput.blur();
+        });
+        mobileSearchAc.appendChild(div);
+        mobileAcItems.push(div);
+      });
+    }
+    addSection('Artists', artistResults, 'artist');
+    addSection('DJs', djResults, 'dj');
+    mobileSearchAc.classList.add('open');
+  }
+
+  mobileSearchInput.addEventListener('focus', () => {
+    if (!activeSearchFilter()) showMobileAc(mobileSearchInput.value);
+  });
+  mobileSearchInput.addEventListener('input', () => {
+    const active = activeSearchFilter();
+    if (active && mobileSearchInput.value !== active.display) {
+      clearArtistFilter();
+      clearDjFilter();
+      mobileSearchInput.classList.remove('filtered');
+    }
+    showMobileAc(mobileSearchInput.value);
+  });
+  mobileSearchInput.addEventListener('keydown', (e) => {
+    if (!mobileSearchAc.classList.contains('open')) return;
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      mobileAcActiveIdx = Math.min(mobileAcActiveIdx + 1, mobileAcItems.length - 1);
+      mobileAcItems.forEach((el, i) => el.classList.toggle('active', i === mobileAcActiveIdx));
+      mobileAcItems[mobileAcActiveIdx]?.scrollIntoView({ block: 'nearest' });
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      mobileAcActiveIdx = Math.max(mobileAcActiveIdx - 1, 0);
+      mobileAcItems.forEach((el, i) => el.classList.toggle('active', i === mobileAcActiveIdx));
+      mobileAcItems[mobileAcActiveIdx]?.scrollIntoView({ block: 'nearest' });
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (mobileAcActiveIdx >= 0) mobileAcItems[mobileAcActiveIdx].click();
+    } else if (e.key === 'Escape') {
+      closeMobileAc();
+      mobileSearchInput.blur();
+    }
+  });
+  mobileSearchClear.addEventListener('click', () => {
+    clearArtistFilter();
+    clearDjFilter();
+    mobileSearchInput.value = '';
+    mobileSearchInput.classList.remove('filtered');
+    closeMobileAc();
+    shuffle();
+  });
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('#mobile-search-wrap')) closeMobileAc();
+  });
+
   // ── DJ search ──
   // Build index: DJ name -> list of track node IDs they played
   // Uses djNameMap to extract clean DJ names from show titles
