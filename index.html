@@ -7,11 +7,22 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script>
+    // Apply theme before first paint to prevent flash
+    (function() {
+      var saved = localStorage.getItem('b2b-theme');
+      var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      if (saved ? saved === 'night' : prefersDark) {
+        document.documentElement.classList.add('night');
+      }
+    })();
+  </script>
   <script src="https://w.soundcloud.com/player/api.js"></script>
   <style>
     /* ═══════════════════════════════════════════
        Design Tokens
        ═══════════════════════════════════════════ */
+    html { background: #f5f0eb; }
     :root {
       /* Background */
       --bg: #f5f0eb;
@@ -56,6 +67,10 @@
     /* ═══════════════════════════════════════════
        Night Mode
        ═══════════════════════════════════════════ */
+    /* Applied to html by blocking script before body renders */
+    html.night {
+      background: #1e2228;
+    }
     body.night {
       --bg: #1e2228;
       --card-bg: #2d3139;
@@ -1023,6 +1038,15 @@
       z-index: 210;
     }
     #toolbar-artist-ac.open { display: block; }
+    #toolbar-artist-ac .ac-section-header {
+      font-family: var(--font);
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-tertiary);
+      padding: 8px 14px 4px;
+    }
 
     /* Help modal */
     #help-overlay {
@@ -1974,7 +1998,7 @@
         <div id="search-popover">
           <div id="toolbar-search-wrap">
             <svg class="search-icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M16.5 16.5L21 21"/></svg>
-            <input id="toolbar-artist-search" type="text" placeholder="search artist..." autocomplete="off">
+            <input id="toolbar-artist-search" type="text" placeholder="search artist or DJ..." autocomplete="off">
             <button id="toolbar-artist-clear">&times;</button>
             <div id="toolbar-artist-ac"></div>
           </div>
@@ -3812,25 +3836,21 @@
       const savedTheme = localStorage.getItem('b2b-theme');
       const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
       const startNight = savedTheme ? savedTheme === 'night' : prefersDark;
-      if (startNight) {
-        document.body.classList.add('night');
-        themeBtn.querySelector('.theme-label').textContent = 'day';
-        themeBtn.querySelectorAll('.sun-icon').forEach(el => el.style.display = 'none');
-        themeBtn.querySelector('.moon-icon').style.display = '';
+      function applyTheme(isNight) {
+        document.body.classList.toggle('night', isNight);
+        document.documentElement.classList.toggle('night', isNight);
+        themeBtn.querySelector('.theme-label').textContent = isNight ? 'day' : 'night';
+        themeBtn.querySelectorAll('.sun-icon').forEach(el => el.style.display = isNight ? 'none' : '');
+        themeBtn.querySelector('.moon-icon').style.display = isNight ? '' : 'none';
       }
+      if (startNight) applyTheme(true);
       window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
         if (localStorage.getItem('b2b-theme')) return;
-        const isNight = e.matches;
-        document.body.classList.toggle('night', isNight);
-        themeBtn.querySelector('.theme-label').textContent = isNight ? 'day' : 'night';
-        themeBtn.querySelectorAll('.sun-icon').forEach(el => el.style.display = isNight ? 'none' : '');
-        themeBtn.querySelector('.moon-icon').style.display = isNight ? '' : 'none';
+        applyTheme(e.matches);
       });
       themeBtn.addEventListener('click', () => {
-        const isNight = document.body.classList.toggle('night');
-        themeBtn.querySelector('.theme-label').textContent = isNight ? 'day' : 'night';
-        themeBtn.querySelectorAll('.sun-icon').forEach(el => el.style.display = isNight ? 'none' : '');
-        themeBtn.querySelector('.moon-icon').style.display = isNight ? '' : 'none';
+        const isNight = !document.body.classList.contains('night');
+        applyTheme(isNight);
         localStorage.setItem('b2b-theme', isNight ? 'night' : 'day');
       });
 
@@ -4632,7 +4652,7 @@
         }
         if (!e.target.closest('#search-btn-wrap')) {
           searchPopover.classList.remove('open');
-          searchBtnEl.classList.toggle('active', !!artistFilter);
+          searchBtnEl.classList.toggle('active', !!(artistFilter || djFilter));
         }
       });
 
@@ -4644,13 +4664,16 @@
       const tbAcDropdown = document.getElementById('toolbar-artist-ac');
       let tbAcItems = [], tbAcActiveIdx = -1;
 
+      const activeSearchFilter = () => artistFilter || djFilter;
+      let djListAlpha = []; // populated after DJ index is built
+
       searchBtnEl.addEventListener('click', () => {
         const opening = !searchPopover.classList.contains('open');
         searchPopover.classList.toggle('open');
         if (opening) {
-          tbSearchInput.value = artistFilter ? artistFilter.display : '';
-          if (artistFilter) tbSearchInput.classList.add('filtered');
-          else tbSearchInput.classList.remove('filtered');
+          const active = activeSearchFilter();
+          tbSearchInput.value = active ? active.display : '';
+          tbSearchInput.classList.toggle('filtered', !!active);
           setTimeout(() => tbSearchInput.focus(), 50);
         }
       });
@@ -4662,59 +4685,83 @@
         tbAcActiveIdx = -1;
       }
 
+      function searchIndex(list, q, max) {
+        if (!q) return list.slice(0, max);
+        const starts = [], contains = [];
+        for (const entry of list) {
+          const name = entry.display.toLowerCase();
+          if (name.startsWith(q)) starts.push(entry);
+          else if (name.includes(q)) contains.push(entry);
+          if (starts.length + contains.length >= max) break;
+        }
+        return [...starts, ...contains].slice(0, max);
+      }
+
       function showTbAc(query) {
         const q = query.toLowerCase().trim();
-        let results;
-        if (!q) {
-          results = artistListAlpha.slice(0, 50);
-        } else {
-          const starts = [], contains = [];
-          for (const entry of artistListAlpha) {
-            const name = entry.display.toLowerCase();
-            if (name.startsWith(q)) starts.push(entry);
-            else if (name.includes(q)) contains.push(entry);
-            if (starts.length + contains.length >= 30) break;
-          }
-          results = [...starts, ...contains].slice(0, 30);
-        }
-        if (results.length === 0) { closeTbAc(); return; }
+        const artistResults = searchIndex(artistListAlpha, q, q ? 15 : 30);
+        const djResults = searchIndex(djListAlpha, q, q ? 15 : 20);
+        if (artistResults.length === 0 && djResults.length === 0) { closeTbAc(); return; }
+
         tbAcDropdown.innerHTML = '';
         tbAcItems = [];
         tbAcActiveIdx = -1;
-        results.forEach((entry, i) => {
-          const div = document.createElement('div');
-          div.className = 'ac-item';
-          const count = entry.trackIds.length;
-          div.innerHTML = `<span class="ac-name">${escHtml(entry.display)}</span><span class="ac-count">${count} track${count !== 1 ? 's' : ''}</span>`;
-          div.addEventListener('click', () => {
-            closeTbAc();
-            setArtistFilter(entry);
-            tbSearchInput.value = entry.display;
-            tbSearchInput.classList.add('filtered');
-            searchBtnEl.classList.add('active');
-            searchPopover.classList.remove('open');
+        let idx = 0;
+
+        function addSection(label, results, type) {
+          if (results.length === 0) return;
+          const header = document.createElement('div');
+          header.className = 'ac-section-header';
+          header.textContent = label;
+          tbAcDropdown.appendChild(header);
+          results.forEach(entry => {
+            const div = document.createElement('div');
+            div.className = 'ac-item';
+            const count = entry.trackIds.length;
+            const countLabel = type === 'dj' ? `${count} track${count !== 1 ? 's' : ''} mixed` : `${count} track${count !== 1 ? 's' : ''}`;
+            div.innerHTML = `<span class="ac-name">${escHtml(entry.display)}</span><span class="ac-count">${countLabel}</span>`;
+            const myIdx = idx++;
+            div.addEventListener('click', () => {
+              closeTbAc();
+              if (type === 'artist') {
+                clearDjFilter();
+                setArtistFilter(entry);
+              } else {
+                clearArtistFilter();
+                setDjFilter(entry);
+              }
+              tbSearchInput.value = entry.display;
+              tbSearchInput.classList.add('filtered');
+              searchBtnEl.classList.add('active');
+              searchPopover.classList.remove('open');
+            });
+            div.addEventListener('mouseenter', () => {
+              tbAcItems.forEach(el => el.classList.remove('active'));
+              div.classList.add('active');
+              tbAcActiveIdx = myIdx;
+            });
+            tbAcDropdown.appendChild(div);
+            tbAcItems.push(div);
           });
-          div.addEventListener('mouseenter', () => {
-            tbAcItems.forEach(el => el.classList.remove('active'));
-            div.classList.add('active');
-            tbAcActiveIdx = i;
-          });
-          tbAcDropdown.appendChild(div);
-          tbAcItems.push(div);
-        });
+        }
+
+        addSection('Artists', artistResults, 'artist');
+        addSection('DJs', djResults, 'dj');
         tbAcDropdown.classList.add('open');
       }
 
       tbSearchInput.addEventListener('input', () => {
-        if (artistFilter && tbSearchInput.value !== artistFilter.display) {
+        const active = activeSearchFilter();
+        if (active && tbSearchInput.value !== active.display) {
           clearArtistFilter();
+          clearDjFilter();
           tbSearchInput.classList.remove('filtered');
           searchBtnEl.classList.remove('active');
         }
         showTbAc(tbSearchInput.value);
       });
       tbSearchInput.addEventListener('focus', () => {
-        if (!artistFilter) showTbAc(tbSearchInput.value);
+        if (!activeSearchFilter()) showTbAc(tbSearchInput.value);
       });
       tbSearchInput.addEventListener('keydown', (e) => {
         if (!tbAcDropdown.classList.contains('open')) return;
@@ -4738,6 +4785,7 @@
       });
       tbClearBtn.addEventListener('click', () => {
         clearArtistFilter();
+        clearDjFilter();
         tbSearchInput.value = '';
         tbSearchInput.classList.remove('filtered');
         searchBtnEl.classList.remove('active');
@@ -4768,6 +4816,7 @@
       const djList = Object.values(djIndex).map(e => ({ display: e.display, trackIds: [...e.trackIds] }))
         .sort((a, b) => b.trackIds.length - a.trackIds.length);
       console.log(`DJ index: ${djList.length} unique DJs`);
+      djListAlpha = [...djList].sort((a, b) => a.display.localeCompare(b.display));
 
       const djSearchInput = document.getElementById('dj-search');
       const djClearBtn = document.getElementById('dj-clear');
