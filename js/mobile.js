@@ -69,6 +69,30 @@ function showClusterMobile(cluster) {
   if (firstWithAudio) {
     requestAnimationFrame(() => selectMobileTrack(firstWithAudio.id));
   }
+
+  // Auto-select card when scroll snaps to it
+  let scrollTimer;
+  carousel.addEventListener('scroll', () => {
+    clearTimeout(scrollTimer);
+    scrollTimer = setTimeout(() => {
+      const centerX = carousel.scrollLeft + carousel.clientWidth / 2;
+      let closest = null, closestDist = Infinity;
+      carousel.querySelectorAll('.mobile-carousel-item').forEach(item => {
+        const mid = item.offsetLeft + item.offsetWidth / 2;
+        const dist = Math.abs(mid - centerX);
+        if (dist < closestDist) { closestDist = dist; closest = item; }
+      });
+      if (closest) {
+        const card = closest.querySelector('.mobile-carousel-card');
+        const nodeId = card?.dataset.nodeId;
+        if (nodeId && !card.classList.contains('selected')) {
+          const node = nodeMap[nodeId];
+          if (node && (node.scTrackUrl || node.setUrl)) selectMobileTrack(nodeId);
+          else if (node) updateMobileSources(node.graphId);
+        }
+      }
+    }, 100);
+  });
 }
 
 function updateMobileSources(graphId) {
