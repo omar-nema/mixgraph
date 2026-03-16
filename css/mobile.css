@@ -27,6 +27,7 @@
     color: var(--text-tertiary);
   }
   #sc-placeholder.hidden { display: none; }
+  body.night #sc-player-area { background: #1e2228; border-top-color: #3a3f48; }
   #sc-widget.sc-active {
     position: static;
     width: 100%;
@@ -35,6 +36,9 @@
     overflow: visible;
     pointer-events: auto;
     z-index: 99;
+  }
+  body.night #sc-widget.sc-active {
+    filter: invert(0.88) hue-rotate(180deg);
   }
   body { padding-bottom: 84px; }
 }
