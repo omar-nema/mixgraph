@@ -266,7 +266,7 @@ body.night .card-footer button:active { background: rgba(255,255,255,0.1); }
   font-family: var(--font);
   font-size: 14px;
   font-weight: 400;
-  color: var(--text-tertiary);
+  color: var(--text-secondary);
   background: none;
   border: none;
   border-radius: calc(var(--card-radius) - 2px);
@@ -275,7 +275,6 @@ body.night .card-footer button:active { background: rgba(255,255,255,0.1); }
   transition: none;
   letter-spacing: 0.02em;
 }
-.mode-tab[data-mode="crates"] { color: var(--text-primary); }
 .mode-tab:not(.active):hover { color: var(--text-primary); background: rgba(0,0,0,0.08); }
 body.night .mode-tab:not(.active):hover { background: rgba(255,255,255,0.1); }
 .mode-tab.active {

@@ -74,7 +74,7 @@
     font-family: var(--font);
     font-size: 12px;
     font-weight: 400;
-    color: var(--text-tertiary);
+    color: var(--text-secondary);
     background: none;
     border: none;
     border-radius: calc(var(--card-radius) - 2px);
@@ -86,10 +86,9 @@
     align-items: center;
   }
   #mobile-mode-tabs .mode-tab.active {
-    background: var(--card-bg);
-    color: var(--text-primary);
+    background: #f0ddd4;
+    color: #9a5843;
     font-weight: 500;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
   }
 
   /* Show mobile tracks container */
