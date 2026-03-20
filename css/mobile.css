@@ -115,6 +115,8 @@
     padding: 0 12px;
     width: 100%;
     box-sizing: border-box;
+    position: relative;
+    z-index: 295;
   }
   .mobile-filter-pill {
     font-family: var(--font);
