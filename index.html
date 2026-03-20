@@ -38,15 +38,36 @@
     </filter>
   </svg>
   <div id="mobile-title" style="display:none">back2back</div>
+  <button id="mobile-header-share" style="display:none" title="Copy link"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><g class="link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></g><g class="check"><polyline points="20 6 9 17 4 12"/></g></svg></button>
   <div id="mobile-mode-tabs" style="display:none">
     <button class="mode-tab active" data-mode="tracks">Tracks</button>
     <button class="mode-tab" data-mode="crates">Crates</button>
   </div>
-  <div id="mobile-search-wrap" style="display:none">
-    <svg class="search-icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M16.5 16.5L21 21"/></svg>
-    <input id="mobile-search-input" type="text" placeholder="search artist or DJ..." autocomplete="off">
-    <button id="mobile-search-clear">&times;</button>
-    <div id="mobile-search-ac"></div>
+  <div id="mobile-find-bar" style="display:none">
+    <button id="mobile-find-btn">
+      <svg class="search-icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M16.5 16.5L21 21"/></svg>
+      <span class="find-label">Find</span>
+      <span class="find-count" style="display:none"></span>
+      <span class="find-clear" style="display:none">&times;</span>
+    </button>
+  </div>
+  <div id="mobile-find-overlay">
+    <div id="mobile-find-modal">
+      <div class="find-header">
+        <span>Find tracks</span>
+        <button class="find-close">&times;</button>
+      </div>
+      <div id="mobile-find-search-area">
+        <div id="mobile-find-chips-input">
+          <input id="mobile-find-search" type="text" placeholder="Search by artist or DJ" autocomplete="off">
+        </div>
+        <div id="mobile-find-ac"></div>
+      </div>
+      <div id="mobile-find-genres">
+        <div class="find-genres-label">Filter genres</div>
+        <div id="mobile-genre-pills"></div>
+      </div>
+    </div>
   </div>
   <button id="mobile-help-btn" style="display:none" title="How it works">?</button>
   <div id="mobile-help-panel">
@@ -60,35 +81,39 @@
   <div id="toolbar">
     <div id="toolbar-row">
       <div class="toolbar-side toolbar-left">
-        <button id="help-btn" title="How it works"><svg class="help-info-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17h-2v-2h2v2zm2.07-7.75l-.9.92C13.45 12.9 13 13.5 13 15h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-.9-2-2-2s-2 .9-2 2H8c0-2.21 1.79-4 4-4s4 1.79 4 4c0 .88-.36 1.68-.93 2.25z"/></svg> <span class="help-btn-text">What is B2B?</span></button>
-      </div>
-      <div id="center-btns">
-        <button id="mobile-shuffle-btn" style="display:none">
-          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 3h5v5"/><path d="M4 20L21 3"/><path d="M21 16v5h-5"/><path d="M15 15l6 6"/><path d="M4 4l5 5"/></svg>
-          shuffle
-        </button>
         <div id="mode-tabs">
           <button class="mode-tab active" data-mode="tracks">Tracks</button>
           <button class="mode-tab" data-mode="crates">Crates</button>
         </div>
       </div>
       <div class="toolbar-side toolbar-right">
-      <div id="search-btn-wrap">
-        <div id="toolbar-search-wrap">
-          <svg class="search-icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M16.5 16.5L21 21"/></svg>
-          <input id="toolbar-artist-search" type="text" placeholder="Search" autocomplete="off">
-          <button id="toolbar-artist-clear">&times;</button>
-          <div id="toolbar-artist-ac"></div>
+        <button id="help-btn" title="How it works"><svg class="help-info-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17h-2v-2h2v2zm2.07-7.75l-.9.92C13.45 12.9 13 13.5 13 15h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-.9-2-2-2s-2 .9-2 2H8c0-2.21 1.79-4 4-4s4 1.79 4 4c0 .88-.36 1.68-.93 2.25z"/></svg> <span class="help-btn-text">back2back.space?</span></button>
+      </div>
+    </div>
+    <div id="filter-row">
+      <button class="filter-pill" id="pill-dj">More from this DJ</button>
+      <button class="filter-pill" id="pill-sets">More from these sets</button>
+      <div id="genre-pill-anchor">
+        <button class="filter-pill" id="pill-genre">Genre <span class="pill-count">(0)</span></button>
+        <div id="genre-popover">
+          <button class="popover-clear" id="genre-clear-btn" disabled>Clear all</button>
+          <div id="genre-pills"></div>
         </div>
       </div>
-      <button id="share-btn" title="Copy link">
-        <svg viewBox="0 0 24 24">
-          <g class="link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></g>
-          <g class="check"><polyline points="20 6 9 17 4 12"/></g>
-        </svg>
-        <span class="share-label">Share</span>
-      </button>
-    </div>
+      <div id="artist-pill-anchor">
+        <button class="filter-pill" id="pill-artist">Artist <span class="pill-count" id="artist-pill-count">(0)</span></button>
+        <div id="artist-popover">
+          <button class="popover-clear" id="artist-clear-btn" disabled>Clear all</button>
+          <div id="artist-search-wrap-popover">
+            <div id="find-chips-input">
+              <input id="find-search" type="text" placeholder="Search by artist or DJ" autocomplete="off">
+            </div>
+            <div id="find-ac"></div>
+          </div>
+        </div>
+      </div>
+      <span class="filter-dot">•</span>
+      <button class="filter-pill filter-shuffle" id="filter-shuffle-btn"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/><line x1="4" y1="4" x2="9" y2="9"/></svg> Shuffle</button>
     </div>
   </div>
 

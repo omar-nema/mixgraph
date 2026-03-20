@@ -19,12 +19,12 @@ function showClusterMobile(cluster) {
 
   // Shuffle button above carousel
   const shuffleArea = document.getElementById('mobile-shuffle-area');
-  shuffleArea.innerHTML = `<button class="mobile-shuffle"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/><line x1="4" y1="4" x2="9" y2="9"/></svg> shuffle</button><button class="mobile-share" title="Copy link"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><g class="link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></g><g class="check"><polyline points="20 6 9 17 4 12"/></g></svg></button>`;
+  const gc = typeof genreFilters !== 'undefined' ? genreFilters.length : 0;
+  const ac = typeof searchFilters !== 'undefined' ? searchFilters.length : 0;
+  shuffleArea.innerHTML = `<div class="mobile-filter-scroll"><button class="mobile-filter-pill${gc > 0 ? ' active' : ''}" id="mobile-pill-genre">Genre (${gc})</button><button class="mobile-filter-pill${ac > 0 ? ' active' : ''}" id="mobile-pill-artist">Artist (${ac})</button><button class="mobile-filter-pill" id="mobile-pill-dj">More from this DJ</button><button class="mobile-filter-pill" id="mobile-pill-artist-context">More from artist</button></div><div class="mobile-shuffle-fade"></div><button class="mobile-shuffle"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/><line x1="4" y1="4" x2="9" y2="9"/></svg></button>`;
   const shuffleBtn = shuffleArea.querySelector('.mobile-shuffle');
   shuffleBtn.addEventListener('click', () => {
-    // Tactile feedback: press + color flash
     shuffleBtn.classList.add('shuffling');
-    // Animate out current cards
     carousel.querySelectorAll('.mobile-carousel-item').forEach(el => {
       el.classList.add('mobile-animate-out');
     });
@@ -35,11 +35,13 @@ function showClusterMobile(cluster) {
       shuffle();
     }, 250);
   });
-  const mobileShareBtn = shuffleArea.querySelector('.mobile-share');
-  mobileShareBtn.addEventListener('click', () => {
-    navigator.clipboard.writeText(window.location.href);
-    mobileShareBtn.classList.add('copied');
-    setTimeout(() => mobileShareBtn.classList.remove('copied'), 1500);
+  // Filter pill clicks open mobile find overlay
+  document.getElementById('mobile-pill-genre').addEventListener('click', () => {
+    document.getElementById('mobile-find-overlay').style.display = 'flex';
+  });
+  document.getElementById('mobile-pill-artist').addEventListener('click', () => {
+    document.getElementById('mobile-find-overlay').style.display = 'flex';
+    setTimeout(() => document.getElementById('mobile-find-search').focus(), 100);
   });
 
   const root = cluster.nodes.find(n => n.rank === 'root');
@@ -102,19 +104,13 @@ function updateMobileSources(graphId) {
   if (sources.size > 0) {
     const row = document.createElement('div');
     row.className = 'mobile-source-row';
-    const label = document.createElement('span');
-    label.className = 'mobile-source-label';
-    label.textContent = 'Sourced from';
-    row.appendChild(label);
-    for (const src of sources.values()) {
-      const pill = document.createElement('a');
-      pill.className = 'mobile-source-pill';
-      pill.href = src.url;
-      pill.target = '_blank';
-      pill.rel = 'noopener';
-      pill.textContent = src.dj;
-      row.appendChild(pill);
-    }
+    const srcArray = [...sources.values()];
+    const textSpan = document.createElement('span');
+    textSpan.className = 'mobile-source-text';
+    textSpan.innerHTML = 'Mixed by ' + srcArray.map(src =>
+      `<a href="${src.url}" target="_blank" rel="noopener">${src.dj}</a>`
+    ).join(', ');
+    row.appendChild(textSpan);
     sourcesEl.appendChild(row);
   }
 }
