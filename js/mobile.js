@@ -21,7 +21,9 @@ function showClusterMobile(cluster) {
   const shuffleArea = document.getElementById('mobile-shuffle-area');
   const gc = typeof genreFilters !== 'undefined' ? genreFilters.length : 0;
   const ac = typeof searchFilters !== 'undefined' ? searchFilters.length : 0;
-  shuffleArea.innerHTML = `<div class="mobile-filter-scroll"><button class="mobile-filter-pill${gc > 0 ? ' active' : ''}" id="mobile-pill-genre">Genre (${gc})</button><button class="mobile-filter-pill${ac > 0 ? ' active' : ''}" id="mobile-pill-artist">Artist (${ac})</button><button class="mobile-filter-pill" id="mobile-pill-dj">More from this DJ</button><button class="mobile-filter-pill" id="mobile-pill-artist-context">More from artist</button></div><div class="mobile-shuffle-fade"></div><button class="mobile-shuffle"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/><line x1="4" y1="4" x2="9" y2="9"/></svg></button>`;
+  const dc = typeof djSearchFilters !== 'undefined' ? djSearchFilters.length : 0;
+  const hasFilters = gc + ac + dc > 0;
+  shuffleArea.innerHTML = `<button class="mobile-filter-pill${gc > 0 ? ' active' : ''}" id="mobile-pill-genre">Genre (${gc})</button><button class="mobile-filter-pill${ac > 0 ? ' active' : ''}" id="mobile-pill-artist">Artist (${ac})</button><button class="mobile-filter-pill${dc > 0 ? ' active' : ''}" id="mobile-pill-dj">DJ (${dc})</button><button class="mobile-shuffle"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/><line x1="4" y1="4" x2="9" y2="9"/></svg></button>`;
   const shuffleBtn = shuffleArea.querySelector('.mobile-shuffle');
   shuffleBtn.addEventListener('click', () => {
     shuffleBtn.classList.add('shuffling');
@@ -35,13 +37,38 @@ function showClusterMobile(cluster) {
       shuffle();
     }, 250);
   });
-  // Filter pill clicks open mobile find overlay
-  document.getElementById('mobile-pill-genre').addEventListener('click', () => {
-    document.getElementById('mobile-find-overlay').style.display = 'flex';
+  // Filter pill clicks toggle individual popovers
+  const mobileBackdrop = document.getElementById('mobile-popover-backdrop');
+  const mobilePopovers = {
+    genre: document.getElementById('mobile-genre-popover'),
+    artist: document.getElementById('mobile-artist-popover'),
+    dj: document.getElementById('mobile-dj-popover'),
+  };
+  function closeMobilePopovers() {
+    Object.values(mobilePopovers).forEach(p => p.classList.remove('open'));
+    mobileBackdrop.classList.remove('open');
+  }
+  function openMobilePopover(name, pillEl) {
+    const already = mobilePopovers[name].classList.contains('open');
+    closeMobilePopovers();
+    if (already) return;
+    // Position popover below the pill row
+    const rect = pillEl.getBoundingClientRect();
+    mobilePopovers[name].style.top = (rect.bottom + 8) + 'px';
+    mobilePopovers[name].classList.add('open');
+    mobileBackdrop.classList.add('open');
+  }
+  mobileBackdrop.addEventListener('click', closeMobilePopovers);
+  document.getElementById('mobile-pill-genre').addEventListener('click', function() {
+    openMobilePopover('genre', this);
   });
-  document.getElementById('mobile-pill-artist').addEventListener('click', () => {
-    document.getElementById('mobile-find-overlay').style.display = 'flex';
+  document.getElementById('mobile-pill-artist').addEventListener('click', function() {
+    openMobilePopover('artist', this);
     setTimeout(() => document.getElementById('mobile-find-search').focus(), 100);
+  });
+  document.getElementById('mobile-pill-dj').addEventListener('click', function() {
+    openMobilePopover('dj', this);
+    setTimeout(() => document.getElementById('mobile-dj-search').focus(), 100);
   });
 
   const root = cluster.nodes.find(n => n.rank === 'root');
@@ -72,6 +99,7 @@ function showClusterMobile(cluster) {
     requestAnimationFrame(() => selectMobileTrack(firstWithAudio.id));
   }
 
+  if (onClusterShown) onClusterShown();
 }
 
 function updateMobileSources(graphId) {

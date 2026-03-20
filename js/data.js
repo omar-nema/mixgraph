@@ -8,11 +8,10 @@ let currentRootId = null;
 let frozen = false;
 let maxR1 = 4;
 let r2PerR1 = 1;
-let searchFilters = [];  // [{ type: 'artist'|'dj', display, trackIds }]
+let searchFilters = [];  // [{ display, trackIds }] — artist filters
+let djSearchFilters = []; // [{ display, trackIds }] — DJ filters
 let genreFilters = [];   // ['Soul', 'Jazz', ...]
-let djFilter = null;     // { djNames: string[], trackIds: Set } | null
 let shuffleHistory = new Set();  // track seen root IDs to avoid repeats
-let setFilter = null;    // { episodeUrls: string[], trackIds: Set } | null
 let djIndex = {};        // lowercase DJ name → { display, trackIds: Set }
 let episodeIndex = {};   // episode_url → Set<trackId>
 let artistIndex = {};    // lowercase artist → { display, trackIds: [] }
@@ -22,6 +21,7 @@ let nodes = [];
 let edges = [];
 let nodeMap = {};
 let currentCluster = null;
+let onClusterShown = null;  // hook called after showCluster renders
 
 const cardWidths = { 'root': 280, '1': 180, '2': 155 };
 // Measured heights per node id, populated after first render pass

@@ -51,23 +51,23 @@
       <span class="find-clear" style="display:none">&times;</span>
     </button>
   </div>
-  <div id="mobile-find-overlay">
-    <div id="mobile-find-modal">
-      <div class="find-header">
-        <span>Find tracks</span>
-        <button class="find-close">&times;</button>
-      </div>
-      <div id="mobile-find-search-area">
-        <div id="mobile-find-chips-input">
-          <input id="mobile-find-search" type="text" placeholder="Search by artist or DJ" autocomplete="off">
-        </div>
-        <div id="mobile-find-ac"></div>
-      </div>
-      <div id="mobile-find-genres">
-        <div class="find-genres-label">Filter genres</div>
-        <div id="mobile-genre-pills"></div>
-      </div>
+  <div id="mobile-popover-backdrop"></div>
+  <div id="mobile-genre-popover" class="mobile-popover">
+    <div id="mobile-genre-pills"></div>
+  </div>
+  <div id="mobile-artist-popover" class="mobile-popover">
+    <div id="mobile-artist-cluster-pills" class="cluster-pills"></div>
+    <div id="mobile-find-chips-input">
+      <input id="mobile-find-search" type="text" placeholder="Search artists" autocomplete="off">
     </div>
+    <div id="mobile-find-ac"></div>
+  </div>
+  <div id="mobile-dj-popover" class="mobile-popover">
+    <div id="mobile-dj-cluster-pills" class="cluster-pills"></div>
+    <div id="mobile-dj-chips-input">
+      <input id="mobile-dj-search" type="text" placeholder="Search DJs" autocomplete="off">
+    </div>
+    <div id="mobile-dj-ac"></div>
   </div>
   <button id="mobile-help-btn" style="display:none" title="How it works">?</button>
   <div id="mobile-help-panel">
@@ -91,8 +91,6 @@
       </div>
     </div>
     <div id="filter-row">
-      <button class="filter-pill" id="pill-dj">More from this DJ</button>
-      <button class="filter-pill" id="pill-sets">More from these sets</button>
       <div id="genre-pill-anchor">
         <button class="filter-pill" id="pill-genre">Genre <span class="pill-count">(0)</span></button>
         <div id="genre-popover">
@@ -104,11 +102,25 @@
         <button class="filter-pill" id="pill-artist">Artist <span class="pill-count" id="artist-pill-count">(0)</span></button>
         <div id="artist-popover">
           <button class="popover-clear" id="artist-clear-btn" disabled>Clear all</button>
+          <div id="artist-cluster-pills" class="cluster-pills"></div>
           <div id="artist-search-wrap-popover">
             <div id="find-chips-input">
-              <input id="find-search" type="text" placeholder="Search by artist or DJ" autocomplete="off">
+              <input id="find-search" type="text" placeholder="Search artists" autocomplete="off">
             </div>
             <div id="find-ac"></div>
+          </div>
+        </div>
+      </div>
+      <div id="dj-pill-anchor">
+        <button class="filter-pill" id="pill-dj">DJ <span class="pill-count" id="dj-pill-count">(0)</span></button>
+        <div id="dj-popover">
+          <button class="popover-clear" id="dj-clear-btn" disabled>Clear all</button>
+          <div id="dj-cluster-pills" class="cluster-pills"></div>
+          <div id="dj-search-wrap-popover">
+            <div id="dj-chips-input">
+              <input id="dj-search" type="text" placeholder="Search DJs" autocomplete="off">
+            </div>
+            <div id="dj-ac"></div>
           </div>
         </div>
       </div>
