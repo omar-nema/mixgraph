@@ -792,12 +792,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     let visibleTimer = null;
     function scheduleUpdateVisible() {
-      if (!isMobileView()) { updateVisible(); return; }
       if (visibleTimer) return;
       visibleTimer = setTimeout(() => {
         visibleTimer = null;
         updateVisible();
-      }, 250);
+      }, isMobileView() ? 250 : 150);
     }
 
     function updateVisible() {
@@ -840,7 +839,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Pan state
     let crateScale = isMobileView() ? 0.75 : 0.8;
     let panX = 0, panY = 0;
-    surface.style.transform = `scale(${crateScale}) translate(${panX}px, ${panY}px)`;
+    surface.style.transform = `scale3d(${crateScale},${crateScale},1) translate3d(${panX}px,${panY}px,0)`;
 
     // Drag-to-pan
     let isDragging = false, didDrag = false, dragStartX, dragStartY, panStartX, panStartY;
@@ -859,7 +858,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
       if (didDrag) {
         panX = panStartX + dx; panY = panStartY + dy;
-        surface.style.transform = `scale(${crateScale}) translate(${panX}px, ${panY}px)`;
+        applyTransform();
         scheduleUpdateVisible();
       }
     };
@@ -870,12 +869,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     cratesView.addEventListener('click', e => {
       if (didDrag) { e.stopPropagation(); didDrag = false; }
     }, true);
-    cratesView.onwheel = e => {
+    cratesView.addEventListener('wheel', e => {
       e.preventDefault();
       panX -= e.deltaX; panY -= e.deltaY;
-      surface.style.transform = `scale(${crateScale}) translate(${panX}px, ${panY}px)`;
+      applyTransform();
       scheduleUpdateVisible();
-    };
+    }, { passive: false });
 
     // Touch pan + pinch-to-zoom (mobile)
     let touchDragging = false, touchDidDrag = false;
@@ -883,7 +882,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     let pinchActive = false, lastPinchDist = 0, pinchStartScale = 0;
 
     function applyTransform() {
-      surface.style.transform = `scale(${crateScale}) translate(${panX}px, ${panY}px)`;
+      surface.style.transform = `scale3d(${crateScale},${crateScale},1) translate3d(${panX}px,${panY}px,0)`;
     }
 
     cratesView.addEventListener('touchstart', e => {
