@@ -20,7 +20,6 @@ import argparse
 import re
 import sys
 import time
-import unicodedata
 import urllib.request
 import urllib.parse
 import urllib.error
@@ -338,16 +337,7 @@ _BROWSER_UA = (
 )
 
 
-def _normalize(text: str) -> str:
-    """Normalize text for fuzzy comparison (mirrors graph.py normalize)."""
-    if not text:
-        return ""
-    text = unicodedata.normalize("NFKD", text)
-    text = text.lower()
-    text = re.sub(r"[^\w\s]", "", text, flags=re.UNICODE)
-    text = text.replace("_", "")
-    text = re.sub(r"\s+", " ", text).strip()
-    return text
+from utils import normalize as _normalize
 
 
 def get_soundcloud_client_id() -> Optional[str]:

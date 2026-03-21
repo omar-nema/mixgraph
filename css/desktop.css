@@ -110,7 +110,6 @@ body.night #dev-panel { background: #1a1a1a; border-color: #333; }
   bottom: 16px;
   left: 16px;
   z-index: 50;
-  font-family: var(--font);
   font-size: 12px;
   font-weight: 400;
   color: var(--text-secondary);
@@ -140,6 +139,9 @@ body.night #dev-panel { background: #1a1a1a; border-color: #333; }
   box-sizing: border-box;
   margin: 0;
   padding: 0;
+}
+button, input, select, textarea {
+  font-family: inherit;
 }
 
 body {
@@ -183,7 +185,6 @@ body {
 }
 .card-toolbar #shuffle-btn { flex: 1; color: var(--connection-highlight); background: #dedeee; transition: background 0.2s ease; }
 .card-toolbar button {
-  font-family: var(--font);
   font-size: 16px;
   font-weight: 400;
   letter-spacing: 0.03em;
@@ -220,7 +221,6 @@ body.night .card-toolbar #shuffle-btn:active { background: #42425a; }
   margin: 13px -13px -13px -13px;
 }
 .card-footer button, .card-footer .all-shown {
-  font-family: var(--font);
   font-size: 14px;
   font-weight: 400;
   letter-spacing: 0.03em;
@@ -252,7 +252,6 @@ body.night .card-footer button:active { background: rgba(255,255,255,0.1); }
   gap: 8px;
 }
 
-
 /* ═══════════════════════════════════════════
    Mode Tabs
    ═══════════════════════════════════════════ */
@@ -264,7 +263,6 @@ body.night .card-footer button:active { background: rgba(255,255,255,0.1); }
   padding: 0;
 }
 .mode-tab {
-  font-family: var(--font);
   font-size: 20px;
   font-weight: 300;
   color: var(--text-secondary);
@@ -349,9 +347,9 @@ body.night .mode-tab.active { color: var(--connection-highlight); background: no
   pointer-events: none;
 }
 .crate-card.active .crate-info { opacity: 1; }
-.crate-info .ci-title { font-family: var(--font); font-size: 13px; font-weight: 600; color: #fff; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.crate-info .ci-artist { font-family: var(--font); font-size: 11px; font-weight: 300; color: rgba(255,255,255,0.75); line-height: 1.3; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.crate-info .ci-count { font-family: var(--font); font-size: 9px; color: rgba(255,255,255,0.4); margin-top: 4px; }
+.crate-info .ci-title { font-size: 13px; font-weight: 600; color: #fff; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.crate-info .ci-artist { font-size: 11px; font-weight: 300; color: rgba(255,255,255,0.75); line-height: 1.3; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.crate-info .ci-count { font-size: 9px; color: rgba(255,255,255,0.4); margin-top: 4px; }
 
 .crate-card.placeholder::after {
   content: '';
@@ -434,7 +432,6 @@ body.night .mode-tab.active { color: var(--connection-highlight); background: no
 
 #filter-label {
   position: absolute;
-  font-family: var(--font);
   font-size: 12px;
   color: var(--text-tertiary);
   white-space: nowrap;
@@ -442,7 +439,6 @@ body.night .mode-tab.active { color: var(--connection-highlight); background: no
 }
 #filter-label:empty { display: none; }
 #filter-clear {
-  font-family: var(--font);
   font-size: 12px;
   font-weight: 500;
   color: var(--connection-highlight);
@@ -578,30 +574,21 @@ body.night .mode-tab.active { color: var(--connection-highlight); background: no
 .node-card[data-rank="1"] .dj-line { font-size: 14px; }
 .node-card[data-rank="2"] .dj-line { font-size: 13px; }
 
-a.track-title {
-  color: inherit;
-  text-decoration: underline;
-  text-underline-offset: 2px;
-  text-decoration-color: var(--card-border);
-  transition: color 0.15s ease, text-decoration-color 0.15s ease;
-}
-a.track-title:hover {
-  text-decoration-color: var(--text-secondary);
-}
-
+a.track-title,
 .dj-line a {
-  color: var(--text-tertiary);
   text-decoration: underline;
   text-underline-offset: 2px;
   text-decoration-color: var(--card-border);
   transition: color 0.15s ease, text-decoration-color 0.15s ease;
 }
+a.track-title { color: inherit; }
+.dj-line a { color: var(--text-tertiary); }
+a.track-title:hover { text-decoration-color: var(--text-secondary); }
 .dj-line a:hover {
   color: var(--text-primary);
   text-decoration-color: var(--text-secondary);
 }
 .dj-more {
-  font-family: var(--font);
   font-size: inherit;
   font-weight: 300;
   color: var(--text-tertiary);
@@ -803,7 +790,6 @@ a.track-title:hover {
   top: 6px;
   left: 50%;
   transform: translateX(-50%);
-  font-family: var(--font);
   font-size: 9px;
   color: #fff;
   background: rgba(0, 0, 0, 0.55);
@@ -827,7 +813,6 @@ a.track-title:hover {
   position: absolute;
   bottom: 4px;
   right: 5px;
-  font-family: var(--font);
   font-size: 9px;
   color: rgba(255,255,255,0.5);
   white-space: nowrap;
@@ -843,7 +828,6 @@ a.track-title:hover {
   transform: translateX(-50%) translateY(4px);
   background: #1a1a1a;
   color: #fff;
-  font-family: var(--font);
   font-size: 10px;
   font-weight: 400;
   letter-spacing: 0.03em;
@@ -879,7 +863,6 @@ a.track-title:hover {
 /* Help button */
 #help-btn {
   flex-shrink: 0;
-  font-family: var(--font);
   font-size: 20px;
   font-weight: 300;
   color: var(--text-secondary);
@@ -913,7 +896,6 @@ a.track-title:hover {
 /* Share button */
 #share-btn {
   flex-shrink: 0;
-  font-family: var(--font);
   font-size: 18px;
   font-weight: 400;
   color: var(--text-primary);
@@ -969,7 +951,6 @@ a.track-title:hover {
   gap: 8px;
 }
 #filter-row .filter-label {
-  font-family: var(--font);
   font-size: 16px;
   font-weight: 500;
   color: var(--text-secondary);
@@ -978,7 +959,6 @@ a.track-title:hover {
 .crates-mode #filter-row { display: none; }
 
 .filter-pill {
-  font-family: var(--font);
   font-size: 16px;
   font-weight: 300;
   color: var(--text-secondary);
@@ -1002,7 +982,6 @@ a.track-title:hover {
   color: #fff;
 }
 .pill-count {
-  font-family: var(--font);
   font-size: 10px;
   font-weight: 400;
   min-width: 18px;
@@ -1088,7 +1067,6 @@ body.night .filter-shuffle:hover {
 body.night #genre-popover, body.night #artist-popover, body.night #dj-popover { box-shadow: 0 8px 40px rgba(0, 0, 0, 0.5); }
 
 .popover-clear {
-  font-family: var(--font);
   font-size: 14px;
   font-weight: 500;
   color: var(--text-primary);
@@ -1133,7 +1111,6 @@ body.night #genre-popover, body.night #artist-popover, body.night #dj-popover { 
 #find-search, #dj-search {
   flex: 1;
   min-width: 120px;
-  font-family: var(--font);
   font-size: 14px;
   color: var(--text-primary);
   background: none;
@@ -1151,7 +1128,6 @@ body.night #genre-popover, body.night #artist-popover, body.night #dj-popover { 
   background: rgba(0, 0, 0, 0.06);
   border-radius: 6px;
   padding: 4px 10px;
-  font-family: var(--font);
   font-size: 14px;
   font-weight: 400;
   color: var(--text-primary);
@@ -1188,7 +1164,6 @@ body.night #genre-popover, body.night #artist-popover, body.night #dj-popover { 
 }
 #find-ac.open, #dj-ac.open { display: block; }
 #find-ac .ac-section-header, #dj-ac .ac-section-header {
-  font-family: var(--font);
   font-size: 10px;
   font-weight: 600;
   text-transform: uppercase;
@@ -1204,7 +1179,6 @@ body.night #genre-popover, body.night #artist-popover, body.night #dj-popover { 
   gap: 6px;
 }
 .genre-pill {
-  font-family: var(--font);
   font-size: 14px;
   font-weight: 400;
   color: var(--text-primary);
@@ -1233,7 +1207,6 @@ body.night #genre-popover, body.night #artist-popover, body.night #dj-popover { 
   display: none;
 }
 .cluster-pills-label {
-  font-family: var(--font);
   font-size: 14px;
   font-weight: 400;
   color: var(--text-tertiary);
@@ -1246,7 +1219,6 @@ body.night #genre-popover, body.night #artist-popover, body.night #dj-popover { 
 }
 .cluster-pills:empty { display: none; }
 .cluster-pill {
-  font-family: var(--font);
   font-size: 14px;
   font-weight: 400;
   color: var(--text-primary);
@@ -1308,14 +1280,12 @@ body.night #genre-popover, body.night #artist-popover, body.night #dj-popover { 
   transform: translateY(0) scale(1);
 }
 #help-modal h2 {
-  font-family: var(--font);
   font-size: 22px;
   font-weight: 600;
   color: var(--text-primary);
   margin-bottom: 16px;
 }
 #help-modal p {
-  font-family: var(--font);
   font-size: 16px;
   font-weight: 400;
   color: var(--text-primary);
@@ -1324,7 +1294,6 @@ body.night #genre-popover, body.night #artist-popover, body.night #dj-popover { 
 }
 #help-modal p:last-child { margin-bottom: 0; }
 #help-modal kbd {
-  font-family: var(--font);
   font-size: 11px;
   background: var(--bg);
   border: 1px solid var(--card-border);
@@ -1409,7 +1378,6 @@ body.night #genre-popover, body.night #artist-popover, body.night #dj-popover { 
   padding: 6px 16px;
 }
 #mc-player .mc-label {
-  font-family: var(--font);
   font-size: 10px;
   color: #aaa;
   white-space: nowrap;
@@ -1484,7 +1452,6 @@ body.night #genre-popover, body.night #artist-popover, body.night #dj-popover { 
   padding: 16px;
   z-index: 1000;
   display: none;
-  font-family: var(--font);
   font-size: 11px;
   color: var(--text-primary);
 }
@@ -1531,7 +1498,6 @@ body.night #genre-popover, body.night #artist-popover, body.night #dj-popover { 
 }
 
 .dev-row input[type="text"] {
-  font-family: var(--font);
   font-size: 11px;
   color: var(--text-primary);
   background: var(--bg);
@@ -1551,7 +1517,6 @@ body.night #genre-popover, body.night #artist-popover, body.night #dj-popover { 
   border-radius: 6px;
   padding: 5px 10px;
   cursor: pointer;
-  font-family: var(--font);
   font-size: 11px;
   color: var(--text-secondary);
   transition: color 0.15s ease;
@@ -1561,7 +1526,6 @@ body.night #genre-popover, body.night #artist-popover, body.night #dj-popover { 
 #freeze-btn.frozen { border-color: var(--connection-highlight); color: var(--connection-highlight); }
 
 #dev-panel select {
-  font-family: var(--font);
   font-size: 11px;
   color: var(--text-primary);
   background: var(--bg);
@@ -1605,7 +1569,6 @@ body.night #genre-popover, body.night #artist-popover, body.night #dj-popover { 
   top: 64px;
   left: 50%;
   transform: translateX(-50%) translateY(-20px);
-  font-family: var(--font);
   font-size: 14px;
   color: var(--text-primary);
   background: var(--card-bg);
@@ -1647,7 +1610,6 @@ body.night #genre-popover, body.night #artist-popover, body.night #dj-popover { 
 }
 
 #artist-search {
-  font-family: var(--font);
   font-size: 11px;
   font-weight: 400;
   color: var(--text-primary);
@@ -1704,7 +1666,6 @@ body.night #genre-popover, body.night #artist-popover, body.night #dj-popover { 
 
 .ac-item {
   padding: 8px 14px;
-  font-family: var(--font);
   font-size: 12px;
   color: var(--text-primary);
   cursor: pointer;

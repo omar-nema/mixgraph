@@ -11,8 +11,6 @@ Output: output/lot_radio_graph.json
 """
 
 import json
-import re
-import unicodedata
 import argparse
 import sys
 from pathlib import Path
@@ -21,23 +19,7 @@ from collections import deque
 from typing import Dict, Any, List, Optional, Tuple
 
 
-def normalize(text: str) -> str:
-    """
-    Normalize a string for use in track ID generation.
-
-    Applies NFKD unicode normalization, lowercases, strips all
-    non-alphanumeric/non-space characters, and collapses whitespace.
-    """
-    if not text:
-        return ""
-    text = unicodedata.normalize("NFKD", text)
-    text = text.lower()
-    # Keep alphanumeric (including unicode letters/digits) and spaces
-    text = re.sub(r"[^\w\s]", "", text, flags=re.UNICODE)
-    # Remove underscores (matched by \w but we don't want them)
-    text = text.replace("_", "")
-    text = re.sub(r"\s+", " ", text).strip()
-    return text
+from utils import normalize
 
 
 def make_track_id(artist: str, title: str) -> str:

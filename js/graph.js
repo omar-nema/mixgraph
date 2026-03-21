@@ -1,21 +1,4 @@
 // ═══════════════════════════════════════════
-// Seeded random (deterministic per-connection)
-// ═══════════════════════════════════════════
-function hashStr(s) {
-  let h = 0;
-  for (let i = 0; i < s.length; i++) {
-    h = ((h << 5) - h) + s.charCodeAt(i);
-    h |= 0;
-  }
-  return h;
-}
-
-function seededRand(seed) {
-  const x = Math.sin(seed) * 10000;
-  return x - Math.floor(x);
-}
-
-// ═══════════════════════════════════════════
 // Client-side cluster generation (BFS)
 // ═══════════════════════════════════════════
 function shuffleArray(arr) {
@@ -93,7 +76,7 @@ function enrichFromCache(clusterNodes) {
   return found;
 }
 
-function selectCluster(rootId) {
+function selectCluster(rootId, r1Limit = maxR1, r2Limit = r2PerR1) {
 
   const rootNode = graphNodes[rootId];
   const clusterNodes = [];
@@ -126,12 +109,11 @@ function selectCluster(rootId) {
   // R1: all neighbors, prefer nodes with children
   const r1All = getNeighbors(rootId, usedIds);
   const totalR1Available = r1All.length;
-  const r1ChildCount = (cid) => getNeighbors(cid, new Set([...usedIds, rootId])).length;
-  const withKids = r1All.filter(c => r1ChildCount(c) >= 1);
-  const deadEnds = r1All.filter(c => r1ChildCount(c) === 0);
+  const r1Kids = new Map(r1All.map(cid => [cid, getNeighbors(cid, new Set([...usedIds, rootId])).length]));
+  const withKids = r1All.filter(c => r1Kids.get(c) >= 1);
+  const deadEnds = r1All.filter(c => r1Kids.get(c) === 0);
   shuffleArray(withKids);
   shuffleArray(deadEnds);
-  const r1Limit = arguments[1] || maxR1;
   const r1Selected = [...withKids, ...deadEnds].slice(0, r1Limit);
 
   for (let i = 0; i < r1Selected.length; i++) {
@@ -143,7 +125,6 @@ function selectCluster(rootId) {
     // R2: max 2 per R1
     const r2Candidates = getNeighbors(r1GraphId, usedIds);
     shuffleArray(r2Candidates);
-    const r2Limit = arguments[2] != null ? arguments[2] : r2PerR1;
     const r2Selected = r2Candidates.slice(0, r2Limit);
 
     for (let j = 0; j < r2Selected.length; j++) {

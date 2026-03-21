@@ -12,7 +12,6 @@ Run after graph.py whenever you rebuild the graph.
 
 import json
 import re
-import os
 
 def extract_dj_names(full_string):
     """Extract DJ name(s) from a show title string.

@@ -7,8 +7,6 @@ function mobileArtHtml(node) {
 
 function showClusterMobile(cluster) {
   stopCurrentPlayback();
-  clusterArtistFilters = [];
-  clusterDjFilters = [];
   nodes = cluster.nodes;
   edges = cluster.edges;
   nodeMap = {};

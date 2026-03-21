@@ -236,25 +236,20 @@ function initProgressBarInteraction(card) {
   });
 }
 
-function playSC(nodeId, trackUrl) {
-  if (!initSCWidget()) {
-    const node = nodeMap[nodeId];
-    if (node && node.setUrl) { playSet(nodeId); }
-    return;
-  }
-
+function prepareCardForPlayback(nodeId, source) {
   const card = findCardForNode(nodeId);
   const btn = card ? card.querySelector('.play-btn') : null;
-
-  currentlyPlayingId = nodeId;
-  currentBackend = 'sc';
-  playingSetOffset = 0;
   if (btn) btn.innerHTML = PAUSE_SVG;
   if (card) {
     showLoading(card);
-    card.setAttribute('data-source', 'soundcloud');
+    card.setAttribute('data-source', source);
   }
+  return { card, btn };
+}
 
+const SC_LOAD_OPTS = { auto_play: true, show_artwork: false, visual: false, show_teaser: false, sharing: false, buying: false, show_user: true, color: 'B5705A' };
+
+function setupScWidget(nodeId, card, offsetSec, onError) {
   scWidgetReady = false;
   scWidget.unbind(SC.Widget.Events.READY);
   scWidget.unbind(SC.Widget.Events.PLAY);
@@ -264,6 +259,7 @@ function playSC(nodeId, trackUrl) {
   scWidget.bind(SC.Widget.Events.READY, () => {
     scWidgetReady = true;
     try { scWidget.play(); } catch (e) {}
+    if (offsetSec) setTimeout(() => scWidget.seekTo(offsetSec * 1000), 800);
   });
   scWidget.bind(SC.Widget.Events.PLAY, () => {
     clearPlayTimeout();
@@ -272,7 +268,22 @@ function playSC(nodeId, trackUrl) {
     startProgressPolling();
   });
   scWidget.bind(SC.Widget.Events.FINISH, onPlaybackEnded);
-  scWidget.bind(SC.Widget.Events.ERROR, () => {
+  scWidget.bind(SC.Widget.Events.ERROR, onError);
+}
+
+function playSC(nodeId, trackUrl) {
+  if (!initSCWidget()) {
+    const node = nodeMap[nodeId];
+    if (node && node.setUrl) { playSet(nodeId); }
+    return;
+  }
+
+  const { card } = prepareCardForPlayback(nodeId, 'soundcloud');
+  currentlyPlayingId = nodeId;
+  currentBackend = 'sc';
+  playingSetOffset = 0;
+
+  setupScWidget(nodeId, card, 0, () => {
     hideScPlayer();
     resetCardUI(nodeId);
     currentlyPlayingId = null;
@@ -282,49 +293,22 @@ function playSC(nodeId, trackUrl) {
   });
 
   showScPlayer();
-  scWidget.load(trackUrl, { auto_play: true, show_artwork: false, visual: false, show_teaser: false, sharing: false, buying: false, show_user: true, color: 'B5705A' });
+  scWidget.load(trackUrl, SC_LOAD_OPTS);
   startPlayTimeout(nodeId, true);
 }
 
 function playSCSet(nodeId, setUrl, offsetSec) {
   if (!initSCWidget()) return;
 
-  const card = findCardForNode(nodeId);
-  const btn = card ? card.querySelector('.play-btn') : null;
-
+  const { card } = prepareCardForPlayback(nodeId, 'set');
   currentlyPlayingId = nodeId;
   currentBackend = 'sc';
   playingSetOffset = offsetSec ? offsetSec * 1000 : 0;
-  if (btn) btn.innerHTML = PAUSE_SVG;
-  if (card) {
-    showLoading(card);
-    card.setAttribute('data-source', 'set');
-  }
 
-  scWidgetReady = false;
-  scWidget.unbind(SC.Widget.Events.READY);
-  scWidget.unbind(SC.Widget.Events.PLAY);
-  scWidget.unbind(SC.Widget.Events.FINISH);
-  scWidget.unbind(SC.Widget.Events.ERROR);
-
-  scWidget.bind(SC.Widget.Events.READY, () => {
-    scWidgetReady = true;
-    try { scWidget.play(); } catch (e) {}
-    if (offsetSec) {
-      setTimeout(() => scWidget.seekTo(offsetSec * 1000), 800);
-    }
-  });
-  scWidget.bind(SC.Widget.Events.PLAY, () => {
-    clearPlayTimeout();
-    showScPlayer();
-    if (card) { hideLoading(card); card.classList.add('playing'); applyGlow(card); }
-    startProgressPolling();
-  });
-  scWidget.bind(SC.Widget.Events.FINISH, onPlaybackEnded);
-  scWidget.bind(SC.Widget.Events.ERROR, () => { hideScPlayer(); onPlaybackEnded(); });
+  setupScWidget(nodeId, card, offsetSec, () => { hideScPlayer(); onPlaybackEnded(); });
 
   showScPlayer();
-  scWidget.load(setUrl, { auto_play: true, show_artwork: false, visual: false, show_teaser: false, sharing: false, buying: false, show_user: true, color: 'B5705A' });
+  scWidget.load(setUrl, SC_LOAD_OPTS);
   startPlayTimeout(nodeId, false);
 }
 
@@ -340,18 +324,11 @@ function hideMcPlayer() {
 }
 
 function playMixcloud(nodeId, mixcloudUrl, offsetSec) {
-  const card = findCardForNode(nodeId);
-  const btn = card ? card.querySelector('.play-btn') : null;
-
+  const { card, btn } = prepareCardForPlayback(nodeId, 'set');
   currentlyPlayingId = nodeId;
   currentBackend = 'mc';
   playingSetOffset = offsetSec ? offsetSec * 1000 : 0;
-  if (btn) btn.innerHTML = PAUSE_SVG;
-  if (card) {
-    card.classList.add('playing');
-    applyGlow(card);
-    card.setAttribute('data-source', 'set');
-  }
+  if (card) { card.classList.add('playing'); applyGlow(card); }
 
   // Mixcloud widget needs the path, not the full URL
   const mcPath = mixcloudUrl.replace(/^https?:\/\/(www\.)?mixcloud\.com/, '');

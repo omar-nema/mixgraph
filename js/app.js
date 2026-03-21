@@ -4,8 +4,6 @@ function showCluster(cluster) {
     return;
   }
   clearGraph();
-  clusterArtistFilters = [];
-  clusterDjFilters = [];
   currentCluster = cluster;
   nodes = cluster.nodes;
   edges = cluster.edges;
@@ -128,7 +126,7 @@ function matchesFilter(nodeId, filter) {
   return true;
 }
 
-function getFilteredPoolSize() {
+function getFilteredPool() {
   const filter = document.getElementById('source-filter').value;
   let pool = candidates.filter(id => matchesFilter(id, filter));
   const hasSearch = searchFilters.length > 0 || djSearchFilters.length > 0 || clusterArtistFilters.length > 0 || clusterDjFilters.length > 0;
@@ -151,38 +149,16 @@ function getFilteredPoolSize() {
       return genreFilters.some(g => genres.includes(g));
     });
   }
-  return pool.length;
+  return pool;
+}
+
+function getFilteredPoolSize() {
+  return getFilteredPool().length;
 }
 
 function shuffle() {
   if (frozen || candidates.length === 0) return;
-  const filter = document.getElementById('source-filter').value;
-  let pool = candidates.filter(id => matchesFilter(id, filter));
-
-  // Artist + DJ search filters (search bar + cluster pills): OR within each, union across both, intersect with pool
-  const hasSearch = searchFilters.length > 0 || djSearchFilters.length > 0 || clusterArtistFilters.length > 0 || clusterDjFilters.length > 0;
-  if (hasSearch) {
-    const allIds = [
-      ...searchFilters.flatMap(f => f.trackIds),
-      ...djSearchFilters.flatMap(f => [...f.trackIds]),
-      ...clusterArtistFilters.flatMap(f => f.trackIds),
-      ...clusterDjFilters.flatMap(f => [...f.trackIds])
-    ];
-    const searchSet = new Set(allIds);
-    pool = pool.filter(id => searchSet.has(id));
-    if (pool.length === 0) {
-      pool = [...searchSet].filter(id => graphNodes[id] && matchesFilter(id, filter));
-    }
-  }
-
-  // Genre filters: OR within, AND with search filters
-  if (genreFilters.length > 0) {
-    pool = pool.filter(id => {
-      const genres = graphNodes[id].genres || [];
-      return genreFilters.some(g => genres.includes(g));
-    });
-  }
-
+  const pool = getFilteredPool();
   if (pool.length === 0) {
     console.warn('No tracks match current filters');
     return;
@@ -1197,42 +1173,31 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   // ── Filter state management ──
-  function addSearchFilter(entry) {
-    if (searchFilters.some(f => f.display === entry.display)) return;
-    searchFilters.push({ display: entry.display, trackIds: entry.trackIds });
+  function modifyFilter(arr, action, renderDesktop, renderMobile) {
+    action(arr);
     shuffleHistory.clear();
-    renderFindChips();
-    renderMobileFindChips();
+    renderDesktop();
+    renderMobile();
     updateFilterUI();
     updateClusterPills();
   }
 
+  function addSearchFilter(entry) {
+    if (searchFilters.some(f => f.display === entry.display)) return;
+    modifyFilter(searchFilters, a => a.push({ display: entry.display, trackIds: entry.trackIds }), renderFindChips, renderMobileFindChips);
+  }
+
   function removeSearchFilter(index) {
-    searchFilters.splice(index, 1);
-    shuffleHistory.clear();
-    renderFindChips();
-    renderMobileFindChips();
-    updateFilterUI();
-    updateClusterPills();
+    modifyFilter(searchFilters, a => a.splice(index, 1), renderFindChips, renderMobileFindChips);
   }
 
   function addDjFilter(entry) {
     if (djSearchFilters.some(f => f.display === entry.display)) return;
-    djSearchFilters.push({ display: entry.display, trackIds: entry.trackIds });
-    shuffleHistory.clear();
-    renderDjChips();
-    renderMobileDjChips();
-    updateFilterUI();
-    updateClusterPills();
+    modifyFilter(djSearchFilters, a => a.push({ display: entry.display, trackIds: entry.trackIds }), renderDjChips, renderMobileDjChips);
   }
 
   function removeDjFilter(index) {
-    djSearchFilters.splice(index, 1);
-    shuffleHistory.clear();
-    renderDjChips();
-    renderMobileDjChips();
-    updateFilterUI();
-    updateClusterPills();
+    modifyFilter(djSearchFilters, a => a.splice(index, 1), renderDjChips, renderMobileDjChips);
   }
 
   function toggleGenre(name) {
