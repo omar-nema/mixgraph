@@ -361,69 +361,65 @@ export default {
         const count = Math.min(parseInt(q.get('count')) || 12, 24);
         if (page > 50) return jsonResponse({ error: 'Max page depth is 50' }, 400);
 
-        const candidatesBlob = await env.GRAPH_KV.get('candidates', 'json');
-        let pool = candidatesBlob.ids;
+        // Fix 1: read pre-computed seed pool — 1 KV read instead of 68K.
+        // 'crates-seeds' is built by pipeline/build_kv.js: candidates filtered to 4+ edges.
+        const seedPool = await env.GRAPH_KV.get('crates-seeds', 'json');
+        if (!seedPool || seedPool.length === 0) {
+          return jsonResponse({ error: 'crates-seeds index not found — rebuild KV' }, 500);
+        }
 
-        // Filter pool to 4+ edges — need to check edge counts from KV
-        // For crates, we use the candidates list and filter by checking nodes
-        // This is expensive for the first request but KV reads are fast (~1ms each)
-
-        // LCG for deterministic shuffle
+        // LCG for deterministic shuffle (matches shared/graph-logic.js)
         let rngState = seed === 0 ? 1 : seed;
         function rng() {
           rngState = (rngState * 16807) % 2147483647;
           return (rngState - 1) / 2147483646;
         }
 
-        // For crates, we need to find nodes with 4+ edges
-        // Read a batch to filter, then shuffle deterministically
-        const seedPool = [];
-        const batchSize = 500;
-        for (let i = 0; i < pool.length; i += batchSize) {
-          const batch = pool.slice(i, i + batchSize);
-          const nodes = await Promise.all(batch.map(id => getNode(env.GRAPH_KV, id)));
-          for (let j = 0; j < batch.length; j++) {
-            if (nodes[j] && (nodes[j].edges || []).length >= 4) {
-              seedPool.push(batch[j]);
-            }
-          }
-        }
-
         // Deterministic shuffle
-        for (let i = seedPool.length - 1; i > 0; i--) {
+        const pool = [...seedPool];
+        for (let i = pool.length - 1; i > 0; i--) {
           const j = Math.floor(rng() * (i + 1));
-          [seedPool[i], seedPool[j]] = [seedPool[j], seedPool[i]];
+          [pool[i], pool[j]] = [pool[j], pool[i]];
         }
 
-        // Fast-forward + generate page
-        const skip = page * count;
-        let poolIdx = 0, produced = 0;
+        // Fix 3: direct page slicing — jump straight to this page's starting index.
+        // No O(page) fast-forward loop; usedNodes tracks only within this request.
+        const startIdx = page * count;
         const usedNodes = new Set();
 
+        // Fix 2: level-by-level batched BFS — one Promise.all per frontier level
+        // instead of one sequential KV read per node.
         async function buildCrateCluster(seedKey) {
           if (usedNodes.has(seedKey)) return null;
           const size = 15 + Math.floor(rng() * 40);
 
-          // BFS from KV
+          // BFS: fetch each frontier level in parallel
           const visited = new Set([seedKey]);
-          const queue = [seedKey];
-          while (queue.length && visited.size < size) {
-            const key = queue.shift();
-            const node = await getNode(env.GRAPH_KV, key);
-            if (!node || !node.edges) continue;
-            for (const edge of node.edges) {
-              if (visited.size >= size) break;
-              if (!visited.has(edge.node)) {
-                visited.add(edge.node);
-                queue.push(edge.node);
+          let frontier = [seedKey];
+          while (frontier.length > 0 && visited.size < size) {
+            const frontierNodes = await Promise.all(
+              frontier.map(id => getNode(env.GRAPH_KV, id))
+            );
+            const next = [];
+            for (let fi = 0; fi < frontier.length; fi++) {
+              const node = frontierNodes[fi];
+              if (!node || !node.edges) continue;
+              for (const edge of node.edges) {
+                if (visited.size >= size) break;
+                if (!visited.has(edge.node)) {
+                  visited.add(edge.node);
+                  next.push(edge.node);
+                }
               }
             }
+            frontier = next;
           }
+
           const members = [...visited];
           const overlap = members.filter(m => usedNodes.has(m)).length;
           if (overlap > members.length * 0.3) return null;
 
-          // Fetch member nodes for artwork
+          // Fetch all member nodes in parallel for artwork
           const memberNodes = await Promise.all(members.map(id => getNode(env.GRAPH_KV, id)));
           const artworks = [], artKeys = [];
           for (let i = 0; i < members.length; i++) {
@@ -435,12 +431,10 @@ export default {
 
           const seedNode = memberNodes[0];
           const [artist, title] = seedKey.split(':::');
-
-          // Estimate cluster display size
           let displayCount = 1;
           if (seedNode && seedNode.edges) {
             const r1 = seedNode.edges.length;
-            displayCount = 1 + r1 + Math.min(2, r1) * 2; // rough estimate
+            displayCount = 1 + r1 + Math.min(2, r1) * 2;
           }
 
           return {
@@ -456,20 +450,15 @@ export default {
           };
         }
 
-        // Skip past earlier pages
-        while (produced < skip && poolIdx < seedPool.length) {
-          const c = await buildCrateCluster(seedPool[poolIdx++]);
-          if (c) { c.memberKeys.forEach(k => usedNodes.add(k)); produced++; }
-        }
-
-        // Collect this page
+        // Collect this page's clusters starting from the page's slice of the pool
         const clusters = [];
-        while (clusters.length < count && poolIdx < seedPool.length) {
-          const c = await buildCrateCluster(seedPool[poolIdx++]);
+        let poolIdx = startIdx;
+        while (clusters.length < count && poolIdx < pool.length) {
+          const c = await buildCrateCluster(pool[poolIdx++]);
           if (c) { c.memberKeys.forEach(k => usedNodes.add(k)); clusters.push(c); }
         }
 
-        return jsonResponse({ clusters, hasMore: poolIdx < seedPool.length });
+        return jsonResponse({ clusters, hasMore: poolIdx < pool.length });
       }
 
       return jsonResponse({ error: 'Not found' }, 404);

@@ -28,6 +28,11 @@ const displayGenres = genreList.slice(0, 30);
 
 console.log(`${candidates.length} candidates, ${artistListAlpha.length} artists, ${djListAlpha.length} DJs`);
 
+// Pre-compute crates seed pool: candidates with 4+ edges
+// Stored as a separate KV blob so the worker doesn't need 68K KV reads to filter
+const cratesSeeds = candidates.filter(id => (graphNodes[id]?.edges?.length ?? 0) >= 4);
+console.log(`${cratesSeeds.length} crates seeds (nodes with 4+ edges)`);
+
 // Build KV entries
 const entries = [];
 
@@ -39,6 +44,7 @@ entries.push({
     weights: Array.from(candidateWeights),
   }),
 });
+entries.push({ key: 'crates-seeds', value: JSON.stringify(cratesSeeds) });
 entries.push({ key: 'genres', value: JSON.stringify(displayGenres) });
 entries.push({ key: 'artist-index', value: JSON.stringify(artistListAlpha) });
 entries.push({ key: 'dj-index', value: JSON.stringify(djListAlpha) });

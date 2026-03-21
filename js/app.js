@@ -469,8 +469,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     const crateSeed = Date.now() % 2147483647 || 1;
-    const pendingPages = {};
     let pageIdCounter = 0;
+    const pageNums = {}; // "col,row" -> assigned page number (preserved across retries)
 
     // Page grid: each page is viewport-sized, keyed by "col,row"
     const pages = {};       // "col,row" -> { clusters, el, stacks, artLoaded }
@@ -582,7 +582,11 @@ document.addEventListener('DOMContentLoaded', async () => {
       const key = `${col},${row}`;
       if (pages[key] || pendingPageKeys.has(key)) return;
       pendingPageKeys.add(key);
-      const pageNum = pageIdCounter++;
+
+      // Assign a page number once per grid cell and reuse it on retry,
+      // so a failed request doesn't skip clusters when it retries.
+      if (pageNums[key] === undefined) pageNums[key] = pageIdCounter++;
+      const pageNum = pageNums[key];
 
       const filters = {};
       if (genreFilters.length) filters.genres = genreFilters;
@@ -595,6 +599,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         count: CLUSTERS_PER_PAGE,
         ...filters,
       }).then(result => {
+        delete pageNums[key];
         const clusters = result.clusters || [];
         // Run treemap layout client-side
         if (clusters.length > 0) {
@@ -606,7 +611,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
       }).catch(err => {
         console.error('Crates page failed:', err.message);
-        pendingPageKeys.delete(key);
+        pendingPageKeys.delete(key); // pageNums[key] kept — same number used on retry
       });
     }
 
