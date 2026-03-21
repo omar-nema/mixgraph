@@ -31,18 +31,45 @@ console.log(`${candidates.length} candidates, ${artistListAlpha.length} artists,
 // Build KV entries
 const entries = [];
 
+// Build enriched candidates — include filter fields so Worker doesn't need per-node reads
+const enrichedCandidates = candidates.map((id, i) => {
+  const node = graphNodes[id];
+  const cached = audioCache[id] || {};
+  // Collect DJ names for this node (expanded via djNameMap)
+  const djNames = new Set();
+  for (const edge of (node.edges || [])) {
+    for (const ctx of (edge.contexts || [])) {
+      const raw = (ctx.dj || '').trim();
+      if (!raw) continue;
+      const names = djNameMap[raw] || [raw];
+      names.forEach(n => djNames.add(n.toLowerCase()));
+    }
+  }
+  return {
+    id,
+    w: candidateWeights[i],
+    g: node.genres || [],              // genres
+    s: cached.source || 'not_found',   // source
+    st: cached.scTrackUrl ? 1 : 0,     // has SC track (for source filter)
+    ss: cached.setSource || null,       // set source (for lotradio filter)
+    a: (node.artist || '').toLowerCase(), // artist (lowercase for filtering)
+    e: (node.edges || []).length,       // edge count (for crates 4+ filter)
+    d: [...djNames],                    // DJ names (lowercase)
+  };
+});
+
 // Index blobs (small, read on every request)
 entries.push({
   key: 'candidates',
-  value: JSON.stringify({
-    ids: candidates,
-    weights: Array.from(candidateWeights),
-  }),
+  value: JSON.stringify(enrichedCandidates),
 });
 entries.push({ key: 'genres', value: JSON.stringify(displayGenres) });
 entries.push({ key: 'artist-index', value: JSON.stringify(artistListAlpha) });
 entries.push({ key: 'dj-index', value: JSON.stringify(djListAlpha) });
 entries.push({ key: 'dj-name-map', value: JSON.stringify(djNameMap) });
+
+const candSizeMB = (Buffer.byteLength(JSON.stringify(enrichedCandidates)) / 1024 / 1024).toFixed(1);
+console.log(`Enriched candidates blob: ${candSizeMB}MB`);
 
 console.log(`Index blobs: ${entries.length} entries`);
 

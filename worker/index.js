@@ -216,78 +216,31 @@ export default {
 
       // GET /api/shuffle
       if (url.pathname === '/api/shuffle') {
-        const candidatesBlob = await env.GRAPH_KV.get('candidates', 'json');
-        const djNameMap = await env.GRAPH_KV.get('dj-name-map', 'json');
-        let pool = candidatesBlob.ids;
-        const weights = candidatesBlob.weights;
+        const allCandidates = await env.GRAPH_KV.get('candidates', 'json');
 
-        // Apply filters
+        // Apply filters — all filtering uses the enriched candidates blob (no KV reads)
         const genres = csvParam(q.get('genres'));
         const artists = csvParam(q.get('artists'));
         const djs = csvParam(q.get('djs'));
         const source = q.get('source');
         const exclude = new Set(csvParam(q.get('exclude')));
 
-        // For genre/artist/DJ filtering, we need to read nodes — but reading 100K nodes
-        // from KV isn't feasible. Instead, filter against the candidates list by reading
-        // only the nodes that are candidates. For large filters (genres), we batch-read.
+        let pool = allCandidates;
         if (genres.length > 0 || artists.length > 0 || djs.length > 0 || (source && source !== 'none')) {
-          // Read a sample of nodes to filter — for efficiency, read nodes in batches
-          // For DJ/artist filters, scan by reading nodes in parallel batches
-          const batchSize = 200;
-          const filtered = [];
-
-          for (let i = 0; i < pool.length; i += batchSize) {
-            const batch = pool.slice(i, i + batchSize);
-            const nodes = await Promise.all(batch.map(id => getNode(env.GRAPH_KV, id)));
-
-            for (let j = 0; j < batch.length; j++) {
-              const node = nodes[j];
-              if (!node) continue;
-              const id = batch[j];
-
-              // Source filter
-              if (source && source !== 'none') {
-                const hasScTrack = !!node.scTrackUrl;
-                if (source === 'soundcloud' && !hasScTrack) continue;
-                if (source === 'soundcloud_set' && (hasScTrack || node.source !== 'soundcloud_set')) continue;
-                if (source === 'lotradio' && (hasScTrack || node.setSource !== 'soundcloud')) continue;
-              }
-
-              // Genre filter
-              if (genres.length > 0) {
-                if (!genres.some(g => (node.genres || []).includes(g))) continue;
-              }
-
-              // Artist filter
-              if (artists.length > 0) {
-                const nodeArtist = (node.artist || '').toLowerCase();
-                if (!artists.some(a => nodeArtist.includes(a.toLowerCase()))) continue;
-              }
-
-              // DJ filter
-              if (djs.length > 0) {
-                const djsLower = djs.map(d => d.toLowerCase());
-                let djMatch = false;
-                for (const edge of (node.edges || [])) {
-                  for (const ctx of (edge.contexts || [])) {
-                    const rawDj = (ctx.dj || '').trim();
-                    if (!rawDj) continue;
-                    const names = (djNameMap && djNameMap[rawDj]) || [rawDj];
-                    if (names.some(n => djsLower.includes(n.toLowerCase()))) {
-                      djMatch = true;
-                      break;
-                    }
-                  }
-                  if (djMatch) break;
-                }
-                if (!djMatch) continue;
-              }
-
-              filtered.push(id);
+          pool = allCandidates.filter(c => {
+            if (source && source !== 'none') {
+              if (source === 'soundcloud' && !c.st) return false;
+              if (source === 'soundcloud_set' && (c.st || c.s !== 'soundcloud_set')) return false;
+              if (source === 'lotradio' && (c.st || c.ss !== 'soundcloud')) return false;
             }
-          }
-          pool = filtered;
+            if (genres.length > 0 && !genres.some(g => c.g.includes(g))) return false;
+            if (artists.length > 0 && !artists.some(a => c.a.includes(a.toLowerCase()))) return false;
+            if (djs.length > 0) {
+              const djsLower = djs.map(d => d.toLowerCase());
+              if (!c.d.some(d => djsLower.includes(d))) return false;
+            }
+            return true;
+          });
         }
 
         if (pool.length === 0) {
@@ -295,37 +248,28 @@ export default {
         }
 
         // Exclude recently seen
-        let unseen = pool.filter(id => !exclude.has(id));
+        let unseen = pool.filter(c => !exclude.has(c.id));
         if (unseen.length === 0) unseen = pool;
 
         // Weighted random pick
         const hasArtistDjFilter = artists.length > 0 || djs.length > 0;
-        let rootId;
-        if (!weights || hasArtistDjFilter) {
-          rootId = unseen[Math.floor(Math.random() * unseen.length)];
+        let picked;
+        if (hasArtistDjFilter) {
+          picked = unseen[Math.floor(Math.random() * unseen.length)];
         } else {
-          // Build index map for weight lookup
-          const idxMap = new Map();
-          for (let i = 0; i < candidatesBlob.ids.length; i++) {
-            idxMap.set(candidatesBlob.ids[i], i);
-          }
           let totalW = 0;
-          for (const id of unseen) {
-            const idx = idxMap.get(id);
-            totalW += idx !== undefined ? weights[idx] : 1;
-          }
+          for (const c of unseen) totalW += c.w;
           let r = Math.random() * totalW;
-          rootId = unseen[unseen.length - 1];
-          for (const id of unseen) {
-            const idx = idxMap.get(id);
-            r -= idx !== undefined ? weights[idx] : 1;
-            if (r <= 0) { rootId = id; break; }
+          picked = unseen[unseen.length - 1];
+          for (const c of unseen) {
+            r -= c.w;
+            if (r <= 0) { picked = c; break; }
           }
         }
 
         const r1 = parseInt(q.get('r1')) || 4;
         const r2 = parseInt(q.get('r2')) || 1;
-        const cluster = await selectClusterFromKV(env.GRAPH_KV, rootId, r1, r2);
+        const cluster = await selectClusterFromKV(env.GRAPH_KV, picked.id, r1, r2);
         if (!cluster) {
           return jsonResponse({ error: 'Failed to build cluster' }, 500);
         }
@@ -361,12 +305,7 @@ export default {
         const count = Math.min(parseInt(q.get('count')) || 12, 24);
         if (page > 50) return jsonResponse({ error: 'Max page depth is 50' }, 400);
 
-        const candidatesBlob = await env.GRAPH_KV.get('candidates', 'json');
-        let pool = candidatesBlob.ids;
-
-        // Filter pool to 4+ edges — need to check edge counts from KV
-        // For crates, we use the candidates list and filter by checking nodes
-        // This is expensive for the first request but KV reads are fast (~1ms each)
+        const allCandidates = await env.GRAPH_KV.get('candidates', 'json');
 
         // LCG for deterministic shuffle
         let rngState = seed === 0 ? 1 : seed;
@@ -375,19 +314,23 @@ export default {
           return (rngState - 1) / 2147483646;
         }
 
-        // For crates, we need to find nodes with 4+ edges
-        // Read a batch to filter, then shuffle deterministically
-        const seedPool = [];
-        const batchSize = 500;
-        for (let i = 0; i < pool.length; i += batchSize) {
-          const batch = pool.slice(i, i + batchSize);
-          const nodes = await Promise.all(batch.map(id => getNode(env.GRAPH_KV, id)));
-          for (let j = 0; j < batch.length; j++) {
-            if (nodes[j] && (nodes[j].edges || []).length >= 4) {
-              seedPool.push(batch[j]);
+        // Apply filters + require 4+ edges for crates seeds (no KV reads needed)
+        const genres = csvParam(q.get('genres'));
+        const artists = csvParam(q.get('artists'));
+        const djs = csvParam(q.get('djs'));
+
+        const seedPool = allCandidates
+          .filter(c => {
+            if (c.e < 4) return false;
+            if (genres.length > 0 && !genres.some(g => c.g.includes(g))) return false;
+            if (artists.length > 0 && !artists.some(a => c.a.includes(a.toLowerCase()))) return false;
+            if (djs.length > 0) {
+              const djsLower = djs.map(d => d.toLowerCase());
+              if (!c.d.some(d => djsLower.includes(d))) return false;
             }
-          }
-        }
+            return true;
+          })
+          .map(c => c.id);
 
         // Deterministic shuffle
         for (let i = seedPool.length - 1; i > 0; i--) {
