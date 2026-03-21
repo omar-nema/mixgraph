@@ -117,6 +117,21 @@ function getFilteredPoolSize() {
   return lastPoolSize;
 }
 
+// ── Loading / error overlay ──
+function showStatus(message, isError) {
+  const el = document.getElementById('app-status');
+  if (!el) return;
+  el.classList.remove('hidden', 'error');
+  if (isError) el.classList.add('error');
+  el.querySelector('.status-message').textContent = message;
+  el.querySelector('.status-retry').classList.toggle('hidden', !isError);
+}
+
+function hideStatus() {
+  const el = document.getElementById('app-status');
+  if (el) el.classList.add('hidden');
+}
+
 function buildFilterParams() {
   const source = document.getElementById('source-filter')?.value || 'none';
   const artists = [
@@ -140,33 +155,42 @@ function buildFilterParams() {
 
 async function shuffle() {
   if (frozen) return;
+  showStatus('loading');
   try {
     const cluster = await apiShuffle(buildFilterParams());
     if (cluster.meta.poolSize !== undefined) lastPoolSize = cluster.meta.poolSize;
     shuffleHistory.add(cluster.meta.root_id);
+    hideStatus();
     showCluster(cluster);
   } catch (err) {
     console.warn('Shuffle failed:', err.message);
     if (err.message.includes('No tracks match')) {
-      // Clear history and retry once
       shuffleHistory.clear();
       try {
         const cluster = await apiShuffle(buildFilterParams());
         if (cluster.meta.poolSize !== undefined) lastPoolSize = cluster.meta.poolSize;
         shuffleHistory.add(cluster.meta.root_id);
+        hideStatus();
         showCluster(cluster);
-      } catch (e) { console.error('Shuffle retry failed:', e.message); }
+      } catch (e) {
+        showStatus(e.message.includes('Failed to fetch') ? 'could not reach the server' : e.message, true);
+      }
+    } else {
+      showStatus(err.message.includes('Failed to fetch') ? 'could not reach the server' : err.message, true);
     }
   }
 }
 
 async function loadClusterById(id) {
   id = id.trim();
+  showStatus('loading');
   try {
     const cluster = await apiLoadCluster(id);
+    hideStatus();
     showCluster(cluster);
   } catch (err) {
     console.warn(`Cluster "${id}" not found:`, err.message);
+    showStatus(err.message.includes('Failed to fetch') ? 'could not reach the server' : `track not found`, true);
   }
 }
 
@@ -175,6 +199,10 @@ async function loadClusterById(id) {
 // ═══════════════════════════════════════════
 document.addEventListener('DOMContentLoaded', async () => {
   console.log(`API base: ${API_BASE}`);
+
+  // Wire retry button
+  const retryBtn = document.querySelector('.status-retry');
+  if (retryBtn) retryBtn.addEventListener('click', () => shuffle());
 
   // Init filters, search indexes, autocomplete, popovers
   const filterCtrl = await initFilters();

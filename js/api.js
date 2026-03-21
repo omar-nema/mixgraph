@@ -6,9 +6,9 @@ function resolveApiBase() {
   // 1. ?api=<url> query param — for testing on real devices via local IP
   const param = new URLSearchParams(window.location.search).get('api');
   if (param) return param;
-  // 2. localhost → local Node server
-  if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-    return 'http://localhost:3001';
+  // 2. Local dev — use same hostname so it works from any device on the LAN
+  if (['localhost', '127.0.0.1'].includes(window.location.hostname) || /^192\.168\./.test(window.location.hostname)) {
+    return `http://${window.location.hostname}:3001`;
   }
   // 3. Default → production Worker URL (future)
   return 'https://b2b.workers.dev';
