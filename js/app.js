@@ -153,18 +153,20 @@ function getFilteredPool() {
 }
 
 function getFilteredPoolSize() {
-  return getFilteredPool().length;
+  const pool = getFilteredPool();
+  if (!candidateWeights || !weightedPick._idxMap) return pool.length;
+  let totalW = 0;
+  for (const id of pool) {
+    const idx = weightedPick._idxMap.get(id);
+    totalW += idx !== undefined ? candidateWeights[idx] : 1;
+  }
+  return Math.round(totalW);
 }
 
 // Weighted random pick from a pool of candidate IDs
 function weightedPick(pool) {
   if (!candidateWeights || pool.length === 0) {
     return pool[Math.floor(Math.random() * pool.length)];
-  }
-  // Build index lookup once (candidates array → index)
-  if (!weightedPick._idxMap) {
-    weightedPick._idxMap = new Map();
-    for (let i = 0; i < candidates.length; i++) weightedPick._idxMap.set(candidates[i], i);
   }
   let totalW = 0;
   for (const id of pool) {
@@ -283,6 +285,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
       candidateWeights[i] = w;
     }
+    // Build candidate index map for weighted lookups
+    weightedPick._idxMap = new Map();
+    for (let i = 0; i < n; i++) weightedPick._idxMap.set(candidates[i], i);
     console.log('Genre rebalancing active:', genreWeightCaps);
   }
 
@@ -878,11 +883,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (didDrag) { e.stopPropagation(); didDrag = false; }
     }, true);
     cratesView.addEventListener('wheel', e => {
-      e.preventDefault();
       panX -= e.deltaX; panY -= e.deltaY;
       applyTransform();
       scheduleUpdateVisible();
-    }, { passive: false });
+    }, { passive: true });
 
     // Touch pan + pinch-to-zoom (mobile)
     let touchDragging = false, touchDidDrag = false;
