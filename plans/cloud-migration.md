@@ -432,139 +432,107 @@ Startup: ~3-5s to parse ~110MB JSON. One-time cost per server run.
 
 **File**: `worker/index.js`
 
-The Worker calls `shared/graph-logic.js` exactly like the local server. The adapter
-handles Cloudflare-specific concerns: loading from R2, routing, CORS headers.
+The Worker never loads the full graph into memory. Instead it reads individual nodes
+from KV on demand. The adapter handles Cloudflare-specific concerns: KV reads, routing,
+CORS headers.
 
 ```js
+// worker/index.js
+
 import {
-  buildCandidates, buildIndexes, buildGenreList,
-  getFilteredPool, weightedPickFromPool, selectCluster,
-  generateCratesPage,
+  getFilteredPool, weightedPickFromPool, selectClusterFromKV,
+  generateCratesPageFromKV,
 } from '../shared/graph-logic.js';
 
-// GraphDO: Cloudflare Durable Object — one persistent V8 isolate that holds the
-// loaded graph in memory. The shared logic runs inside it.
-// See memory discussion in §8.
-export class GraphDO {
-  constructor(state, env) {
-    this.state = state;
-    this.env = env;
-    this.graph = null;  // loaded lazily
-  }
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type',
+};
 
-  async loadIfNeeded() {
-    if (this.graph) return;
-    // Load from R2 (Cloudflare-specific — this is the only provider code)
-    const [gObj, aObj, dObj] = await Promise.all([
-      this.env.BUCKET.get('combined_graph.json.gz'),
-      this.env.BUCKET.get('audio_cache.json.gz'),
-      this.env.BUCKET.get('dj_name_map.json'),
-    ]);
-    const ds = new DecompressionStream('gzip');
-    const graphNodes = await new Response(gObj.body.pipeThrough(ds)).json().then(d => d.nodes);
-    // ... etc
-
-    // Build derived data using shared module (zero Cloudflare code)
-    const { candidates, candidateWeights, idxMap } = buildCandidates(graphNodes, audioCache);
-    const { artistListAlpha, djListAlpha }         = buildIndexes(graphNodes, djNameMap);
-    const genreList                                = buildGenreList(graphNodes);
-    this.graph = { graphNodes, audioCache, candidates, candidateWeights, idxMap,
-                   artistListAlpha, djListAlpha, genreList };
-  }
-
-  async fetch(request) {
-    await this.loadIfNeeded();
-    // Route to shared functions exactly as the local server does
-    // ...
-  }
-}
-
-// Worker entry point: thin router that delegates to the DO
 export default {
   async fetch(request, env) {
-    const id = env.GRAPH_DO.idFromName('singleton');
-    const stub = env.GRAPH_DO.get(id);
-    return stub.fetch(request);
+    if (request.method === 'OPTIONS') {
+      return new Response(null, { headers: corsHeaders });
+    }
+
+    const url = new URL(request.url);
+    const q = url.searchParams;
+
+    // Helper: read a pre-computed KV blob (small index blobs, ~1ms each)
+    async function kvGet(key) {
+      const val = await env.GRAPH_KV.get(key, 'json');
+      if (!val) throw new Error(`KV key not found: ${key}`);
+      return val;
+    }
+
+    // Helper: read a single node by ID
+    async function getNode(id) {
+      return env.GRAPH_KV.get(`node:${id}`, 'json');
+    }
+
+    if (url.pathname === '/api/shuffle') {
+      const candidates = await kvGet('candidates'); // { ids: [], weights: [] }
+      // apply filters, pick root, fetch root + BFS neighbors from KV (6-8 reads)
+      // ...
+      const cluster = await selectClusterFromKV(getNode, rootId, r1, r2);
+      return Response.json({ ...cluster }, { headers: corsHeaders });
+    }
+
+    if (url.pathname === '/api/genres') {
+      return Response.json(await kvGet('genres'), { headers: corsHeaders });
+    }
+
+    if (url.pathname === '/api/search/artists') {
+      const index = await kvGet('artist-index');
+      // filter index by q param, return top `limit` results
+      // ...
+    }
+
+    // ... other routes follow same pattern
   }
 };
 ```
 
 **What makes this Cloudflare-specific** (the parts that change when you migrate):
-1. `this.env.BUCKET.get(...)` — R2 object fetch
-2. `export class GraphDO` + `export default { fetch }` — Worker/DO entrypoint convention
+1. `env.GRAPH_KV.get(...)` — Workers KV read
+2. `export default { fetch }` — Worker entrypoint convention
 3. `wrangler.toml` — Cloudflare deployment config
 
 Everything else — all the graph logic, all the route handlers, all the response shapes —
 is in `shared/graph-logic.js` and a shared route-handler file that both adapters call.
 
-**Migrating to another provider** means writing a new ~100-line adapter that:
-1. Loads the JSON files from wherever (S3, disk, a CDN) into a plain `graphNodes` object
-2. Passes it to the same shared functions
-3. Exposes the same HTTP routes
+**Migrating to another provider** means writing a new adapter that reads from that
+provider's key-value store (every major cloud has one: DynamoDB, Upstash Redis, Vercel
+KV, Fly.io Redis). The shared logic is untouched.
 
 ---
 
-## 8. Memory: The Critical Problem
+## 8. Memory Model: KV-Per-Node
 
-**This is the most likely thing to break on day one.**
+The Worker never loads the full graph into memory. Each node is stored as a separate
+KV entry keyed by `node:{artist:::title}`. A shuffle request reads 6-8 nodes (root +
+BFS ring); a crates page reads ~60-80 nodes. Each KV read is ~1ms. No memory pressure,
+no cold start.
 
-110MB of raw JSON expands significantly when parsed into JavaScript objects. Each V8
-object has hidden class overhead, pointer indirection, and string interning costs. A
-reasonable estimate is **2–3× expansion**: 110MB JSON → **220–330MB of live heap**.
+**Pre-computed KV keys** (written once at deploy time, read on every request):
 
-The Cloudflare Durable Object memory limit is **128MB**. At current graph size, the DO
-will likely OOM on the first warm-up attempt.
+| Key | Contents | Size |
+|---|---|---|
+| `candidates` | `{ ids: string[], weights: number[] }` — valid root IDs + weights | ~2MB |
+| `genres` | `[{ name, count }]` — top 30 genres | tiny |
+| `artist-index` | `[{ display, trackCount, clusterCount }]` — for autocomplete | ~1MB |
+| `dj-index` | `[{ display, trackCount, clusterCount }]` — for autocomplete | ~500KB |
+| `dj-name-map` | `{ "show title": ["dj1", "dj2"] }` | ~200KB |
 
-### Option A: Durable Object with slim in-memory format
+**Shuffle flow**: read `candidates` (~1ms), pick random ID, fetch root node + its BFS
+neighbors from KV (6-8 reads at ~1ms each, fired in parallel). Total: ~5-10ms KV time.
 
-Strip the graph down before storing it in the DO. The full node structure is:
-```json
-{
-  "artist:::title": {
-    "title": "...", "artist": "...", "genres": [...],
-    "edges": [{ "node": "...", "contexts": [{ "dj": "...", "episode_url": "...", "date": "..." }] }]
-  }
-}
-```
+**Crates flow**: same per-node fetches, ~60-80 KV reads per page of 12 clusters. Still
+fast — KV reads can be batched in parallel per BFS round.
 
-For BFS and filtering, `contexts` is only needed when building the cluster response.
-Index-building only needs `artist`, `genres`, and edge `node` IDs. A stripped graph
-(edge node IDs only, no contexts) might fit in 128MB. Full context data is kept in a
-separate R2 object and fetched only for the ~15 nodes in a cluster response.
-
-Complexity: requires splitting the graph into two R2 objects at pipeline time.
-
-### Option B: Pre-sharded storage (recommended initial approach)
-
-Rather than holding the full graph in memory at once, shard it at deploy time:
-
-```
-b2b-graph-data/
-  meta.json               # candidates[], weights[], genreList, djIndex, artistIndex (~5MB total)
-  nodes/aa.json           # all nodes whose ID starts with "aa" through "az"
-  nodes/ba.json           # "ba" through "bz"
-  ...                     # ~26 files × ~4-6MB each
-```
-
-On each shuffle request:
-1. Load `meta.json` (cached in Worker module-level after first fetch, ~10ms)
-2. Pick a random candidate from the pre-computed list — O(1)
-3. Load the node shard containing the root + its neighbors (~2-4 shard files, ~10-30ms)
-4. Run BFS within those shards — all nodes needed for a 2-ring cluster are typically
-   in the same or adjacent shard by ID prefix
-
-No single request touches more than ~15MB of data. No DO needed. Cold start is near-zero.
-
-**Trade-off**: shard boundaries can split BFS traversal across files (root's r2 neighbors
-may be in different shards than its r1 neighbors). In the worst case this means 3-4
-parallel R2 fetches per shuffle. Still fast enough (~30-50ms total).
-
-**Recommendation**: Start with Option B. It avoids the memory cliff entirely and has no
-cold start. If the shard-boundary edge cases become a pain, revisit Option A with a
-stripped in-memory format.
-
-The local Node server is unaffected by this choice — it loads the full JSON at startup
-and holds everything in Node's heap (no 128MB cap).
+The local Node server is unaffected — it loads the full JSON at startup and holds
+everything in Node's heap. The KV structure is a deploy-time concern only.
 
 ---
 
@@ -596,31 +564,22 @@ if (request.method === 'OPTIONS') {
 
 ---
 
-## 10. R2 Storage Format (Cloudflare adapter)
+## 10. KV Storage Layout (Cloudflare adapter)
 
-Bucket: `b2b-graph-data`
+KV namespace: `GRAPH_KV`
 
-For Option B (recommended):
 ```
-b2b-graph-data/
-  meta.json               # candidates, weights, artistIndex, djIndex, genreList
-  nodes/aa.json           # nodes with IDs starting "aa"–"az" (uncompressed OK at ~4-6MB)
-  nodes/ba.json
-  ...
-  audio_cache.json.gz     # gzip-compressed (~8-12MB compressed)
-  dj_name_map.json
+node:{artist:::title}   →  full node JSON: { title, artist, genres, edges, audioUrl, ... }
+candidates              →  { ids: string[], weights: number[] }   (~2MB)
+genres                  →  [{ name: string, count: number }]       (top 30)
+artist-index            →  [{ display, trackCount, clusterCount }]
+dj-index                →  [{ display, trackCount, clusterCount }]
+dj-name-map             →  { "show title": ["dj1", "dj2"] }
 ```
 
-For Option A (if revisited):
-```
-b2b-graph-data/
-  graph-slim.json.gz      # stripped graph: edges only, no contexts (~20-30MB → ~5MB gzip)
-  graph-contexts.json.gz  # full contexts: only needed for cluster responses (~80MB → ~15MB)
-  audio_cache.json.gz
-  dj_name_map.json
-```
+Node count: ~126,720 entries. KV stores up to 10M keys — no sharding needed.
 
-The pipeline deploy script generates the appropriate format. See §11.
+The pipeline deploy script writes all entries via `wrangler kv:bulk put`. See §11.
 
 ---
 
@@ -628,36 +587,31 @@ The pipeline deploy script generates the appropriate format. See §11.
 
 Add a deploy step. No changes to `graph.py`, `enrich.py`, or `extract_dj_names.py`.
 
-**New file**: `pipeline/deploy_to_r2.sh`
+**New file**: `pipeline/build_kv.js` — reads `pipeline/output/combined_graph.json`,
+`audio_cache.json`, `dj_name_map.json`, and writes `pipeline/output/kv-bulk.json` —
+a JSON array of `{ key, value }` pairs in the format `wrangler kv:bulk put` expects.
+Also writes the pre-computed index blobs (`candidates`, `genres`, `artist-index`,
+`dj-index`, `dj-name-map`) as separate entries in the same bulk file.
+
+**New file**: `pipeline/deploy_to_kv.sh`
 
 ```bash
 #!/bin/bash
 set -e
 cd "$(dirname "$0")"
 
-echo "Building shards..."
-node ../server/build-shards.js   # reads pipeline/output/, writes pipeline/output/shards/
+echo "Building KV bulk file..."
+node build_kv.js   # reads output/, writes output/kv-bulk.json
 
-echo "Uploading meta + shards to R2..."
-npx wrangler r2 object put b2b-graph-data/meta.json --file output/shards/meta.json
-for f in output/shards/nodes/*.json; do
-  key="nodes/$(basename $f)"
-  npx wrangler r2 object put "b2b-graph-data/$key" --file "$f"
-done
-
-echo "Uploading audio cache..."
-gzip -k -f output/audio_cache.json
-npx wrangler r2 object put b2b-graph-data/audio_cache.json.gz \
-  --file output/audio_cache.json.gz --content-encoding gzip
-
-npx wrangler r2 object put b2b-graph-data/dj_name_map.json --file output/dj_name_map.json
+echo "Uploading to Workers KV..."
+npx wrangler kv:bulk put --namespace-id=$KV_NAMESPACE_ID output/kv-bulk.json
 
 echo "Done."
 ```
 
-**New file**: `server/build-shards.js` — reads `pipeline/output/combined_graph.json`,
-splits into `pipeline/output/shards/nodes/{prefix}.json` + writes
-`pipeline/output/shards/meta.json` (candidates, weights, indexes).
+The bulk file is large (~500MB uncompressed) but `wrangler kv:bulk put` handles it in
+batches. First deploy will take a few minutes; incremental re-deploys can diff and only
+update changed nodes (future optimisation — start with full re-upload).
 
 Full pipeline run after a scrape:
 ```bash
@@ -665,7 +619,7 @@ cd pipeline
 caffeinate -dims python3 graph.py
 caffeinate -dims python3 enrich.py
 python3 extract_dj_names.py
-./deploy_to_r2.sh
+./deploy_to_kv.sh
 ```
 
 ---
@@ -715,15 +669,23 @@ Estimated: ~2–5ms per skipped cluster → page 20 ≈ 500ms–1.2s server time
 Practical limit: cap the API at page 50 (600 clusters skipped, ~3-6s worst case).
 For a personal project with infinite-scroll crates, users rarely go past page 10.
 
-**Drop `usedNodes` entirely.** The current overlap check (`if (overlap > members.length * 0.3) continue`)
-prevents the same track appearing in two adjacent crates on screen. It's an aesthetic
-optimisation, not a correctness requirement. Without it, `generateCratesPage` is pure
-`(seed, page, count, filters) → clusters` with no external state:
+**`usedNodes` is rebuilt during fast-forward — no external state needed.** The seeded
+LCG makes the entire sequence deterministic: given the same seed, fast-forwarding always
+visits the same nodes in the same order. So `usedNodes` can be reconstructed locally
+during the replay loop, without storing it between requests.
+
+During the fast-forward pass (skipping to page N), track used nodes in a local `Set`.
+When generating page N's clusters, pass that `Set` into `buildCrateCluster()` for the
+same overlap check as today (`>30% overlap → skip`). The server is stateless from the
+client's perspective, but the UX is preserved.
+
+**Edge case: seed=0.** The Park-Miller LCG (`seed = seed * 16807 % 2147483647`) produces
+0 forever if the initial seed is 0. If `seed === 0`, use `1` instead.
 
 ```js
 // In shared/graph-logic.js
 export function generateCratesPage(graphNodes, audioCache, seed, page, count, filters = {}) {
-  let rngState = seed;
+  let rngState = seed === 0 ? 1 : seed;
   function rng() {
     rngState = (rngState * 16807) % 2147483647;
     return (rngState - 1) / 2147483646;
@@ -741,18 +703,20 @@ export function generateCratesPage(graphNodes, audioCache, seed, page, count, fi
     [seedPool[i], seedPool[j]] = [seedPool[j], seedPool[i]];
   }
 
-  // Fast-forward past earlier pages
+  // Fast-forward past earlier pages, rebuilding usedNodes as we go
   const skip = page * count;
   let poolIdx = 0, produced = 0;
+  const usedNodes = new Set();
   while (produced < skip && poolIdx < seedPool.length) {
-    if (buildCrateCluster(graphNodes, audioCache, seedPool[poolIdx++])) produced++;
+    const c = buildCrateCluster(graphNodes, audioCache, seedPool[poolIdx++], usedNodes);
+    if (c) { c.memberKeys.forEach(k => usedNodes.add(k)); produced++; }
   }
 
-  // Collect this page
+  // Collect this page (usedNodes now reflects all prior pages)
   const clusters = [];
   while (clusters.length < count && poolIdx < seedPool.length) {
-    const c = buildCrateCluster(graphNodes, audioCache, seedPool[poolIdx++]);
-    if (c) clusters.push(c);
+    const c = buildCrateCluster(graphNodes, audioCache, seedPool[poolIdx++], usedNodes);
+    if (c) { c.memberKeys.forEach(k => usedNodes.add(k)); clusters.push(c); }
   }
 
   return { clusters, hasMore: poolIdx < seedPool.length };
@@ -984,21 +948,20 @@ one passes a manual smoke test.
 - Implement deterministic `generateCratesPage()` in `shared/graph-logic.js`
 - Test crates pagination (page 0, 1, 2 return different non-repeating clusters)
 
-**Step 6: Build-shards script**
-- Create `server/build-shards.js`
-- Run against current graph, verify shard sizes and total
-- Verify that BFS for a random root stays within ~3 shard files
+**Step 6: KV build script**
+- Create `pipeline/build_kv.js` — writes `pipeline/output/kv-bulk.json`
+- Run against current graph, verify entry count (~126,720 nodes + index keys)
+- Spot-check a few node entries match the production graph
 
 **Step 7: Cloudflare Worker**
 - Create `worker/index.js` + `wrangler.toml`
-- Implement the Worker adapter using Option B (sharded R2 loads)
-- Wire CORS preflight handling at Worker level
+- Implement Worker adapter: KV reads for nodes + pre-computed indexes
+- Wire CORS preflight handling
 - Test locally: `wrangler dev`
 - Deploy: `wrangler deploy`
 
-**Step 8: R2 deploy script**
-- Write `pipeline/deploy_to_r2.sh`
-- Do first production deploy
+**Step 8: KV deploy**
+- Run `pipeline/deploy_to_kv.sh` (first full upload takes a few minutes)
 - Test on live domain from desktop + phone
 
 ---
@@ -1022,18 +985,14 @@ one passes a manual smoke test.
 
 ## 18. Risks and Drawbacks
 
-**V8 heap explosion (Option A)**
-110MB of JSON → ~220-330MB of live V8 heap. The DO's 128MB limit is almost certainly
-not enough at current graph size. This is why Option B (sharded) is the recommended
-starting point. If you add more sources and the graph grows, Option A becomes even
-less viable.
+**KV bulk upload time**
+First deploy of ~126,720 node entries takes a few minutes via `wrangler kv:bulk put`.
+Subsequent full re-uploads are the same cost. Incremental diffing (only upload changed
+nodes) is a future optimisation — not needed until pipeline runs are frequent.
 
-**Shard boundary BFS (Option B)**
-A root node's r1 or r2 neighbors may fall in different shards. In the worst case, a
-single `/api/shuffle` needs 3-4 parallel R2 fetches (~10-30ms each). This is fine
-for a personal project but worth monitoring. Mitigation: if shard misses become
-frequent, switch to content-based sharding (group by artist first char) so tracks
-from the same DJ set tend to cluster in the same shard.
+**KV read latency at scale**
+Each KV read is ~1ms. A shuffle (6-8 reads) adds ~5-10ms; a crates page (60-80 reads,
+parallelised per BFS round) adds ~10-30ms. Acceptable for a personal project.
 
 **Local server startup time**
 ~3-5s to parse ~110MB of JSON. Acceptable — one-time cost per server start. If annoying
@@ -1048,13 +1007,6 @@ The current browser cold start (~8-15s to download + parse 110MB) is far worse.
 `shared/graph-logic.js` uses ESM. Node requires `"type": "module"` in `package.json`
 or `.mjs` extension. The local server must also use ESM. This is a minor gotcha if
 you're used to `require()`.
-
-**Durable Object lock-in (acknowledged)**
-The DO is a Cloudflare-specific API. It's the only Cloudflare-specific part of the
-Worker adapter. If migrating to Fly.io, replace the DO with a long-running Node process
-(Fly keeps processes alive). On Vercel, replace with a serverless function that loads
-the sharded data from S3/R2. In both cases, `shared/graph-logic.js` is untouched — only
-the adapter changes.
 
 **Crates fast-forward cost**
 Fast-forwarding to page 50 means re-running 600 cluster constructions from scratch. At
