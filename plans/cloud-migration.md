@@ -83,13 +83,13 @@ The shared logic is untouched.
 | `app.js:261` | Genre rebalancing weight computation | Needs full graph |
 | `filters.js:23` | `initFilters()` — building `artistIndex`, `djIndex`, `episodeIndex` | Needs full graph |
 | `crates-worker.js:53` | `generateClusters()`, `cratesBfs()` | BFS over full graph |
-| `crates-worker.js:81` | `cratesTreemap()` | Move server-side for simplicity |
 
 ### Stays client-side
 
 | Function | Reason |
 |---|---|
 | `computeLayout()` (`graph.js:393`) | Needs DOM measurements (`el.offsetHeight`) |
+| `cratesTreemap()` (`crates-worker.js:81`) | Pure math but needs live viewport dimensions — must re-run on resize |
 | `renderCards()`, `renderConnections()` (`graph.js:232,352`) | DOM rendering |
 | `setupHovers()` (`graph.js:373`) | DOM event wiring |
 | `showCluster()` (`app.js:1`) | Layout + render orchestration |
@@ -268,17 +268,22 @@ Top genres list (replaces client-side genre index building).
 
 ### `GET /api/crates`
 
-Generate a page of crates clusters. Fully deterministic — same `seed` + `page` always
-returns the same clusters. See §12 for the pagination design.
+Generate a page of crates clusters. Fully deterministic — same `(seed, page, filters)`
+always returns the same clusters. See §12 for the full design.
+
+The server returns cluster data only. **Treemap layout is computed client-side** — the
+worker calls `cratesTreemap()` against the cluster list + current viewport after the
+API response arrives. This keeps layout correct on resize without a new API call.
 
 **Query params**:
 - `seed` — integer seed for deterministic shuffle (required)
 - `page` — page number, 0-indexed (default 0)
 - `count` — clusters per page (default 12)
-- `vw`, `vh` — viewport dimensions for treemap layout
-- `pad` — treemap padding (default 8)
+- `genres` — comma-separated genre names (mirrors shuffle filter)
+- `artists` — comma-separated artist names (url-encoded)
+- `djs` — comma-separated DJ names (url-encoded)
 
-**Response**:
+**Response** — no `rect` field; layout is client-side:
 ```json
 {
   "clusters": [
@@ -291,8 +296,7 @@ returns the same clusters. See §12 for the pagination design.
       "artworks": ["https://i1.sndcdn.com/...", "..."],
       "artKeys": ["four tet:::baby", "..."],
       "memberKeys": ["..."],
-      "weight": 18,
-      "rect": { "x": 8, "y": 8, "w": 400, "h": 300 }
+      "weight": 18
     }
   ],
   "hasMore": true
@@ -373,11 +377,13 @@ The `?api=` param overrides everything else — no code changes needed.
 - Filter pill state stays entirely client-side
 - `updateFilterUI()` uses `meta.poolSize` from the last shuffle response
 
-**`crates-worker.js` changes**:
-- Remove `initFromUrls()` and all graph/cache fetching
-- Worker receives `postMessage({ type: 'request', page, count, vw, vh, seed })`, calls
-  `api.getCratesPage(...)`, returns result to main thread
-- The worker still exists to keep crates off the main thread, but it's now thin
+**`crates-worker.js` changes** — see §12 for full detail:
+- Remove `initFromUrls()` and all graph/cache fetching (~100 lines gone)
+- Worker receives `postMessage({ type: 'generatePage', seed, page, count, vw, vh, pad, filters })`
+- Calls `api.getCratesPage({ seed, page, count, filters })` — gets cluster list, no rects
+- Runs `cratesTreemap(clusters, pad, pad, vw - pad*2, vh - pad*2)` locally on the result
+- Posts `{ type: 'page', id, clusters }` back to main thread
+- Worker also handles `type: 'prefetch'` — same flow but result is cached, not posted immediately
 
 ---
 
@@ -664,15 +670,31 @@ python3 extract_dj_names.py
 
 ---
 
-## 12. Crates Mode: Deterministic Pagination
+## 12. Crates Mode: Full Design
 
-The current `crates-worker.js` uses a seeded LCG (`crateRand()`) but tracks `usedNodes`
-and `seedIdx` as mutable state across page fetches. The server is stateless, so page N
-must be derivable from `(seed, page, count)` alone — no growing state.
+### 12a. Current state
 
-**Solution**: fast-forward the RNG.
+`crates-worker.js` is a self-contained Web Worker that:
+1. Fetches the full `combined_graph.json` + `audio_cache.json` itself (second full download)
+2. Builds its own compact `graphEdges` and `artUrls` maps
+3. Generates clusters page-by-page with BFS (`cratesBfs()`, `generateClusters()`)
+4. Tracks `usedNodes: Set` and `seedIdx: number` as mutable state across page requests
+5. Runs `cratesTreemap()` to compute pixel rects
+6. Posts finished, positioned clusters back to the main thread
 
-The LCG in `crates-worker.js:11`:
+After the migration:
+- Steps 1–3 move to the server (`shared/graph-logic.js` + `/api/crates`)
+- Step 4 (`usedNodes`) is dropped entirely — see §12b
+- Steps 5–6 stay in the worker — treemap layout stays client-side — see §12c
+
+### 12b. Pagination: stateless server via LCG fast-forward
+
+The server is stateless. Page N must be derivable from `(seed, page, count, filters)` alone
+without the server remembering anything from page N-1.
+
+**Solution**: replay the LCG from scratch on each request, skipping past earlier pages.
+
+The existing LCG in `crates-worker.js:11` is the Park-Miller generator:
 ```js
 function crateRand() {
   crateSeed = (crateSeed * 16807) % 2147483647;
@@ -680,52 +702,194 @@ function crateRand() {
 }
 ```
 
-To generate page N with `count` items per page, fast-forward past the first `N * count`
-clusters by re-running the shuffle from scratch up to that offset. Since the LCG is cheap
-(nanoseconds per call), fast-forwarding 1000 clusters takes ~microseconds.
+This is already fully deterministic given an initial seed. To serve page N:
+1. Initialise `rngState = seed`
+2. Build the full shuffled seed pool (same Fisher-Yates as before, driven by the RNG)
+3. Fast-forward: step through the pool generating clusters until `page * count` valid
+   clusters have been produced; discard their output
+4. Generate the next `count` clusters — these are the page N results
 
-The key change: **drop `usedNodes` overlap tracking entirely.** That was an optimization
-to avoid showing the same track in two crates on the same screen. It's not a correctness
-requirement — a slight overlap between adjacent crates is acceptable. Without `usedNodes`,
-`generateClusters(seed, page, count)` is fully deterministic:
+Fast-forward cost: each skipped cluster runs `cratesBfs()` — roughly proportional to
+cluster size (~15–40 nodes). At 12 clusters/page, page 20 skips 240 clusters.
+Estimated: ~2–5ms per skipped cluster → page 20 ≈ 500ms–1.2s server time.
+Practical limit: cap the API at page 50 (600 clusters skipped, ~3-6s worst case).
+For a personal project with infinite-scroll crates, users rarely go past page 10.
+
+**Drop `usedNodes` entirely.** The current overlap check (`if (overlap > members.length * 0.3) continue`)
+prevents the same track appearing in two adjacent crates on screen. It's an aesthetic
+optimisation, not a correctness requirement. Without it, `generateCratesPage` is pure
+`(seed, page, count, filters) → clusters` with no external state:
 
 ```js
 // In shared/graph-logic.js
-export function generateCratesPage(graphNodes, audioCache, seed, page, count) {
-  // 1. Build shuffled seed pool deterministically from seed
+export function generateCratesPage(graphNodes, audioCache, seed, page, count, filters = {}) {
   let rngState = seed;
   function rng() {
     rngState = (rngState * 16807) % 2147483647;
     return (rngState - 1) / 2147483646;
   }
-  const seedPool = buildSeedPool(graphNodes, rng);  // same shuffle logic as before
 
-  // 2. Fast-forward: skip first page * count valid clusters
-  const startIdx = page * count;
-  let clusterCount = 0;
-  let poolIdx = 0;
-  while (clusterCount < startIdx && poolIdx < seedPool.length) {
-    const cluster = buildCluster(graphNodes, seedPool[poolIdx++], rng);
-    if (cluster) clusterCount++;
+  // Build filtered candidate pool (same filter logic as /api/shuffle)
+  const pool = filters.genres || filters.artists || filters.djs
+    ? getFilteredPool(graphNodes, audioCache, allCandidates, filters)
+    : allCandidates;
+
+  // Shuffle pool deterministically
+  const seedPool = pool.filter(k => (graphNodes[k]?.edges?.length ?? 0) >= 4);
+  for (let i = seedPool.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [seedPool[i], seedPool[j]] = [seedPool[j], seedPool[i]];
   }
 
-  // 3. Generate `count` clusters from current position
+  // Fast-forward past earlier pages
+  const skip = page * count;
+  let poolIdx = 0, produced = 0;
+  while (produced < skip && poolIdx < seedPool.length) {
+    if (buildCrateCluster(graphNodes, audioCache, seedPool[poolIdx++])) produced++;
+  }
+
+  // Collect this page
   const clusters = [];
   while (clusters.length < count && poolIdx < seedPool.length) {
-    const cluster = buildCluster(graphNodes, seedPool[poolIdx++], rng);
-    if (cluster) clusters.push(cluster);
+    const c = buildCrateCluster(graphNodes, audioCache, seedPool[poolIdx++]);
+    if (c) clusters.push(c);
   }
-
-  // 4. treemap layout inline
-  cratesTreemap(clusters, pad, pad, vw - pad*2, vh - pad*2);
 
   return { clusters, hasMore: poolIdx < seedPool.length };
 }
 ```
 
-The `cratesTreemap` function stays in `shared/graph-logic.js` — it's pure math, no graph
-data needed, but co-locating it simplifies the API (server returns positioned rects,
-client just renders).
+`buildCrateCluster()` is the extracted body of the current `generateClusters()` loop —
+it runs `cratesBfs()` for one seed and returns the cluster object (without a rect).
+
+### 12c. Treemap layout stays client-side
+
+`cratesTreemap()` (`crates-worker.js:81`) takes `(items, x, y, w, h)` and mutates each
+item to add a `rect` property. It's pure math — no graph data, no network calls.
+
+It must stay client-side because:
+- It needs the **live viewport dimensions** (`vw`, `vh`) at render time
+- If the user resizes, the layout needs to re-run against the same cluster list with new
+  dimensions — without another API call
+
+The worker keeps `cratesTreemap()` as a local function. After each `getCratesPage()`
+response, the worker runs treemap before posting to the main thread:
+
+```js
+// Inside crates-worker.js (post-migration)
+async function handleGeneratePage({ id, seed, page, count, vw, vh, pad, filters }) {
+  const { clusters, hasMore } = await api.getCratesPage({ seed, page, count, ...filters });
+  if (clusters.length === 0) {
+    self.postMessage({ type: 'page', id, clusters: [] });
+    return;
+  }
+  // Layout runs here in the worker — no DOM access needed, pure math
+  cratesTreemap(clusters, pad, pad, vw - pad * 2, vh - pad * 2);
+  self.postMessage({ type: 'page', id, clusters, hasMore });
+}
+```
+
+On **resize**: the main thread re-runs treemap locally against the already-received
+cluster list (cached in `app.js`) — no new API call needed. The current `app.js` crates
+rendering would need a small addition to store the raw cluster list and re-layout on
+`resize`.
+
+### 12d. Prefetching
+
+For smooth infinite-scroll, the worker should prefetch the next page while the current
+one is rendering. Protocol:
+
+```
+Main thread                         Worker
+──────────                          ──────
+postMessage({ type: 'generatePage',   →  fetch /api/crates?page=0, run treemap
+  id: 0, page: 0, ... })
+                                    ←  postMessage({ type: 'page', id: 0, clusters })
+postMessage({ type: 'prefetch',       →  fetch /api/crates?page=1 in background
+  id: 1, page: 1, ... })                 (treemap deferred until vw/vh known)
+[user scrolls near bottom]
+postMessage({ type: 'generatePage',   →  if page 1 response already cached:
+  id: 1, page: 1, vw, vh, ... })          run treemap, postMessage immediately
+                                          else: await fetch, run treemap, postMessage
+```
+
+Implementation: the worker keeps a `Map<page, Promise<clusters>>` cache. `prefetch`
+pre-fires the API call and stores the promise. `generatePage` awaits the promise
+(already resolved if prefetch completed) then runs treemap.
+
+`prefetch` does not pass `vw`/`vh` because the user might resize before consuming the
+prefetched page. Treemap runs only when `generatePage` fires with current dimensions.
+
+### 12e. Filtering in crates
+
+Crates mode should respect the active genre/artist/DJ filters, consistent with the main
+shuffle view. The worker receives the current filter state from the main thread as part
+of each page request and passes it to the API:
+
+```js
+// Main thread → worker
+postMessage({
+  type: 'generatePage',
+  seed: crateSeed,
+  page: currentPage,
+  count: 12,
+  vw: window.innerWidth,
+  vh: window.innerHeight,
+  pad: 8,
+  filters: {
+    genres: genreFilters,      // ['Soul', 'Jazz']
+    artists: [...searchFilters.map(f => f.display)],
+    djs: [...djSearchFilters.map(f => f.display)],
+  }
+});
+```
+
+The server's `generateCratesPage()` applies `getFilteredPool()` before building the seed
+pool (shown in §12b pseudocode). The same `getFilteredPool()` function used by `/api/shuffle`
+handles this — no duplication.
+
+**Consistency note**: if filters change while crates is open, the main thread should
+reset the page counter to 0 and request a fresh page 0 with the new filters. The seed
+stays the same (it was chosen when crates opened); the pool just narrows.
+
+### 12f. What crates-worker.js looks like after migration
+
+Before: ~172 lines — fetches full graph/cache, builds indexes, runs BFS, treemap.
+
+After: ~60 lines — thin relay between main thread and API, plus local treemap:
+
+```js
+// crates-worker.js (post-migration, sketch)
+
+import { getCratesPage } from './api.js';   // or inline apiFetch
+
+const prefetchCache = new Map();  // page → Promise<{ clusters, hasMore }>
+
+function cratesTreemap(items, x, y, w, h) { /* unchanged from current */ }
+
+self.onmessage = async function(e) {
+  const { type, id, seed, page, count, vw, vh, pad, filters } = e.data;
+
+  if (type === 'prefetch') {
+    if (!prefetchCache.has(page)) {
+      prefetchCache.set(page, getCratesPage({ seed, page, count, ...filters }));
+    }
+    return;
+  }
+
+  if (type === 'generatePage') {
+    let promise = prefetchCache.get(page);
+    if (!promise) promise = getCratesPage({ seed, page, count, ...filters });
+    prefetchCache.delete(page);  // consume
+
+    const { clusters, hasMore } = await promise;
+    if (clusters.length > 0) {
+      cratesTreemap(clusters, pad, pad, vw - pad * 2, vh - pad * 2);
+    }
+    self.postMessage({ type: 'page', id, clusters, hasMore });
+  }
+};
+```
 
 ---
 
