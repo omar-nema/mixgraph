@@ -394,7 +394,7 @@
     position: fixed;
     top: calc(48px + env(safe-area-inset-top, 0px));
     right: 8px;
-    z-index: 199;
+    z-index: 310;
     width: calc(100vw - 16px);
     max-height: calc(100vh - 64px - env(safe-area-inset-top, 0px));
     overflow-y: auto;
