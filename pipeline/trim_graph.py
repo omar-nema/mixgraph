@@ -4,7 +4,7 @@ Trim the combined graph for frontend delivery.
 
 1. Back up the original (all fields, all episodes) to combined_graph_backup.json
 2. Reduce high-frequency NTS morning shows (keep N most recent per host)
-3. Strip fields unused by frontend (position, timestamp_a/b, first_timestamp, genres)
+3. Strip fields unused by frontend (position, timestamp_a/b, first_timestamp)
 4. Overwrite combined_graph.json with the trimmed version
 """
 
@@ -24,7 +24,7 @@ TRIM_RULES = {
 }
 
 # Fields to strip from the frontend-facing graph
-STRIP_NODE_FIELDS = ["first_timestamp", "genres"]
+STRIP_NODE_FIELDS = ["first_timestamp"]
 STRIP_CONTEXT_FIELDS = ["position", "timestamp_a", "timestamp_b"]
 
 

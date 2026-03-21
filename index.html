@@ -56,18 +56,24 @@
     <div id="mobile-genre-pills"></div>
   </div>
   <div id="mobile-artist-popover" class="mobile-popover">
-    <div id="mobile-artist-cluster-pills" class="cluster-pills"></div>
     <div id="mobile-find-chips-input">
       <input id="mobile-find-search" type="text" placeholder="Search artists" autocomplete="off">
     </div>
     <div id="mobile-find-ac"></div>
+    <div id="mobile-artist-cluster-section">
+      <div class="cluster-pills-label">Filter by artists shown in this cluster</div>
+      <div id="mobile-artist-cluster-pills" class="cluster-pills"></div>
+    </div>
   </div>
   <div id="mobile-dj-popover" class="mobile-popover">
-    <div id="mobile-dj-cluster-pills" class="cluster-pills"></div>
     <div id="mobile-dj-chips-input">
       <input id="mobile-dj-search" type="text" placeholder="Search DJs" autocomplete="off">
     </div>
     <div id="mobile-dj-ac"></div>
+    <div id="mobile-dj-cluster-section">
+      <div class="cluster-pills-label">Filter by DJs shown in this cluster</div>
+      <div id="mobile-dj-cluster-pills" class="cluster-pills"></div>
+    </div>
   </div>
   <button id="mobile-help-btn" style="display:none" title="How it works">?</button>
   <div id="mobile-help-panel">
@@ -91,49 +97,57 @@
       </div>
     </div>
     <div id="filter-row">
-      <div id="genre-pill-anchor">
-        <button class="filter-pill" id="pill-genre">Genre <span class="pill-count">(0)</span></button>
-        <div id="genre-popover">
-          <button class="popover-clear" id="genre-clear-btn" disabled>Clear all</button>
-          <div id="genre-pills"></div>
-        </div>
-      </div>
-      <div id="artist-pill-anchor">
-        <button class="filter-pill" id="pill-artist">Artist <span class="pill-count" id="artist-pill-count">(0)</span></button>
-        <div id="artist-popover">
-          <button class="popover-clear" id="artist-clear-btn" disabled>Clear all</button>
-          <div id="artist-cluster-pills" class="cluster-pills"></div>
-          <div id="artist-search-wrap-popover">
-            <div id="find-chips-input">
-              <input id="find-search" type="text" placeholder="Search artists" autocomplete="off">
-            </div>
-            <div id="find-ac"></div>
+      <div id="filter-row-left">
+        <div id="genre-pill-anchor">
+          <button class="filter-pill" id="pill-genre">Genre <span class="pill-count">0</span></button>
+          <div id="genre-popover">
+            <button class="popover-clear" id="genre-clear-btn" disabled>Clear all</button>
+            <div id="genre-pills"></div>
           </div>
         </div>
-      </div>
-      <div id="dj-pill-anchor">
-        <button class="filter-pill" id="pill-dj">DJ <span class="pill-count" id="dj-pill-count">(0)</span></button>
-        <div id="dj-popover">
-          <button class="popover-clear" id="dj-clear-btn" disabled>Clear all</button>
-          <div id="dj-cluster-pills" class="cluster-pills"></div>
-          <div id="dj-search-wrap-popover">
-            <div id="dj-chips-input">
-              <input id="dj-search" type="text" placeholder="Search DJs" autocomplete="off">
+        <div id="artist-pill-anchor">
+          <button class="filter-pill" id="pill-artist">Artist <span class="pill-count" id="artist-pill-count">0</span></button>
+          <div id="artist-popover">
+            <button class="popover-clear" id="artist-clear-btn" disabled>Clear all</button>
+            <div id="artist-search-wrap-popover">
+              <div id="find-chips-input">
+                <input id="find-search" type="text" placeholder="Search artists" autocomplete="off">
+              </div>
+              <div id="find-ac"></div>
             </div>
-            <div id="dj-ac"></div>
+            <div id="artist-cluster-section">
+              <div class="cluster-pills-label">Filter by artists shown in this cluster</div>
+              <div id="artist-cluster-pills" class="cluster-pills"></div>
+            </div>
           </div>
         </div>
+        <div id="dj-pill-anchor">
+          <button class="filter-pill" id="pill-dj">DJ <span class="pill-count" id="dj-pill-count">0</span></button>
+          <div id="dj-popover">
+            <button class="popover-clear" id="dj-clear-btn" disabled>Clear all</button>
+            <div id="dj-search-wrap-popover">
+              <div id="dj-chips-input">
+                <input id="dj-search" type="text" placeholder="Search DJs" autocomplete="off">
+              </div>
+              <div id="dj-ac"></div>
+            </div>
+            <div id="dj-cluster-section">
+              <div class="cluster-pills-label">Filter by DJs shown in this cluster</div>
+              <div id="dj-cluster-pills" class="cluster-pills"></div>
+            </div>
+          </div>
+        </div>
+        <span class="filter-dot">•</span>
+        <button class="filter-pill filter-shuffle" id="filter-shuffle-btn"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/><line x1="4" y1="4" x2="9" y2="9"/></svg> Shuffle</button>
       </div>
-      <span class="filter-dot">•</span>
-      <button class="filter-pill filter-shuffle" id="filter-shuffle-btn"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/><line x1="4" y1="4" x2="9" y2="9"/></svg> Shuffle</button>
     </div>
   </div>
 
   <div id="help-overlay">
     <div id="help-modal" style="position:relative;">
       <div class="help-header">
-        <button class="help-close">&times;</button>
         <h2>B2B: Curated Music Discovery</h2>
+        <button class="help-close"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
       </div>
       <p>Back2Back is a music discovery tool built from DJ set tracklists.</p>
       <p>I find that algorithmic music discovery tools don't end up exposing me to new sounds. More and more I rely on DJ sets to find new music. With B2B, my goal is to continue to discover music through curators, but in a more immediate way.</p>

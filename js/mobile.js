@@ -7,6 +7,8 @@ function mobileArtHtml(node) {
 
 function showClusterMobile(cluster) {
   stopCurrentPlayback();
+  clusterArtistFilters = [];
+  clusterDjFilters = [];
   nodes = cluster.nodes;
   edges = cluster.edges;
   nodeMap = {};
@@ -23,7 +25,7 @@ function showClusterMobile(cluster) {
   const ac = typeof searchFilters !== 'undefined' ? searchFilters.length : 0;
   const dc = typeof djSearchFilters !== 'undefined' ? djSearchFilters.length : 0;
   const hasFilters = gc + ac + dc > 0;
-  shuffleArea.innerHTML = `<button class="mobile-filter-pill${gc > 0 ? ' active' : ''}" id="mobile-pill-genre">Genre (${gc})</button><button class="mobile-filter-pill${ac > 0 ? ' active' : ''}" id="mobile-pill-artist">Artist (${ac})</button><button class="mobile-filter-pill${dc > 0 ? ' active' : ''}" id="mobile-pill-dj">DJ (${dc})</button><button class="mobile-shuffle"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/><line x1="4" y1="4" x2="9" y2="9"/></svg></button>`;
+  shuffleArea.innerHTML = `<button class="mobile-filter-pill${gc > 0 ? ' active' : ''}" id="mobile-pill-genre">Genre</button><button class="mobile-filter-pill${ac > 0 ? ' active' : ''}" id="mobile-pill-artist">Artist</button><button class="mobile-filter-pill${dc > 0 ? ' active' : ''}" id="mobile-pill-dj">DJ</button><button class="mobile-shuffle"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/><line x1="4" y1="4" x2="9" y2="9"/></svg></button>`;
   const shuffleBtn = shuffleArea.querySelector('.mobile-shuffle');
   shuffleBtn.addEventListener('click', () => {
     shuffleBtn.classList.add('shuffling');

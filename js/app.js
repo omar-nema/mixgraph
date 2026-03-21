@@ -4,6 +4,8 @@ function showCluster(cluster) {
     return;
   }
   clearGraph();
+  clusterArtistFilters = [];
+  clusterDjFilters = [];
   currentCluster = cluster;
   nodes = cluster.nodes;
   edges = cluster.edges;
@@ -128,17 +130,45 @@ function matchesFilter(nodeId, filter) {
   return true;
 }
 
+function getFilteredPoolSize() {
+  const filter = document.getElementById('source-filter').value;
+  let pool = candidates.filter(id => matchesFilter(id, filter));
+  const hasSearch = searchFilters.length > 0 || djSearchFilters.length > 0 || clusterArtistFilters.length > 0 || clusterDjFilters.length > 0;
+  if (hasSearch) {
+    const allIds = [
+      ...searchFilters.flatMap(f => f.trackIds),
+      ...djSearchFilters.flatMap(f => [...f.trackIds]),
+      ...clusterArtistFilters.flatMap(f => f.trackIds),
+      ...clusterDjFilters.flatMap(f => [...f.trackIds])
+    ];
+    const searchSet = new Set(allIds);
+    pool = pool.filter(id => searchSet.has(id));
+    if (pool.length === 0) {
+      pool = [...searchSet].filter(id => graphNodes[id] && matchesFilter(id, filter));
+    }
+  }
+  if (genreFilters.length > 0) {
+    pool = pool.filter(id => {
+      const genres = graphNodes[id].genres || [];
+      return genreFilters.some(g => genres.includes(g));
+    });
+  }
+  return pool.length;
+}
+
 function shuffle() {
   if (frozen || candidates.length === 0) return;
   const filter = document.getElementById('source-filter').value;
   let pool = candidates.filter(id => matchesFilter(id, filter));
 
-  // Artist + DJ search filters: OR within each, union across both, intersect with pool
-  const hasSearch = searchFilters.length > 0 || djSearchFilters.length > 0;
+  // Artist + DJ search filters (search bar + cluster pills): OR within each, union across both, intersect with pool
+  const hasSearch = searchFilters.length > 0 || djSearchFilters.length > 0 || clusterArtistFilters.length > 0 || clusterDjFilters.length > 0;
   if (hasSearch) {
     const allIds = [
       ...searchFilters.flatMap(f => f.trackIds),
-      ...djSearchFilters.flatMap(f => [...f.trackIds])
+      ...djSearchFilters.flatMap(f => [...f.trackIds]),
+      ...clusterArtistFilters.flatMap(f => f.trackIds),
+      ...clusterDjFilters.flatMap(f => [...f.trackIds])
     ];
     const searchSet = new Set(allIds);
     pool = pool.filter(id => searchSet.has(id));
@@ -331,6 +361,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Show tracks view (but cards will be hidden)
     tracksView.classList.remove('hidden');
+    document.body.classList.remove('crates-mode');
     document.querySelectorAll('.mode-tab').forEach(t => t.classList.remove('active'));
     document.querySelector('.mode-tab[data-mode="tracks"]').classList.add('active');
 
@@ -1224,6 +1255,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   function clearAllFilters() {
     searchFilters = [];
     djSearchFilters = [];
+    clusterArtistFilters = [];
+    clusterDjFilters = [];
     genreFilters = [];
     shuffleHistory.clear();
     document.querySelectorAll('.genre-pill.selected').forEach(p => p.classList.remove('selected'));
@@ -1240,33 +1273,33 @@ document.addEventListener('DOMContentLoaded', async () => {
     const pillGenre = document.getElementById('pill-genre');
     if (pillGenre) {
       const gc = genreFilters.length;
-      pillGenre.querySelector('.pill-count').textContent = `(${gc})`;
+      pillGenre.querySelector('.pill-count').textContent = gc;
       pillGenre.classList.toggle('active', gc > 0);
     }
     const genreClear = document.getElementById('genre-clear-btn');
     if (genreClear) genreClear.disabled = genreFilters.length === 0;
 
-    // Artist pill state + clear button
+    // Artist pill state + clear button (search bar chips + cluster pills)
     const pillArtist = document.getElementById('pill-artist');
+    const totalArtist = searchFilters.length + clusterArtistFilters.length;
     if (pillArtist) {
-      const ac = searchFilters.length;
-      pillArtist.classList.toggle('active', ac > 0);
+      pillArtist.classList.toggle('active', totalArtist > 0);
       const artistCount = document.getElementById('artist-pill-count');
-      if (artistCount) artistCount.textContent = `(${ac})`;
+      if (artistCount) artistCount.textContent = totalArtist;
     }
     const artistClear = document.getElementById('artist-clear-btn');
-    if (artistClear) artistClear.disabled = searchFilters.length === 0;
+    if (artistClear) artistClear.disabled = totalArtist === 0;
 
-    // DJ pill state + clear button
+    // DJ pill state + clear button (search bar chips + cluster pills)
     const pillDj = document.getElementById('pill-dj');
+    const totalDj = djSearchFilters.length + clusterDjFilters.length;
     if (pillDj) {
-      const dc = djSearchFilters.length;
-      pillDj.classList.toggle('active', dc > 0);
+      pillDj.classList.toggle('active', totalDj > 0);
       const djCount = document.getElementById('dj-pill-count');
-      if (djCount) djCount.textContent = `(${dc})`;
+      if (djCount) djCount.textContent = totalDj;
     }
     const djClear = document.getElementById('dj-clear-btn');
-    if (djClear) djClear.disabled = djSearchFilters.length === 0;
+    if (djClear) djClear.disabled = totalDj === 0;
 
     // Mobile pill counts
     const mGenre = document.getElementById('mobile-pill-genre');
@@ -1277,15 +1310,34 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
     const mArtist = document.getElementById('mobile-pill-artist');
     if (mArtist) {
-      const ac2 = searchFilters.length;
+      const ac2 = searchFilters.length + clusterArtistFilters.length;
       mArtist.textContent = `Artist (${ac2})`;
       mArtist.classList.toggle('active', ac2 > 0);
     }
     const mDj = document.getElementById('mobile-pill-dj');
     if (mDj) {
-      const dc2 = djSearchFilters.length;
+      const dc2 = djSearchFilters.length + clusterDjFilters.length;
       mDj.textContent = `DJ (${dc2})`;
       mDj.classList.toggle('active', dc2 > 0);
+    }
+
+    // Desktop filter label above root card
+    const filterLabel = document.getElementById('filter-label');
+    if (filterLabel) {
+      const hasFilters = genreFilters.length > 0 || searchFilters.length > 0 || djSearchFilters.length > 0 || clusterArtistFilters.length > 0 || clusterDjFilters.length > 0;
+      filterLabel.textContent = hasFilters ? `showing filtered results (${getFilteredPoolSize()})` : '';
+      if (hasFilters) {
+        const rootCard = document.querySelector('.node-card[data-rank="root"]');
+        if (rootCard) {
+          const cardLeft = parseFloat(rootCard.style.left) || 0;
+          const cardTop = parseFloat(rootCard.style.top) || 0;
+          const cardW = rootCard.offsetWidth;
+          filterLabel.style.left = cardLeft + 'px';
+          filterLabel.style.top = (cardTop - 29) + 'px';
+          filterLabel.style.width = cardW + 'px';
+          filterLabel.style.textAlign = 'center';
+        }
+      }
     }
   }
 
@@ -1319,6 +1371,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       });
       container.insertBefore(chip, input);
     });
+    input.placeholder = searchFilters.length ? '' : 'Search artists';
   }
 
   function renderMobileFindChips() {
@@ -1353,6 +1406,16 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Filter row shuffle button
   document.getElementById('filter-shuffle-btn').addEventListener('click', shuffle);
+
+  // Filter row share button
+  const filterShareBtn = document.getElementById('filter-share-btn');
+  if (filterShareBtn) {
+    filterShareBtn.addEventListener('click', () => {
+      navigator.clipboard.writeText(window.location.href);
+      filterShareBtn.classList.add('copied');
+      setTimeout(() => filterShareBtn.classList.remove('copied'), 1500);
+    });
+  }
 
   // Genre popover
   document.getElementById('pill-genre').addEventListener('click', (e) => {
@@ -1431,6 +1494,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('artist-clear-btn').addEventListener('click', (e) => {
     e.stopPropagation();
     searchFilters = [];
+    clusterArtistFilters = [];
     shuffleHistory.clear();
     renderFindChips();
     renderMobileFindChips();
@@ -1442,6 +1506,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('dj-clear-btn').addEventListener('click', (e) => {
     e.stopPropagation();
     djSearchFilters = [];
+    clusterDjFilters = [];
     shuffleHistory.clear();
     renderDjChips();
     renderMobileDjChips();
@@ -1612,6 +1677,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       });
       container.insertBefore(chip, input);
     });
+    input.placeholder = djSearchFilters.length ? '' : 'Search DJs';
   }
 
   function renderMobileDjChips() {
@@ -1632,8 +1698,31 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   // ── Cluster context pills ──
+  function toggleClusterArtist(entry) {
+    const idx = clusterArtistFilters.findIndex(f => f.display === entry.display);
+    if (idx >= 0) {
+      clusterArtistFilters.splice(idx, 1);
+    } else {
+      clusterArtistFilters.push({ display: entry.display, trackIds: entry.trackIds });
+    }
+    shuffleHistory.clear();
+    updateFilterUI();
+    updateClusterPills();
+  }
+
+  function toggleClusterDj(entry) {
+    const idx = clusterDjFilters.findIndex(f => f.display === entry.display);
+    if (idx >= 0) {
+      clusterDjFilters.splice(idx, 1);
+    } else {
+      clusterDjFilters.push({ display: entry.display, trackIds: entry.trackIds });
+    }
+    shuffleHistory.clear();
+    updateFilterUI();
+    updateClusterPills();
+  }
+
   function updateClusterPills() {
-    // Artist cluster pills
     const artistContainer = document.getElementById('artist-cluster-pills');
     const mobileArtistContainer = document.getElementById('mobile-artist-cluster-pills');
     const djContainer = document.getElementById('dj-cluster-pills');
@@ -1652,14 +1741,13 @@ document.addEventListener('DOMContentLoaded', async () => {
       seenArtists.add(key);
       const entry = artistIndex[key];
       if (!entry) continue;
-      const alreadyAdded = searchFilters.some(f => f.display === entry.display);
+      const isActive = clusterArtistFilters.some(f => f.display === entry.display);
       [artistContainer, mobileArtistContainer].forEach(container => {
         if (!container) return;
         const pill = document.createElement('button');
-        pill.className = 'cluster-pill' + (alreadyAdded ? ' added' : '');
+        pill.className = 'cluster-pill' + (isActive ? ' added' : '');
         pill.textContent = entry.display;
-        pill.disabled = alreadyAdded;
-        pill.addEventListener('click', () => addSearchFilter(entry));
+        pill.addEventListener('click', (e) => { e.stopPropagation(); toggleClusterArtist(entry); });
         container.appendChild(pill);
       });
     }
@@ -1675,14 +1763,13 @@ document.addEventListener('DOMContentLoaded', async () => {
           seenDjs.add(key);
           const entry = djIndex[key];
           if (!entry) continue;
-          const alreadyAdded = djSearchFilters.some(f => f.display === entry.display);
+          const isActive = clusterDjFilters.some(f => f.display === entry.display);
           [djContainer, mobileDjContainer].forEach(container => {
             if (!container) return;
             const pill = document.createElement('button');
-            pill.className = 'cluster-pill' + (alreadyAdded ? ' added' : '');
+            pill.className = 'cluster-pill' + (isActive ? ' added' : '');
             pill.textContent = entry.display;
-            pill.disabled = alreadyAdded;
-            pill.addEventListener('click', () => addDjFilter(entry));
+            pill.addEventListener('click', (e) => { e.stopPropagation(); toggleClusterDj(entry); });
             container.appendChild(pill);
           });
         }

@@ -48,6 +48,8 @@
    Mobile View (≤ 768px)
    ═══════════════════════════════════════════ */
 @media (max-width: 768px) {
+  body:not(.night) { --text-primary: #193382; }
+
   /* Hide desktop-only elements */
   #graph-viewport { display: none !important; }
   #dev-toggle { display: none !important; }
@@ -66,7 +68,7 @@
     z-index: 200;
     gap: 2px;
     background: #ededee;
-    border: 1px solid #e8e1e1;
+    border: none;
     border-radius: var(--card-radius);
     padding: 2px;
     height: 32px;
@@ -137,15 +139,47 @@
     border-color: var(--connection-highlight);
     color: #fff;
   }
+  body.night .mobile-filter-pill {
+    background: #353b44;
+    border-color: #353b44;
+  }
+  body.night .mobile-filter-pill.active {
+    background: var(--connection-highlight);
+    border-color: var(--connection-highlight);
+  }
+
+  /* Mobile pill count — match desktop circle style */
+  .mobile-filter-pill .pill-count {
+    font-family: var(--font);
+    font-size: 10px;
+    font-weight: 400;
+    min-width: 18px;
+    height: 18px;
+    line-height: 18px;
+    text-align: center;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: var(--card-border);
+    color: var(--text-secondary);
+    margin-left: 6px;
+    padding: 0 4px;
+  }
+  .mobile-filter-pill.active .pill-count {
+    background: rgba(255, 255, 255, 0.25);
+    color: #fff;
+  }
+
   #mobile-shuffle-area .mobile-shuffle {
     flex: 1;
     display: flex;
     align-items: center;
     font-family: var(--font);
     font-size: 14px;
-    color: var(--connection-highlight);
-    background: #dedeee;
-    border: 1px solid #d0d0e0;
+    color: #fff;
+    background: #344F9F;
+    border: 1px solid #2d4590;
     border-radius: 20px;
     padding: 6px 12px;
     cursor: pointer;
@@ -157,7 +191,7 @@
     border-color: #353b44;
     color: var(--connection-highlight);
   }
-  #mobile-shuffle-area .mobile-shuffle:active { background: #d0d0e0; }
+  #mobile-shuffle-area .mobile-shuffle:active { background: #2d4590; }
 
   /* Mobile header title — hidden, replaced by mode tabs */
   #mobile-title {
@@ -213,7 +247,7 @@
     position: fixed;
     inset: 0;
     z-index: 290;
-    background: rgba(0, 0, 0, 0.3);
+    background: transparent;
   }
   #mobile-popover-backdrop.open { display: block; }
 
@@ -240,7 +274,7 @@
     flex-wrap: wrap;
     align-items: center;
     gap: 6px;
-    background: var(--card-bg);
+    background: var(--bg);
     border: 1px solid var(--card-border);
     border-radius: var(--card-radius);
     padding: 8px 12px;
@@ -309,6 +343,34 @@
     background: var(--connection-highlight);
     border-color: var(--connection-highlight);
     color: #fff;
+  }
+
+  /* Mobile cluster sections in popovers */
+  #mobile-artist-cluster-section, #mobile-dj-cluster-section {
+    margin-top: 12px;
+  }
+  #mobile-artist-cluster-section:has(.cluster-pills:empty),
+  #mobile-dj-cluster-section:has(.cluster-pills:empty) {
+    display: none;
+  }
+
+  /* Mobile filter pill count badge */
+  .mobile-filter-pill .pill-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 16px;
+    height: 16px;
+    font-size: 11px;
+    font-weight: 600;
+    background: var(--connection-highlight);
+    color: #fff;
+    border-radius: 8px;
+    padding: 0 4px;
+    margin-left: 4px;
+  }
+  .mobile-filter-pill.active .pill-count {
+    background: rgba(255, 255, 255, 0.3);
   }
 
   #mobile-help-btn {
