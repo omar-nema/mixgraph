@@ -20,106 +20,17 @@ function splitArtists(raw) {
   return names.length ? names : [raw];
 }
 
-function initFilters() {
-  // ── Build search indexes ──
-  // Collect all artist name variants and count occurrences to pick canonical casing
-  const caseCounts = {};
-  artistIndex = {};
-  for (const [id, node] of Object.entries(graphNodes)) {
-    const artist = (node.artist || '').trim();
-    if (!artist) continue;
-    for (const name of splitArtists(artist)) {
-      const key = name.toLowerCase();
-      caseCounts[key] = caseCounts[key] || {};
-      caseCounts[key][name] = (caseCounts[key][name] || 0) + 1;
-      if (!artistIndex[key]) artistIndex[key] = { display: name, trackIds: [] };
-      artistIndex[key].trackIds.push(id);
-    }
-  }
-  // Normalize display name to most frequent casing
-  for (const [key, variants] of Object.entries(caseCounts)) {
-    let best = '', bestCount = 0;
-    for (const [name, count] of Object.entries(variants)) {
-      if (count > bestCount) { best = name; bestCount = count; }
-    }
-    if (artistIndex[key]) artistIndex[key].display = best;
-  }
-  const candidateSet = new Set(candidates);
-  artistListAlpha = Object.values(artistIndex)
-    .map(e => ({ ...e, clusterCount: e.trackIds.filter(id => candidateSet.has(id)).length }))
-    .sort((a, b) => b.trackIds.length - a.trackIds.length)
-    .sort((a, b) => a.display.localeCompare(b.display));
-  console.log(`Artist index: ${Object.keys(artistIndex).length} unique artists`);
-
-  djIndex = {};
-  for (const [id, node] of Object.entries(graphNodes)) {
-    for (const edge of (node.edges || [])) {
-      for (const ctx of (edge.contexts || [])) {
-        const rawDj = (ctx.dj || '').trim();
-        if (!rawDj) continue;
-        const names = djNameMap[rawDj] || [rawDj];
-        for (const name of names) {
-          const key = name.toLowerCase();
-          if (!djIndex[key]) djIndex[key] = { display: name, trackIds: new Set() };
-          djIndex[key].trackIds.add(id);
-          djIndex[key].trackIds.add(edge.node);
-        }
-      }
-    }
-  }
-  djListAlpha = Object.values(djIndex)
-    .map(e => {
-      const ids = [...e.trackIds];
-      return { display: e.display, trackIds: ids, clusterCount: ids.filter(id => candidateSet.has(id)).length };
-    })
-    .sort((a, b) => b.trackIds.length - a.trackIds.length)
-    .sort((a, b) => a.display.localeCompare(b.display));
-  console.log(`DJ index: ${Object.keys(djIndex).length} unique DJs`);
-
-  // ── Build episode index ──
-  episodeIndex = {};
-  for (const [id, node] of Object.entries(graphNodes)) {
-    for (const edge of (node.edges || [])) {
-      for (const ctx of (edge.contexts || [])) {
-        const url = (ctx.episode_url || '').trim();
-        if (!url) continue;
-        if (!episodeIndex[url]) episodeIndex[url] = new Set();
-        episodeIndex[url].add(id);
-        episodeIndex[url].add(edge.node);
-      }
-    }
-  }
-  console.log(`Episode index: ${Object.keys(episodeIndex).length} unique episodes`);
-
-  // ── Build genre index ──
-  const genreIndex = {};
-  for (const [id, node] of Object.entries(graphNodes)) {
-    for (const g of (node.genres || [])) {
-      if (!genreIndex[g]) genreIndex[g] = 0;
-      genreIndex[g]++;
-    }
-  }
-  const genreList = Object.entries(genreIndex)
-    .map(([name, count]) => ({ name, count }))
-    .sort((a, b) => b.count - a.count);
-  const displayGenres = genreList.slice(0, 30);
-  console.log(`Genre index: ${genreList.length} genres, showing top ${displayGenres.length}`);
+async function initFilters() {
+  // ── Load genres from API ──
+  let displayGenres = [];
+  try {
+    displayGenres = await apiGetGenres();
+    console.log(`Genres loaded: ${displayGenres.length}`);
+  } catch (e) { console.warn('Failed to load genres:', e.message); }
 
   // ── Shared helpers ──
   function escHtml(s) {
     return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-  }
-
-  function searchIndex(list, q, max) {
-    if (!q) return list.slice(0, max);
-    const starts = [], contains = [];
-    for (const entry of list) {
-      const name = entry.display.toLowerCase();
-      if (name.startsWith(q)) starts.push(entry);
-      else if (name.includes(q)) contains.push(entry);
-      if (starts.length + contains.length >= max) break;
-    }
-    return [...starts, ...contains].slice(0, max);
   }
 
   // ── Filter state management ──
@@ -134,7 +45,7 @@ function initFilters() {
 
   function addSearchFilter(entry) {
     if (searchFilters.some(f => f.display === entry.display)) return;
-    modifyFilter(searchFilters, a => a.push({ display: entry.display, trackIds: entry.trackIds }), renderFindChips, renderMobileFindChips);
+    modifyFilter(searchFilters, a => a.push({ display: entry.display }), renderFindChips, renderMobileFindChips);
   }
 
   function removeSearchFilter(index) {
@@ -143,7 +54,7 @@ function initFilters() {
 
   function addDjFilter(entry) {
     if (djSearchFilters.some(f => f.display === entry.display)) return;
-    modifyFilter(djSearchFilters, a => a.push({ display: entry.display, trackIds: entry.trackIds }), renderDjChips, renderMobileDjChips);
+    modifyFilter(djSearchFilters, a => a.push({ display: entry.display }), renderDjChips, renderMobileDjChips);
   }
 
   function removeDjFilter(index) {
@@ -446,9 +357,10 @@ function initFilters() {
     container.classList.add('open');
   }
 
-  // Desktop autocomplete factory (with keyboard nav)
-  function createDesktopAc(acEl, searchInput, list, addFn, closeFn, filters, removeFn) {
+  // Desktop autocomplete factory (with keyboard nav + API search)
+  function createDesktopAc(acEl, searchInput, searchFn, addFn, closeFn, filters, removeFn) {
     let items = [], activeIdx = -1;
+    let debounceTimer = null;
 
     function close() {
       acEl.classList.remove('open');
@@ -457,28 +369,35 @@ function initFilters() {
       activeIdx = -1;
     }
 
-    function show(query) {
-      const q = query.toLowerCase().trim();
-      const results = searchIndex(list, q, q ? 15 : 20);
-      if (results.length === 0) { close(); return; }
-      items = [];
-      activeIdx = -1;
-      buildAcItems(acEl, results, (entry) => {
-        addFn(entry);
-        searchInput.value = '';
-        close();
-        setTimeout(() => searchInput.focus(), 0);
-      }, (idx) => {
-        items.forEach(el => el.classList.remove('active'));
-        acEl.children[idx]?.classList.add('active');
-        activeIdx = idx;
-      });
-      items = [...acEl.children];
+    async function show(query) {
+      const q = query.trim();
+      if (!q) { close(); return; }
+      try {
+        const results = await searchFn(q, 15);
+        if (results.length === 0) { close(); return; }
+        items = [];
+        activeIdx = -1;
+        buildAcItems(acEl, results, (entry) => {
+          addFn(entry);
+          searchInput.value = '';
+          close();
+          setTimeout(() => searchInput.focus(), 0);
+        }, (idx) => {
+          items.forEach(el => el.classList.remove('active'));
+          acEl.children[idx]?.classList.add('active');
+          activeIdx = idx;
+        });
+        items = [...acEl.children];
+      } catch (e) { console.warn('Autocomplete error:', e.message); }
     }
 
     searchInput.addEventListener('input', () => {
-      if (searchInput.value.trim()) show(searchInput.value);
-      else close();
+      clearTimeout(debounceTimer);
+      if (searchInput.value.trim()) {
+        debounceTimer = setTimeout(() => show(searchInput.value), 150);
+      } else {
+        close();
+      }
     });
     searchInput.addEventListener('focus', () => {
       if (searchInput.value.trim()) show(searchInput.value);
@@ -510,9 +429,9 @@ function initFilters() {
     return { close, show };
   }
 
-  const findAcCtrl = createDesktopAc(findAc, findSearchInput, artistListAlpha, addSearchFilter, null, searchFilters, removeSearchFilter);
+  const findAcCtrl = createDesktopAc(findAc, findSearchInput, apiSearchArtists, addSearchFilter, null, searchFilters, removeSearchFilter);
   const closeFindAc = findAcCtrl.close;
-  const djAcCtrl = createDesktopAc(djAc, djSearchInput, djListAlpha, addDjFilter, null, djSearchFilters, removeDjFilter);
+  const djAcCtrl = createDesktopAc(djAc, djSearchInput, apiSearchDjs, addDjFilter, null, djSearchFilters, removeDjFilter);
   const closeDjAc = djAcCtrl.close;
 
   // ── Cluster context pills ──
@@ -539,7 +458,7 @@ function initFilters() {
 
     if (nodes.length === 0) return;
 
-    // Collect unique artists from cluster
+    // Collect unique artists from cluster nodes
     const seenArtists = new Set();
     for (const node of nodes) {
       const raw = (node.artist || '').trim();
@@ -548,61 +467,65 @@ function initFilters() {
         const key = name.toLowerCase();
         if (seenArtists.has(key)) continue;
         seenArtists.add(key);
-        const entry = artistIndex[key];
-        if (!entry) continue;
-        const isActive = clusterArtistFilters.some(f => f.display === entry.display);
+        const entry = { display: name };
+        const isActive = clusterArtistFilters.some(f => f.display.toLowerCase() === key);
         [artistContainer, mobileArtistContainer].forEach(container => {
           if (!container) return;
           const pill = document.createElement('button');
           pill.className = 'cluster-pill' + (isActive ? ' added' : '');
-          pill.textContent = entry.display;
+          pill.textContent = name;
           pill.addEventListener('click', (e) => { e.stopPropagation(); toggleClusterFilter(clusterArtistFilters, entry); });
           container.appendChild(pill);
         });
       }
     }
 
-    // Collect unique DJs from cluster
+    // Collect unique DJs from cluster nodes
     const seenDjs = new Set();
     for (const node of nodes) {
       for (const dj of (node.djs || [])) {
-        const names = djNameMap[dj.name] || [dj.name];
-        for (const name of names) {
-          const key = name.toLowerCase();
-          if (seenDjs.has(key)) continue;
-          seenDjs.add(key);
-          const entry = djIndex[key];
-          if (!entry) continue;
-          const isActive = clusterDjFilters.some(f => f.display === entry.display);
-          [djContainer, mobileDjContainer].forEach(container => {
-            if (!container) return;
-            const pill = document.createElement('button');
-            pill.className = 'cluster-pill' + (isActive ? ' added' : '');
-            pill.textContent = entry.display;
-            pill.addEventListener('click', (e) => { e.stopPropagation(); toggleClusterFilter(clusterDjFilters, entry); });
-            container.appendChild(pill);
-          });
-        }
+        const name = dj.name;
+        const key = name.toLowerCase();
+        if (seenDjs.has(key)) continue;
+        seenDjs.add(key);
+        const entry = { display: name };
+        const isActive = clusterDjFilters.some(f => f.display.toLowerCase() === key);
+        [djContainer, mobileDjContainer].forEach(container => {
+          if (!container) return;
+          const pill = document.createElement('button');
+          pill.className = 'cluster-pill' + (isActive ? ' added' : '');
+          pill.textContent = name;
+          pill.addEventListener('click', (e) => { e.stopPropagation(); toggleClusterFilter(clusterDjFilters, entry); });
+          container.appendChild(pill);
+        });
       }
     }
   }
 
   // ── Mobile search autocomplete ──
-  function createMobileAc(acEl, searchInput, chipsId, list, addFn, filters, removeFn, limit) {
+  function createMobileAc(acEl, searchInput, chipsId, searchFn, addFn, filters, removeFn) {
+    let debounceTimer = null;
     function close() { acEl.classList.remove('open'); acEl.innerHTML = ''; }
-    function show(query) {
-      const q = query.toLowerCase().trim();
-      const results = searchIndex(list, q, q ? 15 : (limit || 20));
-      if (results.length === 0) { close(); return; }
-      buildAcItems(acEl, results, (entry) => {
-        close();
-        addFn(entry);
-        searchInput.value = '';
-      });
+    async function show(query) {
+      const q = query.trim();
+      if (!q) { close(); return; }
+      try {
+        const results = await searchFn(q, 15);
+        if (results.length === 0) { close(); return; }
+        buildAcItems(acEl, results, (entry) => {
+          close();
+          addFn(entry);
+          searchInput.value = '';
+        });
+      } catch (e) { console.warn('Mobile AC error:', e.message); }
     }
     searchInput.addEventListener('input', () => {
-      if (searchInput.value.trim()) show(searchInput.value);
-      else close();
+      clearTimeout(debounceTimer);
+      if (searchInput.value.trim()) {
+        debounceTimer = setTimeout(() => show(searchInput.value), 150);
+      } else {
+        close();
+      }
     });
     searchInput.addEventListener('keydown', (e) => {
       if (e.key === 'Backspace' && searchInput.value === '' && filters.length > 0) {
@@ -614,9 +537,9 @@ function initFilters() {
   }
 
   createMobileAc(document.getElementById('mobile-find-ac'), document.getElementById('mobile-find-search'),
-    'mobile-find-chips-input', artistListAlpha, addSearchFilter, searchFilters, removeSearchFilter, 30);
+    'mobile-find-chips-input', apiSearchArtists, addSearchFilter, searchFilters, removeSearchFilter);
   createMobileAc(document.getElementById('mobile-dj-ac'), document.getElementById('mobile-dj-search'),
-    'mobile-dj-chips-input', djListAlpha, addDjFilter, djSearchFilters, removeDjFilter);
+    'mobile-dj-chips-input', apiSearchDjs, addDjFilter, djSearchFilters, removeDjFilter);
 
   // Populate cluster pills now that indexes are built
   updateClusterPills();

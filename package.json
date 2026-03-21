@@ -1,0 +1,17 @@
+{
+  "name": "adjacency",
+  "version": "1.0.0",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "server": "node server/local-server.js",
+    "smoke": "node shared/smoke-test.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.21.0"
+  },
+  "devDependencies": {
+    "wrangler": "^4.76.0"
+  }
+}

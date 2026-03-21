@@ -302,8 +302,9 @@ def main(
     print(f"\nWriting graph to {output_path}...")
     try:
         indent = 2 if pretty else None
+        separators = None if pretty else (",", ":")
         with open(output_path, "w", encoding="utf-8") as f:
-            json.dump(graph, f, indent=indent, ensure_ascii=False)
+            json.dump(graph, f, indent=indent, separators=separators, ensure_ascii=False)
 
         file_size = Path(output_path).stat().st_size
         size_mb = file_size / (1024 * 1024)

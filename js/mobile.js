@@ -1,6 +1,5 @@
 function mobileArtHtml(node) {
-  const cached = audioCache[node.graphId];
-  const url = cached && cached.artUrl;
+  const url = node.artUrl;
   if (url) return `<img class="album-art" src="${url}" loading="lazy">`;
   return `<div class="album-art no-art" style="background: ${generateGradient(node.title, node.artist)}"></div>`;
 }
@@ -116,27 +115,26 @@ function updateMobileSources(graphId) {
   const sourcesEl = document.getElementById('mobile-sources');
   sourcesEl.innerHTML = '';
   sourcesEl.classList.remove('mobile-animate-out');
-  const gn = graphNodes[graphId];
-  if (!gn || !gn.edges) return;
-  const cached = audioCache[graphId];
+  // Find the node in the current cluster by graphId
+  const node = Object.values(nodeMap).find(n => n.graphId === graphId);
+  if (!node) return;
+
   let setLink = null;
-  if (cached && cached.setUrl && cached.setSource !== 'mixcloud') {
-    setLink = cached.setUrl;
-    if (cached.setOffsetSec) {
-      const m = Math.floor(cached.setOffsetSec / 60);
-      const s = cached.setOffsetSec % 60;
+  if (node.setUrl && node.setSource !== 'mixcloud') {
+    setLink = node.setUrl;
+    if (node.setOffsetSec) {
+      const m = Math.floor(node.setOffsetSec / 60);
+      const s = node.setOffsetSec % 60;
       setLink += `#t=${m}m${s}s`;
     }
   }
   const sources = new Map();
-  for (const edge of gn.edges) {
-    for (const ctx of (edge.contexts || [])) {
-      const dj = (ctx.dj || '').trim();
-      const url = setLink || ctx.episode_url || '';
-      if (dj && url) {
-        const key = `${dj}|${url}`;
-        if (!sources.has(key)) sources.set(key, { dj, url });
-      }
+  for (const dj of (node.djs || [])) {
+    const name = dj.name;
+    const url = setLink || dj.episodeUrl || '';
+    if (name && url) {
+      const key = `${name}|${url}`;
+      if (!sources.has(key)) sources.set(key, { dj: name, url });
     }
   }
   if (sources.size > 0) {

@@ -1,35 +1,17 @@
 // ═══════════════════════════════════════════
-// Data — loaded from combined_graph.json
+// Data — client-side state (graph data now lives on the server)
 // ═══════════════════════════════════════════
-let graphNodes = {};    // full graph: { "artist:::title": { title, artist, edges: [...] } }
-let audioCache = {};    // { "artist:::title": { source, scTrackUrl, setUrl, ... } }
-let candidates = [];    // node IDs with 3+ edges
 let currentRootId = null;
 let frozen = false;
 let maxR1 = 4;
 let r2PerR1 = 1;
-let searchFilters = [];  // [{ display, trackIds }] — artist filters (from search bar)
-let djSearchFilters = []; // [{ display, trackIds }] — DJ filters (from search bar)
-let clusterArtistFilters = []; // [{ display, trackIds }] — artist filters (from cluster pills)
-let clusterDjFilters = [];     // [{ display, trackIds }] — DJ filters (from cluster pills)
+let searchFilters = [];  // [{ display }] — artist filters (from search bar)
+let djSearchFilters = []; // [{ display }] — DJ filters (from search bar)
+let clusterArtistFilters = []; // [{ display }] — artist filters (from cluster pills)
+let clusterDjFilters = [];     // [{ display }] — DJ filters (from cluster pills)
 let genreFilters = [];   // ['Soul', 'Jazz', ...]
 let shuffleHistory = new Set();  // track seen root IDs to avoid repeats
-
-// Genre rebalancing: cap over-represented genres (target % of seed nodes)
-// Nodes with capped genres get downweighted so they appear less often on shuffle.
-const genreWeightCaps = {
-  'Ambient': 20,
-  'Folk': 5,
-  'Soul': 15,
-  'Indie Rock': 14,
-};
-let candidateWeights = null;  // Float64Array, computed after candidates are built
-let djIndex = {};        // lowercase DJ name → { display, trackIds: Set }
-let episodeIndex = {};   // episode_url → Set<trackId>
-let artistIndex = {};    // lowercase artist → { display, trackIds: [] }
-let artistListAlpha = [];
-let djListAlpha = [];
-let djNameMap = {};
+let lastPoolSize = 0;    // pool size from last shuffle response
 let nodes = [];
 let edges = [];
 let nodeMap = {};

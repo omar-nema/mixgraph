@@ -59,14 +59,13 @@ function showCluster(cluster) {
   });
   const showMoreBtn = document.getElementById('show-more-btn');
   if (showMoreBtn) {
-    showMoreBtn.addEventListener('click', (e) => {
+    showMoreBtn.addEventListener('click', async (e) => {
       e.stopPropagation();
-      const prevLevel = currentCluster.meta.expandLevel;
-      const limit = prevLevel === 0 ? 8 : Infinity;
-      const r2Limit = prevLevel === 0 ? r2PerR1 : Infinity;
-      const expanded = selectCluster(currentRootId, limit, r2Limit);
-      expanded.meta.expandLevel = prevLevel + 1;
-      showCluster(expanded);
+      const prevLevel = currentCluster.meta.expandLevel || 0;
+      try {
+        const expanded = await apiLoadCluster(currentRootId, { expand: prevLevel + 1 });
+        showCluster(expanded);
+      } catch (err) { console.error('Expand failed:', err.message); }
     });
   }
 
@@ -114,186 +113,78 @@ function showCluster(cluster) {
   if (onClusterShown) onClusterShown();
 }
 
-function matchesFilter(nodeId, filter) {
-  if (filter === 'none') return true;
-  const cached = audioCache[nodeId];
-  if (!cached) return false;
-  // Filter by what will actually play (respecting the waterfall)
-  const hasScTrack = !!cached.scTrackUrl;
-  if (filter === 'soundcloud') return hasScTrack;
-  if (filter === 'soundcloud_set') return !hasScTrack && cached.source === 'soundcloud_set';
-  if (filter === 'lotradio') return !hasScTrack && cached.setSource === 'soundcloud';
-  return true;
+function getFilteredPoolSize() {
+  return lastPoolSize;
 }
 
-function getFilteredPool() {
-  const filter = document.getElementById('source-filter').value;
-  let pool = candidates.filter(id => matchesFilter(id, filter));
-  const hasSearch = searchFilters.length > 0 || djSearchFilters.length > 0 || clusterArtistFilters.length > 0 || clusterDjFilters.length > 0;
-  if (hasSearch) {
-    const allIds = [
-      ...searchFilters.flatMap(f => f.trackIds),
-      ...djSearchFilters.flatMap(f => [...f.trackIds]),
-      ...clusterArtistFilters.flatMap(f => f.trackIds),
-      ...clusterDjFilters.flatMap(f => [...f.trackIds])
-    ];
-    const searchSet = new Set(allIds);
-    pool = pool.filter(id => searchSet.has(id));
-    if (pool.length === 0) {
-      pool = [...searchSet].filter(id => graphNodes[id] && matchesFilter(id, filter));
+function buildFilterParams() {
+  const source = document.getElementById('source-filter')?.value || 'none';
+  const artists = [
+    ...searchFilters.map(f => f.display),
+    ...clusterArtistFilters.map(f => f.display),
+  ];
+  const djs = [
+    ...djSearchFilters.map(f => f.display),
+    ...clusterDjFilters.map(f => f.display),
+  ];
+  return {
+    source: source !== 'none' ? source : undefined,
+    genres: genreFilters.length ? genreFilters : undefined,
+    artists: artists.length ? artists : undefined,
+    djs: djs.length ? djs : undefined,
+    exclude: shuffleHistory.size ? [...shuffleHistory] : undefined,
+    r1: maxR1,
+    r2: r2PerR1,
+  };
+}
+
+async function shuffle() {
+  if (frozen) return;
+  try {
+    const cluster = await apiShuffle(buildFilterParams());
+    if (cluster.meta.poolSize !== undefined) lastPoolSize = cluster.meta.poolSize;
+    shuffleHistory.add(cluster.meta.root_id);
+    showCluster(cluster);
+  } catch (err) {
+    console.warn('Shuffle failed:', err.message);
+    if (err.message.includes('No tracks match')) {
+      // Clear history and retry once
+      shuffleHistory.clear();
+      try {
+        const cluster = await apiShuffle(buildFilterParams());
+        if (cluster.meta.poolSize !== undefined) lastPoolSize = cluster.meta.poolSize;
+        shuffleHistory.add(cluster.meta.root_id);
+        showCluster(cluster);
+      } catch (e) { console.error('Shuffle retry failed:', e.message); }
     }
   }
-  if (genreFilters.length > 0) {
-    pool = pool.filter(id => {
-      const genres = graphNodes[id].genres || [];
-      return genreFilters.some(g => genres.includes(g));
-    });
-  }
-  return pool;
 }
 
-function getFilteredPoolSize() {
-  return getFilteredPool().length;
-}
-
-// Weighted random pick from a pool of candidate IDs
-function weightedPick(pool) {
-  const hasArtistDjFilter = searchFilters.length > 0 || djSearchFilters.length > 0 || clusterArtistFilters.length > 0 || clusterDjFilters.length > 0;
-  if (!candidateWeights || pool.length === 0 || hasArtistDjFilter) {
-    return pool[Math.floor(Math.random() * pool.length)];
-  }
-  let totalW = 0;
-  for (const id of pool) {
-    const idx = weightedPick._idxMap.get(id);
-    totalW += idx !== undefined ? candidateWeights[idx] : 1;
-  }
-  let r = Math.random() * totalW;
-  for (const id of pool) {
-    const idx = weightedPick._idxMap.get(id);
-    r -= idx !== undefined ? candidateWeights[idx] : 1;
-    if (r <= 0) return id;
-  }
-  return pool[pool.length - 1];
-}
-
-function shuffle() {
-  if (frozen || candidates.length === 0) return;
-  const pool = getFilteredPool();
-  if (pool.length === 0) {
-    console.warn('No tracks match current filters');
-    return;
-  }
-  let unseen = pool.filter(id => !shuffleHistory.has(id));
-  if (unseen.length === 0) {
-    shuffleHistory.clear();
-    unseen = pool;
-  }
-  const rootId = weightedPick(unseen);
-  shuffleHistory.add(rootId);
-  const cluster = selectCluster(rootId);
-  showCluster(cluster);
-}
-
-function loadClusterById(id) {
+async function loadClusterById(id) {
   id = id.trim();
-  if (!graphNodes[id]) {
-    console.warn(`Node "${id}" not found in graph`);
-    return;
+  try {
+    const cluster = await apiLoadCluster(id);
+    showCluster(cluster);
+  } catch (err) {
+    console.warn(`Cluster "${id}" not found:`, err.message);
   }
-  const cluster = selectCluster(id);
-  showCluster(cluster);
 }
 
 // ═══════════════════════════════════════════
-// Init — fetch graph + cache, then render
+// Init — wire up API-driven UI
 // ═══════════════════════════════════════════
 document.addEventListener('DOMContentLoaded', async () => {
-  // Load graph (required)
-  try {
-    const resp = await fetch('web-app/output/combined_graph.json');
-    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-    const data = await resp.json();
-    graphNodes = data.nodes;
-    const nodeCount = Object.keys(graphNodes).length;
-    console.log(`Graph loaded: ${nodeCount} nodes`);
-  } catch (err) {
-    console.error('Failed to load combined_graph.json:', err);
-    return;
-  }
-
-  // Load audio cache (optional — fail silently)
-  try {
-    const resp = await fetch('web-app/output/audio_cache.json');
-    if (resp.ok) {
-      audioCache = await resp.json();
-      console.log(`Audio cache loaded: ${Object.keys(audioCache).length} entries`);
-    }
-  } catch (e) {
-    // No cache — all nodes will show grey placeholders
-  }
-
-  // Load DJ name map (optional — falls back to raw show titles)
-  try {
-    const resp = await fetch('pipeline/output/dj_name_map.json');
-    if (resp.ok) {
-      djNameMap = await resp.json();
-      console.log(`DJ name map loaded: ${Object.keys(djNameMap).length} entries`);
-    }
-  } catch (e) {}
-
-  // Compute candidates (3+ edges, no mixcloud-only neighbors)
-  const mcNodes = new Set(
-    Object.keys(audioCache).filter(nid => audioCache[nid].source === 'mixcloud_set')
-  );
-  candidates = Object.keys(graphNodes).filter(nid => {
-    const edges = graphNodes[nid].edges || [];
-    if (edges.length < 2) return false;
-    if (mcNodes.has(nid)) return false;
-    return !edges.some(e => mcNodes.has(e.node));
-  });
-  console.log(`${candidates.length} candidates (2+ edges, no mixcloud)`);
-
-  if (candidates.length === 0) {
-    console.error('No candidates found in graph');
-    return;
-  }
-
-  // Compute genre rebalancing weights
-  if (Object.keys(genreWeightCaps).length > 0) {
-    // Natural frequency of each capped genre among candidates
-    const naturalCounts = {};
-    for (const id of candidates) {
-      for (const g of (graphNodes[id].genres || [])) {
-        if (g in genreWeightCaps) naturalCounts[g] = (naturalCounts[g] || 0) + 1;
-      }
-    }
-    const n = candidates.length;
-    candidateWeights = new Float64Array(n);
-    for (let i = 0; i < n; i++) {
-      let w = 1;
-      for (const g of (graphNodes[candidates[i]].genres || [])) {
-        if (g in genreWeightCaps) {
-          const ratio = (genreWeightCaps[g] / 100 * n) / (naturalCounts[g] || 1);
-          if (ratio < w) w = ratio;
-        }
-      }
-      candidateWeights[i] = w;
-    }
-    // Build candidate index map for weighted lookups
-    weightedPick._idxMap = new Map();
-    for (let i = 0; i < n; i++) weightedPick._idxMap.set(candidates[i], i);
-    console.log('Genre rebalancing active:', genreWeightCaps);
-  }
+  console.log(`API base: ${API_BASE}`);
 
   // Init filters, search indexes, autocomplete, popovers
-  const filterCtrl = initFilters();
+  const filterCtrl = await initFilters();
 
   // Register cluster pills hook before initial load
   onClusterShown = () => { filterCtrl.updateClusterPills(); filterCtrl.updateFilterUI(); };
 
   // Load cluster from URL hash, or shuffle for a random one
   const hashId = decodeURIComponent(window.location.hash.slice(1));
-  if (hashId && graphNodes[hashId]) {
+  if (hashId) {
     loadClusterById(hashId);
   } else {
     shuffle();
@@ -302,7 +193,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Navigate to cluster on back/forward
   window.addEventListener('popstate', () => {
     const id = decodeURIComponent(window.location.hash.slice(1));
-    if (id && graphNodes[id] && id !== currentRootId) {
+    if (id && id !== currentRootId) {
       loadClusterById(id);
     } else if (!id) {
       shuffle();
@@ -353,8 +244,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 
   // ── Crates → Tracks fly-out transition ──
-  function transitionToTracks(seedKey, stackEl) {
-    const cluster = selectCluster(seedKey);
+  async function transitionToTracks(seedKey, stackEl) {
+    let cluster;
+    try {
+      cluster = await apiLoadCluster(seedKey);
+    } catch (err) { console.error('Failed to load cluster:', err.message); return; }
+
     const cratesView = document.getElementById('crates-view');
     const tracksView = document.getElementById('tracks-view');
 
@@ -524,16 +419,19 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   function initCrates() {
     if (cratesInitialized) return;
-    cratesInitialized = true;
-
-    const cap = s => s.replace(/\b\w/g, c => c.toUpperCase());
-    const gap = 25, pad = 0, STEP = 3;
-    const CLUSTERS_PER_PAGE = isMobileView() ? 10 : 20;
 
     const cratesView = document.getElementById('crates-view');
     const surface = document.getElementById('crates-surface');
     const vw = cratesView.clientWidth || window.innerWidth;
     const vh = cratesView.clientHeight || (window.innerHeight - 60);
+
+    // Don't init if dimensions are invalid (view not yet visible)
+    if (vw < 100 || vh < 100) return;
+    cratesInitialized = true;
+
+    const cap = s => s.replace(/\b\w/g, c => c.toUpperCase());
+    const gap = 25, pad = 0, STEP = 3;
+    const CLUSTERS_PER_PAGE = isMobileView() ? 10 : 20;
 
     // Local RNG for placeholder colors (doesn't need to match worker)
     let localSeed = Date.now() % 2147483647 || 1;
@@ -542,45 +440,11 @@ document.addEventListener('DOMContentLoaded', async () => {
       return (localSeed - 1) / 2147483646;
     }
 
-    // Initialize worker — it fetches data directly (avoids postMessage bottleneck)
+    // Crates uses direct API calls (no worker for data fetching)
     const workerSeed = Date.now() % 2147483647 || 1;
-    const worker = new Worker('js/crates-worker.js');
-    const pendingPages = {};  // id -> { col, row, resolve }
+    const pendingPages = {};  // id -> { col, row }
     let pageIdCounter = 0;
-    let workerReady = false;
-    const queuedRequests = [];
-
-    worker.onerror = function(e) { console.error('Crates worker error:', e.message, e.filename, e.lineno); };
-    worker.onmessage = function(e) {
-      if (e.data.type === 'error') {
-        console.error('Crates worker error:', e.data.message);
-        return;
-      }
-      if (e.data.type === 'ready') {
-        workerReady = true;
-        console.log(`Crates: worker ready (${e.data.seedCount} seeds)`);
-        // Process any requests that came in before worker was ready
-        for (const req of queuedRequests) requestPage(req.col, req.row);
-        queuedRequests.length = 0;
-        return;
-      }
-      if (e.data.type === 'page') {
-        const pending = pendingPages[e.data.id];
-        if (!pending) return;
-        delete pendingPages[e.data.id];
-        receivePage(pending.col, pending.row, e.data.clusters);
-        return;
-      }
-    };
-
-    // Worker fetches data itself — send absolute URLs and seed
-    const base = new URL('.', window.location.href).href;
-    worker.postMessage({
-      type: 'init',
-      graphUrl: base + 'web-app/output/combined_graph.json',
-      audioCacheUrl: base + 'web-app/output/audio_cache.json',
-      crateSeed: workerSeed,
-    });
+    let workerReady = true; // No init needed — API is always ready
 
     // Page grid: each page is viewport-sized, keyed by "col,row"
     const pages = {};       // "col,row" -> { clusters, el, stacks, artLoaded }
@@ -605,11 +469,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       el.style.width = w + 'px'; el.style.height = h + 'px';
 
       const artKeys = item.artKeys || [];
-      // If seed has no art, promote a member with art to the top
-      const seedCached = audioCache[item.seedKey];
-      const seedHasArt = seedCached && seedCached.artUrl;
-      const topKey = seedHasArt ? item.seedKey
-        : artKeys.length > 0 ? artKeys[0] : item.seedKey;
+      // Use first artwork as top key (server already promotes best art)
+      const topKey = artKeys.length > 0 ? artKeys[0] : null;
       for (let i = 0; i < numCards; i++) {
         const card = document.createElement('div');
         card.className = 'crate-card placeholder';
@@ -623,16 +484,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         const base = 148 + Math.floor(crateRand() * 40) - 20;
         card.style.background = `rgb(${base}, ${base - 4}, ${base - 8})`;
 
-        // Top card shows seed track; others cycle through remaining members
-        const otherKeys = artKeys.filter(k => k !== topKey);
-        const mKey = (i === numCards - 1) ? topKey
-          : otherKeys.length > 0 ? otherKeys[i % otherKeys.length] : null;
-        const mNode = mKey && graphNodes[mKey];
         const info = document.createElement('div');
         info.className = 'crate-info';
         info.innerHTML = `
-          <div class="ci-title">${cap(mNode ? mNode.title : item.title)}</div>
-          <div class="ci-artist">${cap(mNode ? mNode.artist : item.artist)}</div>
+          <div class="ci-title">${cap(item.title)}</div>
+          <div class="ci-artist">${cap(item.artist)}</div>
           <div class="ci-count">${item.count} tracks</div>
         `;
         card.appendChild(info);
@@ -695,15 +551,64 @@ document.addEventListener('DOMContentLoaded', async () => {
       });
     }
 
-    // Request a page from the worker (non-blocking)
+    // Request a page from the API (non-blocking)
     function requestPage(col, row) {
       const key = `${col},${row}`;
       if (pages[key] || pendingPageKeys.has(key)) return;
-      if (!workerReady) { queuedRequests.push({ col, row }); return; }
       pendingPageKeys.add(key);
-      const id = pageIdCounter++;
-      pendingPages[id] = { col, row };
-      worker.postMessage({ type: 'generatePage', id, count: CLUSTERS_PER_PAGE, vw, vh, pad });
+      const pageNum = pageIdCounter++;
+
+      const filters = {};
+      if (genreFilters.length) filters.genres = genreFilters;
+      if (searchFilters.length) filters.artists = searchFilters.map(f => f.display);
+      if (djSearchFilters.length) filters.djs = djSearchFilters.map(f => f.display);
+
+      apiGetCratesPage({
+        seed: workerSeed,
+        page: pageNum,
+        count: CLUSTERS_PER_PAGE,
+        ...filters,
+      }).then(result => {
+        const clusters = result.clusters || [];
+        // Run treemap layout client-side
+        if (clusters.length > 0) {
+          const items = clusters.map((c, i) => ({ ...c, idx: i }));
+          cratesTreemap(items, pad, pad, vw - pad * 2, vh - pad * 2);
+          receivePage(col, row, items);
+        } else {
+          receivePage(col, row, []);
+        }
+      }).catch(err => {
+        console.error('Crates page failed:', err.message);
+        pendingPageKeys.delete(key);
+      });
+    }
+
+    // Client-side treemap layout (same algorithm as the worker had)
+    function cratesTreemap(items, x, y, w, h) {
+      if (items.length === 0) return items;
+      if (items.length === 1) { items[0].rect = { x, y, w, h }; return items; }
+      const total = items.reduce((s, it) => s + it.weight, 0);
+      const sorted = [...items].sort((a, b) => b.weight - a.weight);
+      let bestDiff = Infinity, splitIdx = 1, runSum = 0;
+      for (let i = 0; i < sorted.length - 1; i++) {
+        runSum += sorted[i].weight;
+        const diff = Math.abs(runSum - (total - runSum));
+        if (diff < bestDiff) { bestDiff = diff; splitIdx = i + 1; }
+      }
+      const left = sorted.slice(0, splitIdx);
+      const right = sorted.slice(splitIdx);
+      const ratio = left.reduce((s, it) => s + it.weight, 0) / total;
+      if (w >= h) {
+        const sw = w * ratio;
+        cratesTreemap(left, x, y, sw, h);
+        cratesTreemap(right, x + sw, y, w - sw, h);
+      } else {
+        const sh = h * ratio;
+        cratesTreemap(left, x, y, w, sh);
+        cratesTreemap(right, x, y + sh, w, h - sh);
+      }
+      return sorted;
     }
 
     // Handle page data from the worker — build DOM on main thread
@@ -759,12 +664,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         const cards = stackEl.querySelectorAll('.crate-card');
         const last = cards.length - 1;
         cards.forEach((card, i) => {
-          // Top card uses best available artwork; others cycle
-          const seedCached = audioCache[item.seedKey];
-          const seedHasArt = seedCached && seedCached.artUrl;
-          const topUrl = seedHasArt ? seedCached.artUrl
-            : item.artworks.length > 0 ? item.artworks[0] : null;
-          const otherArt = item.artworks.filter(u => u !== topUrl);
+          // Top card uses first artwork; others cycle through the rest
+          const topUrl = item.artworks.length > 0 ? item.artworks[0] : null;
+          const otherArt = item.artworks.slice(1);
           const url = (i === last) ? topUrl
             : otherArt.length > 0 ? otherArt[i % otherArt.length] : null;
           if (url) {
