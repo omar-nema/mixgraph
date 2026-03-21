@@ -89,9 +89,7 @@ function showCluster(cluster) {
     }
   });
 
-  // Filter label above root card (now driven by searchFilters/genreFilters)
-  const filterLabel = document.getElementById('filter-label');
-  filterLabel.textContent = '';
+  // Filter label above root card — will be restored by updateFilterUI() via onClusterShown
 
   renderConnections();
   setupHovers();
@@ -266,7 +264,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   // Register cluster pills hook before initial load
-  onClusterShown = updateClusterPills;
+  onClusterShown = () => { updateClusterPills(); updateFilterUI(); };
 
   // Load cluster from URL hash, or shuffle for a random one
   const hashId = decodeURIComponent(window.location.hash.slice(1));
@@ -1301,25 +1299,23 @@ document.addEventListener('DOMContentLoaded', async () => {
     const djClear = document.getElementById('dj-clear-btn');
     if (djClear) djClear.disabled = totalDj === 0;
 
-    // Mobile pill counts
+    // Mobile pill active state (no counts) + clear buttons
     const mGenre = document.getElementById('mobile-pill-genre');
-    if (mGenre) {
-      const gc2 = genreFilters.length;
-      mGenre.textContent = `Genre (${gc2})`;
-      mGenre.classList.toggle('active', gc2 > 0);
-    }
+    if (mGenre) mGenre.classList.toggle('active', genreFilters.length > 0);
+    const mGenreClear = document.getElementById('mobile-genre-clear-btn');
+    if (mGenreClear) mGenreClear.disabled = genreFilters.length === 0;
+
     const mArtist = document.getElementById('mobile-pill-artist');
-    if (mArtist) {
-      const ac2 = searchFilters.length + clusterArtistFilters.length;
-      mArtist.textContent = `Artist (${ac2})`;
-      mArtist.classList.toggle('active', ac2 > 0);
-    }
+    const totalArtistM = searchFilters.length + clusterArtistFilters.length;
+    if (mArtist) mArtist.classList.toggle('active', totalArtistM > 0);
+    const mArtistClear = document.getElementById('mobile-artist-clear-btn');
+    if (mArtistClear) mArtistClear.disabled = totalArtistM === 0;
+
     const mDj = document.getElementById('mobile-pill-dj');
-    if (mDj) {
-      const dc2 = djSearchFilters.length + clusterDjFilters.length;
-      mDj.textContent = `DJ (${dc2})`;
-      mDj.classList.toggle('active', dc2 > 0);
-    }
+    const totalDjM = djSearchFilters.length + clusterDjFilters.length;
+    if (mDj) mDj.classList.toggle('active', totalDjM > 0);
+    const mDjClear = document.getElementById('mobile-dj-clear-btn');
+    if (mDjClear) mDjClear.disabled = totalDjM === 0;
 
     // Desktop filter label above root card
     const filterLabel = document.getElementById('filter-label');
@@ -1420,64 +1416,90 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Genre popover
   document.getElementById('pill-genre').addEventListener('click', (e) => {
     e.stopPropagation();
+    const wasArtistOpen = artistPopover.classList.contains('open');
+    const wasDjOpen = djPopover.classList.contains('open');
     artistPopover.classList.remove('open');
     djPopover.classList.remove('open');
     closeFindAc();
     closeDjAc();
     genrePopover.classList.toggle('open');
+    if (!genrePopover.classList.contains('open') || wasArtistOpen || wasDjOpen) reshuffleIfFiltered();
   });
 
   // Artist popover
   document.getElementById('pill-artist').addEventListener('click', (e) => {
     e.stopPropagation();
+    const wasGenreOpen = genrePopover.classList.contains('open');
+    const wasDjOpen = djPopover.classList.contains('open');
     genrePopover.classList.remove('open');
     djPopover.classList.remove('open');
     closeDjAc();
     artistPopover.classList.toggle('open');
     if (artistPopover.classList.contains('open')) {
       setTimeout(() => findSearchInput.focus(), 50);
+      if (wasGenreOpen || wasDjOpen) reshuffleIfFiltered();
     } else {
       closeFindAc();
+      reshuffleIfFiltered();
     }
   });
 
   // DJ popover
   document.getElementById('pill-dj').addEventListener('click', (e) => {
     e.stopPropagation();
+    const wasGenreOpen = genrePopover.classList.contains('open');
+    const wasArtistOpen = artistPopover.classList.contains('open');
     genrePopover.classList.remove('open');
     artistPopover.classList.remove('open');
     closeFindAc();
     djPopover.classList.toggle('open');
     if (djPopover.classList.contains('open')) {
       setTimeout(() => djSearchInput.focus(), 50);
+      if (wasGenreOpen || wasArtistOpen) reshuffleIfFiltered();
     } else {
       closeDjAc();
+      reshuffleIfFiltered();
     }
   });
 
+  // Re-shuffle when any popover closes (filters apply on close)
+  function reshuffleIfFiltered() {
+    const hasFilters = genreFilters.length > 0 || searchFilters.length > 0 || djSearchFilters.length > 0 || clusterArtistFilters.length > 0 || clusterDjFilters.length > 0;
+    if (hasFilters) shuffle();
+  }
+
   // Close popovers on outside click
   document.addEventListener('click', (e) => {
-    if (!e.target.closest('#genre-pill-anchor')) genrePopover.classList.remove('open');
-    if (!e.target.closest('#artist-pill-anchor')) {
+    let anyClosed = false;
+    if (!e.target.closest('#genre-pill-anchor') && genrePopover.classList.contains('open')) {
+      genrePopover.classList.remove('open');
+      anyClosed = true;
+    }
+    if (!e.target.closest('#artist-pill-anchor') && artistPopover.classList.contains('open')) {
       artistPopover.classList.remove('open');
       closeFindAc();
+      anyClosed = true;
     } else if (e.target.closest('#artist-popover') && !e.target.closest('#find-ac') && !e.target.closest('#find-chips-input')) {
       closeFindAc();
     }
-    if (!e.target.closest('#dj-pill-anchor')) {
+    if (!e.target.closest('#dj-pill-anchor') && djPopover.classList.contains('open')) {
       djPopover.classList.remove('open');
       closeDjAc();
+      anyClosed = true;
     } else if (e.target.closest('#dj-popover') && !e.target.closest('#dj-ac') && !e.target.closest('#dj-chips-input')) {
       closeDjAc();
     }
+    if (anyClosed) reshuffleIfFiltered();
   });
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
+      const anyOpen = genrePopover.classList.contains('open') || artistPopover.classList.contains('open') || djPopover.classList.contains('open');
       genrePopover.classList.remove('open');
       artistPopover.classList.remove('open');
       djPopover.classList.remove('open');
       closeFindAc();
       closeDjAc();
+      if (anyOpen) reshuffleIfFiltered();
     }
   });
 
@@ -1504,6 +1526,38 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // DJ clear all
   document.getElementById('dj-clear-btn').addEventListener('click', (e) => {
+    e.stopPropagation();
+    djSearchFilters = [];
+    clusterDjFilters = [];
+    shuffleHistory.clear();
+    renderDjChips();
+    renderMobileDjChips();
+    updateFilterUI();
+    updateClusterPills();
+  });
+
+  // Mobile clear buttons — same logic as desktop
+  const mobileGenreClear = document.getElementById('mobile-genre-clear-btn');
+  if (mobileGenreClear) mobileGenreClear.addEventListener('click', (e) => {
+    e.stopPropagation();
+    genreFilters = [];
+    shuffleHistory.clear();
+    document.querySelectorAll('.genre-pill.selected').forEach(p => p.classList.remove('selected'));
+    updateFilterUI();
+  });
+  const mobileArtistClear = document.getElementById('mobile-artist-clear-btn');
+  if (mobileArtistClear) mobileArtistClear.addEventListener('click', (e) => {
+    e.stopPropagation();
+    searchFilters = [];
+    clusterArtistFilters = [];
+    shuffleHistory.clear();
+    renderFindChips();
+    renderMobileFindChips();
+    updateFilterUI();
+    updateClusterPills();
+  });
+  const mobileDjClear = document.getElementById('mobile-dj-clear-btn');
+  if (mobileDjClear) mobileDjClear.addEventListener('click', (e) => {
     e.stopPropagation();
     djSearchFilters = [];
     clusterDjFilters = [];

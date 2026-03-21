@@ -46,21 +46,31 @@ function showClusterMobile(cluster) {
     artist: document.getElementById('mobile-artist-popover'),
     dj: document.getElementById('mobile-dj-popover'),
   };
-  function closeMobilePopovers() {
+  function closeMobilePopovers(andReshuffle) {
+    const anyOpen = Object.values(mobilePopovers).some(p => p.classList.contains('open'));
     Object.values(mobilePopovers).forEach(p => p.classList.remove('open'));
     mobileBackdrop.classList.remove('open');
+    if (andReshuffle && anyOpen) {
+      const hasFilters = genreFilters.length > 0 || searchFilters.length > 0 || djSearchFilters.length > 0 || clusterArtistFilters.length > 0 || clusterDjFilters.length > 0;
+      if (hasFilters) shuffle();
+    }
   }
   function openMobilePopover(name, pillEl) {
     const already = mobilePopovers[name].classList.contains('open');
-    closeMobilePopovers();
-    if (already) return;
+    closeMobilePopovers(false);
+    if (already) {
+      // Closing by re-tapping the same pill — reshuffle if filtered
+      const hasFilters = genreFilters.length > 0 || searchFilters.length > 0 || djSearchFilters.length > 0 || clusterArtistFilters.length > 0 || clusterDjFilters.length > 0;
+      if (hasFilters) shuffle();
+      return;
+    }
     // Position popover below the pill row
     const rect = pillEl.getBoundingClientRect();
     mobilePopovers[name].style.top = (rect.bottom + 8) + 'px';
     mobilePopovers[name].classList.add('open');
     mobileBackdrop.classList.add('open');
   }
-  mobileBackdrop.addEventListener('click', closeMobilePopovers);
+  mobileBackdrop.addEventListener('click', () => closeMobilePopovers(true));
   document.getElementById('mobile-pill-genre').addEventListener('click', function() {
     openMobilePopover('genre', this);
   });

@@ -181,12 +181,7 @@ body {
   margin: -13px -13px 13px -13px;
   display: flex;
 }
-.card-toolbar #shuffle-btn { flex: 4; color: var(--connection-highlight); background: #dedeee; transition: background 0.2s ease; }
-.card-toolbar #card-link-btn { flex: 1; border-left: 1px solid var(--card-border); background: #f5f5f8; color: var(--connection-highlight); transition: color 0.2s, background 0.2s; }
-.card-toolbar #card-link-btn .check-icon { display: none; }
-.card-toolbar #card-link-btn.copied { color: #c0392b; background: var(--bg); }
-.card-toolbar #card-link-btn.copied .link-icon { display: none; }
-.card-toolbar #card-link-btn.copied .check-icon { display: block; }
+.card-toolbar #shuffle-btn { flex: 1; color: var(--connection-highlight); background: #dedeee; transition: background 0.2s ease; }
 .card-toolbar button {
   font-family: var(--font);
   font-size: 16px;
@@ -205,14 +200,9 @@ body {
 }
 .card-toolbar #shuffle-btn:hover { background: #d0d0f8; }
 .card-toolbar #shuffle-btn:active { background: #c0c0f5; }
-.card-toolbar #card-link-btn:hover { background: #ebebf0; }
-.card-toolbar #card-link-btn:active { background: #e2e2ea; }
 body.night .card-toolbar #shuffle-btn { background: #353b44; color: #9b9bff; }
 body.night .card-toolbar #shuffle-btn:hover { background: #3a3a50; }
 body.night .card-toolbar #shuffle-btn:active { background: #42425a; }
-body.night .card-toolbar #card-link-btn { background: #2d3139; color: #9b9bff; }
-body.night .card-toolbar #card-link-btn:hover { background: rgba(255,255,255,0.06); }
-body.night .card-toolbar #card-link-btn:active { background: rgba(255,255,255,0.1); }
 .card-toolbar button svg {
   width: 12px;
   height: 12px;
@@ -1061,18 +1051,17 @@ body.night .filter-shuffle:hover {
   margin-right: 5px;
 }
 .filter-share {
-  border-radius: 5px !important;
+  margin-left: auto;
+  border-radius: 5px;
 }
 .filter-share svg {
   flex-shrink: 0;
   margin-right: 5px;
-  width: 13px;
-  height: 13px;
 }
 .filter-share .check { display: none; }
 .filter-share.copied {
-  color: var(--text-primary) !important;
-  border-color: var(--text-primary) !important;
+  color: var(--connection-highlight) !important;
+  border-color: var(--connection-highlight) !important;
 }
 .filter-share.copied .link { display: none; }
 .filter-share.copied .check { display: block; }

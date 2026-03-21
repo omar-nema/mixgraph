@@ -53,25 +53,28 @@
   </div>
   <div id="mobile-popover-backdrop"></div>
   <div id="mobile-genre-popover" class="mobile-popover">
+    <button class="popover-clear" id="mobile-genre-clear-btn" disabled>Clear all</button>
     <div id="mobile-genre-pills"></div>
   </div>
   <div id="mobile-artist-popover" class="mobile-popover">
+    <button class="popover-clear" id="mobile-artist-clear-btn" disabled>Clear all</button>
     <div id="mobile-find-chips-input">
       <input id="mobile-find-search" type="text" placeholder="Search artists" autocomplete="off">
     </div>
     <div id="mobile-find-ac"></div>
     <div id="mobile-artist-cluster-section">
-      <div class="cluster-pills-label">Filter by artists shown in this cluster</div>
+      <div class="cluster-pills-label">Filter by artists in this cluster</div>
       <div id="mobile-artist-cluster-pills" class="cluster-pills"></div>
     </div>
   </div>
   <div id="mobile-dj-popover" class="mobile-popover">
+    <button class="popover-clear" id="mobile-dj-clear-btn" disabled>Clear all</button>
     <div id="mobile-dj-chips-input">
       <input id="mobile-dj-search" type="text" placeholder="Search DJs" autocomplete="off">
     </div>
     <div id="mobile-dj-ac"></div>
     <div id="mobile-dj-cluster-section">
-      <div class="cluster-pills-label">Filter by DJs shown in this cluster</div>
+      <div class="cluster-pills-label">Filter by DJs in this cluster</div>
       <div id="mobile-dj-cluster-pills" class="cluster-pills"></div>
     </div>
   </div>
@@ -140,6 +143,7 @@
         <span class="filter-dot">•</span>
         <button class="filter-pill filter-shuffle" id="filter-shuffle-btn"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/><line x1="4" y1="4" x2="9" y2="9"/></svg> Shuffle</button>
       </div>
+      <button class="filter-pill filter-share" id="filter-share-btn" title="Copy link"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><g class="link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></g><g class="check"><polyline points="20 6 9 17 4 12"/></g></svg> Share</button>
     </div>
   </div>
 
