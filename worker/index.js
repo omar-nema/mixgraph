@@ -419,6 +419,19 @@ export default {
         return jsonResponse({ clusters, hasMore: poolIdx < pool.length });
       }
 
+      // GET /api/crates-index — pre-computed seed metadata for client-side crates
+      if (url.pathname === '/api/crates-index') {
+        const raw = await env.GRAPH_KV.get('crates-index', 'text');
+        if (!raw) return jsonResponse({ error: 'crates-index not found — rebuild KV' }, 404);
+        return new Response(raw, {
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*',
+            'Cache-Control': 'public, max-age=86400, stale-while-revalidate=604800',
+          },
+        });
+      }
+
       return jsonResponse({ error: 'Not found' }, 404);
     } catch (err) {
       console.error('Worker error:', err);
