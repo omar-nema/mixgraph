@@ -10,8 +10,8 @@ function resolveApiBase() {
   if (['localhost', '127.0.0.1'].includes(window.location.hostname) || /^192\.168\./.test(window.location.hostname)) {
     return `http://${window.location.hostname}:3001`;
   }
-  // 3. Default → production Worker URL (future)
-  return 'https://b2b.workers.dev';
+  // 3. Default → production Worker URL
+  return 'https://b2b-api.omarwnema.workers.dev';
 }
 
 const API_BASE = resolveApiBase();
