@@ -19,6 +19,7 @@ let episodeIndex = {};   // episode_url → Set<trackId>
 let artistIndex = {};    // lowercase artist → { display, trackIds: [] }
 let artistListAlpha = [];
 let djListAlpha = [];
+let djNameMap = {};
 let nodes = [];
 let edges = [];
 let nodeMap = {};
