@@ -38,6 +38,7 @@ pipeline/               # Data processing (shared across sources)
   utils.py              # Shared normalize() for track ID generation
   output/               # combined_graph.json, audio_cache.json
 plans/                  # Implementation plans and docs
+  cloud-migration.md    # Plan: Cloudflare Workers + R2 API migration
 sandbox/                # Frontend experiments (prototyping)
 ```
 
