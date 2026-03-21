@@ -14,6 +14,16 @@ let clusterArtistFilters = []; // [{ display, trackIds }] — artist filters (fr
 let clusterDjFilters = [];     // [{ display, trackIds }] — DJ filters (from cluster pills)
 let genreFilters = [];   // ['Soul', 'Jazz', ...]
 let shuffleHistory = new Set();  // track seen root IDs to avoid repeats
+
+// Genre rebalancing: cap over-represented genres (target % of seed nodes)
+// Nodes with capped genres get downweighted so they appear less often on shuffle.
+const genreWeightCaps = {
+  'Ambient': 20,
+  'Folk': 5,
+  'Soul': 15,
+  'Indie Rock': 14,
+};
+let candidateWeights = null;  // Float64Array, computed after candidates are built
 let djIndex = {};        // lowercase DJ name → { display, trackIds: Set }
 let episodeIndex = {};   // episode_url → Set<trackId>
 let artistIndex = {};    // lowercase artist → { display, trackIds: [] }

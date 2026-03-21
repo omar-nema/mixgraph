@@ -14,7 +14,9 @@ js/
   audio.js              # Playback engine: SC widget, Mixcloud, progress bar
   graph.js              # Cluster selection (BFS), layout engine, card/connection rendering
   mobile.js             # Mobile carousel, track selection, source pills
-  app.js                # Init, crates view, search, theme toggle, event wiring
+  filters.js            # Search indexes, autocomplete, genre/artist/DJ filter UI
+  app.js                # Init, crates view, theme toggle, event wiring
+  crates-worker.js      # Web Worker for crates page generation (off main thread)
 web-app/
   output/               # Static data files (combined_graph.json, audio_cache.json)
 scrapers/
@@ -33,6 +35,7 @@ pipeline/               # Data processing (shared across sources)
   graph.py              # Builds adjacency graph from episode JSONs
   enrich.py             # Audio enrichment: SC track -> SC set -> Mixcloud
   cluster.py            # Cluster selection + SoundCloud search functions
+  utils.py              # Shared normalize() for track ID generation
   output/               # combined_graph.json, audio_cache.json
 plans/                  # Implementation plans and docs
 sandbox/                # Frontend experiments (prototyping)
@@ -115,7 +118,7 @@ Mobile and desktop are **completely separate layouts** that must not leak into e
 - No TypeScript, no bundlers, no package.json for the frontend
 - When editing frontend files, preserve the existing CSS token system and code organization
 - CSS is split: `css/desktop.css` for desktop, `css/mobile.css` for mobile — keep them separate
-- JS is split by concern: `data.js` → `audio.js` → `graph.js` → `mobile.js` → `app.js` (load order matters)
+- JS is split by concern: `data.js` → `audio.js` → `graph.js` → `mobile.js` → `filters.js` → `app.js` (load order matters)
 - Concise comments only where logic isn't obvious
 - **Use flexbox for layout** — never use absolute positioning for standard UI elements like toolbars, navs, or button groups. Reserve absolute positioning for overlays, tooltips, and things that genuinely need to escape the flow
 

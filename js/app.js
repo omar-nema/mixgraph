@@ -819,11 +819,11 @@ document.addEventListener('DOMContentLoaded', async () => {
       const viewR = viewL + vw / crateScale;
       const viewB = viewT + vh / crateScale;
 
-      // Pages to build (visible + 1 buffer for placeholders)
-      const colMin = Math.floor(viewL / vw) - 1;
-      const colMax = Math.floor(viewR / vw) + 1;
-      const rowMin = Math.floor(viewT / vh) - 1;
-      const rowMax = Math.floor(viewB / vh) + 1;
+      // Pages to build (visible only — worker is async so no buffer needed)
+      const colMin = Math.floor(viewL / vw);
+      const colMax = Math.floor(viewR / vw);
+      const rowMin = Math.floor(viewT / vh);
+      const rowMax = Math.floor(viewB / vh);
 
       // Request nearby pages from worker (non-blocking)
       for (let c = colMin; c <= colMax; c++) {
@@ -843,7 +843,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const near = c >= colVis0 - 1 && c <= colVis1 + 1 && r >= rowVis0 - 1 && r <= rowVis1 + 1;
         if (near) {
           loadPageArt(page);
-        } else if (c < colMin - 2 || c > colMax + 2 || r < rowMin - 2 || r > rowMax + 2) {
+        } else if (c < colMin - 3 || c > colMax + 3 || r < rowMin - 3 || r > rowMax + 3) {
           unloadPageArt(page);
         }
       }

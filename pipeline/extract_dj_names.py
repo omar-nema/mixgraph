@@ -11,6 +11,7 @@ Run after graph.py whenever you rebuild the graph.
 """
 
 import json
+import os
 import re
 
 def extract_dj_names(full_string):
@@ -32,7 +33,7 @@ def extract_dj_names(full_string):
     # "presents:" pattern — DJ is BEFORE, show is AFTER
     m = re.match(r'^(.+?)\s+[Pp]resents?:?\s+', s)
     if m:
-        dj_part = m.group(1).strip()
+        dj_part = clean_name(m.group(1).strip())
         return split_multiple_djs(dj_part)
 
     # "w/" or "with" pattern — show is BEFORE, DJ is AFTER
@@ -44,26 +45,31 @@ def extract_dj_names(full_string):
         colon_m = re.match(r'^[^:]+:\s*(.+)$', dj_part)
         if colon_m:
             dj_part = colon_m.group(1).strip()
-        # Handle trailing episode titles like " - Best of 2025"
-        dj_part = re.sub(r'\s*[-–—]\s*(Best of|Special|Edition|Part|Vol).*$', '', dj_part, flags=re.IGNORECASE)
+        # Strip episode subtitles after " - " or ":" (e.g. "MOBILEGIRL - music for the kitchen" → "MOBILEGIRL")
+        dj_part = re.split(r'\s+[-–—]\s+|:\s+', dj_part)[0].strip()
         return split_multiple_djs(dj_part)
 
     # "b2b" pattern — both are DJs
     if re.search(r'\s+[Bb]2[Bb]\s+', s):
         parts = re.split(r'\s+[Bb]2[Bb]\s+', s)
-        return [p.strip() for p in parts if p.strip()]
+        return [clean_name(p.strip()) for p in parts if p.strip()]
 
     # "invites" pattern — both are DJs
     if re.search(r'\s+invites\s+', s, re.IGNORECASE):
         parts = re.split(r'\s+invites\s+', s, flags=re.IGNORECASE)
-        return [p.strip() for p in parts if p.strip()]
+        return [clean_name(p.strip()) for p in parts if p.strip()]
 
-    # Strip trailing episode-specific suffixes for solo names
-    cleaned = re.sub(r'\s*[-–—]\s*(Best of|Special|Edition|Part|Vol|Archive|Tribute).*$', '', s, flags=re.IGNORECASE)
-    cleaned = re.sub(r'\s*:\s*(Best of|Special|Edition|Part|Vol).*$', '', cleaned, flags=re.IGNORECASE)
+    # Strip episode subtitles after " - " or ":" (e.g. "A Colourful Storm - Bitter Dream" → "A Colourful Storm")
+    cleaned = re.split(r'\s+[-–—]\s+|:\s+', s)[0].strip()
 
-    # Solo name — keep as-is
-    return [cleaned.strip() or s]
+    # Solo name — strip parentheticals
+    return [clean_name(cleaned) or cleaned or s]
+
+
+def clean_name(name):
+    """Strip trailing parenthetical suffixes like '(Greensleeves Records)' or '(LIVE)'."""
+    cleaned = re.sub(r'\s*\([^)]*\)\s*$', '', name).strip()
+    return cleaned or name
 
 
 def split_multiple_djs(dj_part):
@@ -71,7 +77,7 @@ def split_multiple_djs(dj_part):
     # Split on &, +, "and", comma (but be careful with names containing these)
     # Only split on & if it looks like a separator (spaces around it)
     parts = re.split(r'\s*[&+]\s*|\s*,\s*|\s+and\s+', dj_part)
-    result = [p.strip() for p in parts if p.strip()]
+    result = [clean_name(p.strip()) for p in parts if p.strip()]
     return result if result else [dj_part]
 
 
@@ -98,6 +104,23 @@ def main():
     for s in sorted(dj_strings):
         names = extract_dj_names(s)
         dj_map[s] = names
+
+    # Normalize casing: pick the most frequent form for each lowercase key
+    from collections import Counter
+    case_counts = Counter()
+    for names in dj_map.values():
+        for name in names:
+            case_counts[name] += 1
+    # Build lowercase → canonical casing (most frequent wins)
+    canonical = {}
+    for name, count in case_counts.items():
+        key = name.lower()
+        if key not in canonical or count > canonical[key][1]:
+            canonical[key] = (name, count)
+    canon_map = {k: v[0] for k, v in canonical.items()}
+    # Apply canonical casing to all entries
+    for s in dj_map:
+        dj_map[s] = [canon_map.get(n.lower(), n) for n in dj_map[s]]
 
     with open(output_path, 'w') as f:
         json.dump(dj_map, f, indent=2, ensure_ascii=False)

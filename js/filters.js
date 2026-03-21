@@ -2,15 +2,47 @@
 // Filter & search — indexes, autocomplete, UI
 // ═══════════════════════════════════════════
 
+function splitArtists(raw) {
+  // Split multi-artist strings: "A, B" "A Feat B" "A Ft. B" "A X B" "A & B" "A (B)" → [A, B]
+  // First extract parenthetical artists like "Faro (Oklou & Malibu)" → ["Faro", "Oklou", "Malibu"]
+  let names = [];
+  const parenMatch = raw.match(/^(.+?)\s*\(([^)]+)\)\s*$/);
+  if (parenMatch) {
+    names.push(parenMatch[1].trim());
+    raw = parenMatch[2].trim();
+  }
+  // Split on feat/ft./x/,/&/+
+  const parts = raw.split(/\s*,\s*|\s+[Ff]eat\.?\s+|\s+[Ff]t\.?\s+|\s+[Xx]\s+|\s*[&+]\s*|\s+and\s+/);
+  for (const p of parts) {
+    const trimmed = p.trim();
+    if (trimmed) names.push(trimmed);
+  }
+  return names.length ? names : [raw];
+}
+
 function initFilters() {
   // ── Build search indexes ──
+  // Collect all artist name variants and count occurrences to pick canonical casing
+  const caseCounts = {};
   artistIndex = {};
   for (const [id, node] of Object.entries(graphNodes)) {
     const artist = (node.artist || '').trim();
     if (!artist) continue;
-    const key = artist.toLowerCase();
-    if (!artistIndex[key]) artistIndex[key] = { display: artist, trackIds: [] };
-    artistIndex[key].trackIds.push(id);
+    for (const name of splitArtists(artist)) {
+      const key = name.toLowerCase();
+      caseCounts[key] = caseCounts[key] || {};
+      caseCounts[key][name] = (caseCounts[key][name] || 0) + 1;
+      if (!artistIndex[key]) artistIndex[key] = { display: name, trackIds: [] };
+      artistIndex[key].trackIds.push(id);
+    }
+  }
+  // Normalize display name to most frequent casing
+  for (const [key, variants] of Object.entries(caseCounts)) {
+    let best = '', bestCount = 0;
+    for (const [name, count] of Object.entries(variants)) {
+      if (count > bestCount) { best = name; bestCount = count; }
+    }
+    if (artistIndex[key]) artistIndex[key].display = best;
   }
   const candidateSet = new Set(candidates);
   artistListAlpha = Object.values(artistIndex)
@@ -510,20 +542,24 @@ function initFilters() {
     // Collect unique artists from cluster
     const seenArtists = new Set();
     for (const node of nodes) {
-      const key = node.artist?.toLowerCase();
-      if (!key || seenArtists.has(key)) continue;
-      seenArtists.add(key);
-      const entry = artistIndex[key];
-      if (!entry) continue;
-      const isActive = clusterArtistFilters.some(f => f.display === entry.display);
-      [artistContainer, mobileArtistContainer].forEach(container => {
-        if (!container) return;
-        const pill = document.createElement('button');
-        pill.className = 'cluster-pill' + (isActive ? ' added' : '');
-        pill.textContent = entry.display;
-        pill.addEventListener('click', (e) => { e.stopPropagation(); toggleClusterFilter(clusterArtistFilters, entry); });
-        container.appendChild(pill);
-      });
+      const raw = (node.artist || '').trim();
+      if (!raw) continue;
+      for (const name of splitArtists(raw)) {
+        const key = name.toLowerCase();
+        if (seenArtists.has(key)) continue;
+        seenArtists.add(key);
+        const entry = artistIndex[key];
+        if (!entry) continue;
+        const isActive = clusterArtistFilters.some(f => f.display === entry.display);
+        [artistContainer, mobileArtistContainer].forEach(container => {
+          if (!container) return;
+          const pill = document.createElement('button');
+          pill.className = 'cluster-pill' + (isActive ? ' added' : '');
+          pill.textContent = entry.display;
+          pill.addEventListener('click', (e) => { e.stopPropagation(); toggleClusterFilter(clusterArtistFilters, entry); });
+          container.appendChild(pill);
+        });
+      }
     }
 
     // Collect unique DJs from cluster
