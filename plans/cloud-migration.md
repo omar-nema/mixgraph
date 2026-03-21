@@ -1,8 +1,13 @@
-# Cloud Migration Plan: Cloudflare Workers + R2
+# Cloud Migration Plan: Provider-Portable API
 
-Move from serving a 110MB JSON file to the browser to a Cloudflare Worker API that runs
-the graph logic server-side. A local Node server mirrors the same API so you can develop
-and test without deploying.
+Move from serving 110MB of JSON to the browser to a server-side API that runs graph
+logic (BFS, filtering, shuffle) on the server. The design goal is **provider portability**:
+run entirely locally with a Node server, deploy to Cloudflare today, migrate to Fly/Vercel/
+any other provider tomorrow — without rewriting logic.
+
+"Resilience" here means easy provider swaps, NOT runtime fallback (the frontend does not
+detect a failing backend and switch to another). If the backend is down, the app shows
+an error. That's fine.
 
 ---
 
@@ -15,41 +20,50 @@ The app currently loads two large files on startup:
 All graph logic (BFS, filtering, weighted random, index building) runs in the browser
 against that in-memory dataset. Cold start is painfully slow on slow connections and
 mobile. The crates Web Worker (`js/crates-worker.js`) fetches both files a second time
-on its own.
+independently.
 
 ---
 
 ## 2. Architecture Overview
 
+Three distinct layers with clean boundaries:
+
 ```
-┌─────────────────────────────────┐
-│  Frontend (unchanged HTML/CSS)  │
-│                                 │
-│  js/api.js  ←─ BASE_URL toggle  │
-│    ↓                            │
-│  fetch(BASE_URL + endpoint)     │
-└─────────────┬───────────────────┘
-              │
-    ┌─────────┴──────────┐
-    │                    │
-    ▼                    ▼
-Cloudflare Worker    Local Node server
-(production)         (development)
-    │                    │
-    ▼                    │
- R2 bucket               ▼
- combined_graph.json  pipeline/output/*.json
- audio_cache.json     (reads directly from disk)
- dj_name_map.json
-    │                    │
-    └────────┬───────────┘
-             ▼
-    shared/graph-logic.js
-    (BFS, filtering, weighted random, index building)
+┌──────────────────────────────────────┐
+│  Frontend (unchanged HTML/CSS/JS)    │
+│                                      │
+│  js/api.js  ←── BASE_URL resolution  │
+│    ↓                                 │
+│  fetch(BASE_URL + endpoint)          │
+└──────────────────┬───────────────────┘
+                   │  HTTP (same API contract everywhere)
+       ┌───────────┴──────────┐
+       │                      │
+       ▼                      ▼
+ Local Node server       Cloudflare Worker
+ server/local-server.js  worker/index.js
+       │                      │
+       ▼                      ▼
+ Load from disk          Load from R2
+ pipeline/output/*.json  b2b-graph-data/
+       │                      │
+       └──────────┬───────────┘
+                  │  graph object (plain JS: { nodes, ... })
+                  ▼
+        shared/graph-logic.js
+        (BFS, filtering, shuffle, indexing)
+        Zero provider-specific code.
 ```
 
-**Key principle**: `shared/graph-logic.js` is written once and `require()`d / imported
-by both the Worker and the local server. Zero duplication of graph logic.
+The boundary between the adapter and the shared module is explicit:
+- **Adapters** (local server, Worker) handle: loading data from wherever it lives,
+  HTTP routing, CORS headers, serializing responses.
+- **`shared/graph-logic.js`** handles: everything algorithmic. It takes plain JS objects
+  and returns plain JS objects. It has no `import` of any provider SDK, no R2 bindings,
+  no KV, no fetch calls, no filesystem access.
+
+Swapping providers means writing a new adapter file (~100 lines) and changing `BASE_URL`.
+The shared logic is untouched.
 
 ---
 
@@ -69,7 +83,7 @@ by both the Worker and the local server. Zero duplication of graph logic.
 | `app.js:261` | Genre rebalancing weight computation | Needs full graph |
 | `filters.js:23` | `initFilters()` — building `artistIndex`, `djIndex`, `episodeIndex` | Needs full graph |
 | `crates-worker.js:53` | `generateClusters()`, `cratesBfs()` | BFS over full graph |
-| `crates-worker.js:81` | `cratesTreemap()` | Can stay client or move — pure math |
+| `crates-worker.js:81` | `cratesTreemap()` | Move server-side for simplicity |
 
 ### Stays client-side
 
@@ -81,8 +95,8 @@ by both the Worker and the local server. Zero duplication of graph logic.
 | `showCluster()` (`app.js:1`) | Layout + render orchestration |
 | All of `audio.js` | SoundCloud/Mixcloud widget playback |
 | All of `mobile.js` | Mobile carousel, DOM rendering |
-| Filter UI state (`searchFilters`, `djSearchFilters`, `genreFilters` etc. in `data.js`) | Client-side filter pill state |
-| `shuffleHistory` (`data.js:16`) | Client-side dedup set — send as `exclude[]` param to shuffle |
+| Filter UI state (`searchFilters`, `djSearchFilters`, `genreFilters` in `data.js`) | Client-side filter pill state |
+| `shuffleHistory` (`data.js:16`) | Client-side dedup — sent as `exclude` param to shuffle |
 | Theme toggle, help modal, hash navigation | Purely UI |
 | `generateGradient()`, `glowPalettes` (`data.js`) | Visual, no graph data needed |
 
@@ -90,13 +104,19 @@ by both the Worker and the local server. Zero duplication of graph logic.
 
 ## 4. Shared Graph Logic Module
 
-**File**: `shared/graph-logic.js` (plain CommonJS / ESM dual export)
+**File**: `shared/graph-logic.js`
+
+**Hard rule**: zero provider-specific code in this file. No `import` of R2/KV/Durable
+Object APIs. No `fetch()`. No `fs`. It receives plain JS data and returns plain JS data.
+Any server that can load a JSON file can use it.
 
 ```js
-// Exported functions:
+// shared/graph-logic.js — pure functions, plain data in/out
 
 export function buildCandidates(graphNodes, audioCache) {
-  // Current logic from app.js:244-253
+  // Current logic from app.js:244-286
+  // Filters to 2+ edges, no mixcloud nodes/neighbors
+  // Computes genre rebalancing weights (genreWeightCaps lives here as a const)
   // Returns: { candidates: string[], candidateWeights: Float64Array, idxMap: Map }
 }
 
@@ -107,18 +127,18 @@ export function buildIndexes(graphNodes, djNameMap) {
 
 export function buildGenreList(graphNodes) {
   // Current logic from filters.js:95-106
-  // Returns: [{ name, count }] sorted by count desc
+  // Returns: [{ name, count }] sorted by count desc, top 30
 }
 
 export function getFilteredPool(graphNodes, audioCache, candidates, filters) {
-  // filters = { source, artists, djs, genres }
+  // filters: { source, artists: string[], djs: string[], genres: string[] }
   // Current logic from app.js:129-153
-  // Returns: string[] of node IDs
+  // Returns: string[] of matching node IDs
 }
 
 export function weightedPickFromPool(pool, candidateWeights, idxMap) {
   // Current logic from app.js:160-177
-  // Returns: string (node ID)
+  // Returns: string (node ID) — uniform pick if no weights
 }
 
 export function selectCluster(graphNodes, audioCache, rootId, r1Limit = 4, r2Limit = 1) {
@@ -129,23 +149,24 @@ export function selectCluster(graphNodes, audioCache, rootId, r1Limit = 4, r2Lim
 export function splitArtists(raw) {
   // Current logic from filters.js:5-21
 }
+
+export function generateCratesPage(graphNodes, audioCache, seed, page, count) {
+  // Deterministic: given (seed, page, count), always returns the same clusters.
+  // Fast-forward: replay the LCG from seed to skip past pages (see §12).
+  // Returns: { clusters: [...], hasMore: boolean }
+  // cratesTreemap() is included here — pure math, no graph needed but convenient to co-locate
+}
 ```
 
-**Usage in Worker**:
-```js
-import { selectCluster, getFilteredPool, buildCandidates } from '../shared/graph-logic.js';
-```
-
-**Usage in local Node server**:
-```js
-const { selectCluster, getFilteredPool, buildCandidates } = require('../shared/graph-logic');
-```
+**ESM only** — Workers require ESM; Node 18+ supports it natively. No CommonJS `require()`.
 
 ---
 
 ## 5. API Contract
 
-All endpoints return JSON. Errors return `{ error: string }` with appropriate HTTP status.
+All endpoints return `Content-Type: application/json`.
+All endpoints set CORS headers (see §9).
+Errors return `{ "error": "message" }` with the appropriate HTTP status.
 
 ### `GET /api/shuffle`
 
@@ -160,16 +181,17 @@ Pick a random track and return its full cluster.
 - `r1` — integer, default 4
 - `r2` — integer, default 1
 
-**Response**: same shape as `selectCluster()` output
+**Response** — same shape as `selectCluster()` output, plus `meta.poolSize`:
 ```json
 {
   "meta": {
-    "root_id": "artist:::title",
+    "root_id": "four tet:::baby",
     "found": 12,
     "not_found": 2,
     "totalR1": 8,
     "r1Shown": 4,
-    "expandLevel": 0
+    "expandLevel": 0,
+    "poolSize": 4821
   },
   "nodes": [
     {
@@ -246,11 +268,12 @@ Top genres list (replaces client-side genre index building).
 
 ### `GET /api/crates`
 
-Generate a page of crates clusters (replaces `crates-worker.js`).
+Generate a page of crates clusters. Fully deterministic — same `seed` + `page` always
+returns the same clusters. See §12 for the pagination design.
 
 **Query params**:
-- `seed` — integer seed for deterministic shuffle
-- `page` — page number (0-indexed)
+- `seed` — integer seed for deterministic shuffle (required)
+- `page` — page number, 0-indexed (default 0)
 - `count` — clusters per page (default 12)
 - `vw`, `vh` — viewport dimensions for treemap layout
 - `pad` — treemap padding (default 8)
@@ -280,14 +303,23 @@ Generate a page of crates clusters (replaces `crates-worker.js`).
 
 ## 6. Frontend Data Layer: `js/api.js`
 
-New file. Single source of truth for the base URL. All data fetches go through this module.
+New file. Single source of truth for the base URL. All data fetches go through it.
 
 ```js
 // js/api.js
 
-// Toggle: set to local Node server URL for development, Worker URL for production
-const API_BASE = 'http://localhost:3001';   // local
-// const API_BASE = 'https://b2b.workers.dev'; // cloud
+// Resolution order:
+// 1. ?api=<url> query param — for testing on real devices via local IP
+// 2. Hostname check — localhost → local Node server
+// 3. Default → production Worker URL
+function resolveBase() {
+  const param = new URLSearchParams(window.location.search).get('api');
+  if (param) return param;                          // e.g. ?api=http://192.168.1.5:3001
+  if (window.location.hostname === 'localhost') return 'http://localhost:3001';
+  return 'https://b2b.workers.dev';
+}
+
+const API_BASE = resolveBase();
 
 async function apiFetch(path, params = {}) {
   const url = new URL(API_BASE + path);
@@ -319,142 +351,276 @@ export async function getGenres() {
   return apiFetch('/api/genres');
 }
 
-export async function getCratesPage(seed, page, count, vw, vh, pad = 8) {
+export async function getCratesPage({ seed, page, count, vw, vh, pad = 8 }) {
   return apiFetch('/api/crates', { seed, page, count, vw, vh, pad });
 }
 ```
+
+**Testing on a real phone**: open `http://192.168.1.x:8000?api=http://192.168.1.x:3001`.
+The `?api=` param overrides everything else — no code changes needed.
 
 **`app.js` changes** (minimal):
 - `shuffle()` calls `api.shuffleCluster({ source, genres, artists, djs, exclude: [...shuffleHistory] })` — receives a complete cluster, passes directly to `showCluster()`
 - `loadClusterById(id)` calls `api.loadCluster(id)` — same
 - Remove: `getFilteredPool()`, `weightedPick()`, `matchesFilter()`, candidate computation, graph fetch from `DOMContentLoaded`
 - Remove: `graphNodes`, `audioCache`, `candidates`, `candidateWeights` global state
-- Keep: `shuffleHistory` (local dedup)
+- Keep: `shuffleHistory` (local dedup Set)
+- `meta.poolSize` from the shuffle response feeds `getFilteredPoolSize()` display
 
 **`filters.js` changes**:
-- `initFilters()` no longer builds indexes from local data — instead the genre pills and autocomplete call `api.getGenres()` / `api.searchArtists()` / `api.searchDjs()`
-- All filter state (which pills are selected) stays client-side
-- `getFilteredPool()` and `getFilteredPoolSize()` become API calls with current filter state
+- `initFilters()` no longer builds indexes — genre pills populated from `api.getGenres()`,
+  autocomplete calls `api.searchArtists(q)` / `api.searchDjs(q)` on input
+- Filter pill state stays entirely client-side
+- `updateFilterUI()` uses `meta.poolSize` from the last shuffle response
 
 **`crates-worker.js` changes**:
-- Worker no longer fetches the full JSON files itself
-- Instead: `postMessage({ type: 'request', page, count, vw, vh, seed })` triggers a call to `api.getCratesPage()`
-- The treemap layout still happens in the worker (pure math, no graph data needed)
-- Or: move the crates worker to just do treemap layout client-side, everything else from API
+- Remove `initFromUrls()` and all graph/cache fetching
+- Worker receives `postMessage({ type: 'request', page, count, vw, vh, seed })`, calls
+  `api.getCratesPage(...)`, returns result to main thread
+- The worker still exists to keep crates off the main thread, but it's now thin
 
 ---
 
-## 7. Server-Side Implementation
+## 7. Server Adapters
 
-### 7a. Local Node Server
+Both adapters expose the exact same HTTP API. They differ only in how they load data.
+
+### 7a. Local Node Server (development)
 
 **File**: `server/local-server.js`
 
 ```js
-// Node 18+, zero dependencies (uses built-in http)
-// Or use express for convenience — single file, no bundler
+import express from 'express';
+import { readFileSync } from 'fs';
+import { resolve } from 'path';
+import {
+  buildCandidates, buildIndexes, buildGenreList,
+  getFilteredPool, weightedPickFromPool, selectCluster,
+  generateCratesPage,
+} from '../shared/graph-logic.js';
 
-const express = require('express');   // or native http
-const fs = require('fs');
-const path = require('path');
-const { buildCandidates, buildIndexes, buildGenreList,
-        getFilteredPool, weightedPickFromPool, selectCluster,
-        generateClusters, cratesTreemap } = require('../shared/graph-logic');
+// Load all data synchronously at startup — fine on your own machine
+const root = resolve(import.meta.dirname, '../pipeline/output');
+const graphNodes = JSON.parse(readFileSync(`${root}/combined_graph.json`)).nodes;
+const audioCache = JSON.parse(readFileSync(`${root}/audio_cache.json`));
+const djNameMap  = JSON.parse(readFileSync(`${root}/dj_name_map.json`));
 
-// Load all data on startup (fine for local dev — it's your own machine)
-const graphData = JSON.parse(fs.readFileSync('../pipeline/output/combined_graph.json'));
-const audioCache = JSON.parse(fs.readFileSync('../pipeline/output/audio_cache.json'));
-const djNameMap = JSON.parse(fs.readFileSync('../pipeline/output/dj_name_map.json'));
-
-const graphNodes = graphData.nodes;
+// Pre-compute derived data once
 const { candidates, candidateWeights, idxMap } = buildCandidates(graphNodes, audioCache);
-const { artistListAlpha, djListAlpha } = buildIndexes(graphNodes, djNameMap);
-const genreList = buildGenreList(graphNodes);
+const { artistListAlpha, djListAlpha }         = buildIndexes(graphNodes, djNameMap);
+const genreList                                = buildGenreList(graphNodes);
 
 const app = express();
-app.use(cors());  // allow localhost:8000
+app.use(cors({ origin: '*' }));   // allow any origin (localhost:8000, local IP, etc.)
 
-// Wire all api endpoints to shared logic functions
+// Route handlers call shared functions directly — no glue code beyond
+// parsing query params and serializing the response.
 // ...
 
-app.listen(3001);
+app.listen(3001, '0.0.0.0');  // bind to 0.0.0.0 so phones on the same network can reach it
 ```
 
-Startup time: a few seconds to parse ~110MB JSON. That's fine for local dev. No changes needed
-after startup; it's a read-only server.
+Startup: ~3-5s to parse ~110MB JSON. One-time cost per server run.
 
-### 7b. Cloudflare Worker
+### 7b. Cloudflare Worker (production)
 
 **File**: `worker/index.js`
 
-The hard part: the graph is too large for a standard Worker's memory budget. Two options:
+The Worker calls `shared/graph-logic.js` exactly like the local server. The adapter
+handles Cloudflare-specific concerns: loading from R2, routing, CORS headers.
 
-**Option A: Durable Object as graph cache** (recommended)
+```js
+import {
+  buildCandidates, buildIndexes, buildGenreList,
+  getFilteredPool, weightedPickFromPool, selectCluster,
+  generateCratesPage,
+} from '../shared/graph-logic.js';
 
+// GraphDO: Cloudflare Durable Object — one persistent V8 isolate that holds the
+// loaded graph in memory. The shared logic runs inside it.
+// See memory discussion in §8.
+export class GraphDO {
+  constructor(state, env) {
+    this.state = state;
+    this.env = env;
+    this.graph = null;  // loaded lazily
+  }
+
+  async loadIfNeeded() {
+    if (this.graph) return;
+    // Load from R2 (Cloudflare-specific — this is the only provider code)
+    const [gObj, aObj, dObj] = await Promise.all([
+      this.env.BUCKET.get('combined_graph.json.gz'),
+      this.env.BUCKET.get('audio_cache.json.gz'),
+      this.env.BUCKET.get('dj_name_map.json'),
+    ]);
+    const ds = new DecompressionStream('gzip');
+    const graphNodes = await new Response(gObj.body.pipeThrough(ds)).json().then(d => d.nodes);
+    // ... etc
+
+    // Build derived data using shared module (zero Cloudflare code)
+    const { candidates, candidateWeights, idxMap } = buildCandidates(graphNodes, audioCache);
+    const { artistListAlpha, djListAlpha }         = buildIndexes(graphNodes, djNameMap);
+    const genreList                                = buildGenreList(graphNodes);
+    this.graph = { graphNodes, audioCache, candidates, candidateWeights, idxMap,
+                   artistListAlpha, djListAlpha, genreList };
+  }
+
+  async fetch(request) {
+    await this.loadIfNeeded();
+    // Route to shared functions exactly as the local server does
+    // ...
+  }
+}
+
+// Worker entry point: thin router that delegates to the DO
+export default {
+  async fetch(request, env) {
+    const id = env.GRAPH_DO.idFromName('singleton');
+    const stub = env.GRAPH_DO.get(id);
+    return stub.fetch(request);
+  }
+};
 ```
-Worker (stateless, handles HTTP routing)
-  → calls GraphDO.fetch(request) for data operations
 
-GraphDO (Durable Object, persistent isolate)
-  → lazy-loads graph from R2 on first request
-  → holds graphNodes, audioCache, indexes in memory
-  → handles BFS, filtering, search
-```
+**What makes this Cloudflare-specific** (the parts that change when you migrate):
+1. `this.env.BUCKET.get(...)` — R2 object fetch
+2. `export class GraphDO` + `export default { fetch }` — Worker/DO entrypoint convention
+3. `wrangler.toml` — Cloudflare deployment config
 
-The DO is a persistent V8 isolate that survives across requests. Its memory limit is ~128MB
-per isolate. The graph JSON is ~110MB uncompressed; compressed it's ~15-20MB. The DO loads
-and decompresses it once per warm period (~30 mins of inactivity resets it).
+Everything else — all the graph logic, all the route handlers, all the response shapes —
+is in `shared/graph-logic.js` and a shared route-handler file that both adapters call.
 
-Cold start latency on DO wake: ~2-5s (R2 fetch + JSON parse). Subsequent requests: ~1-10ms.
-
-**Option B: Pre-compute everything** (simpler, faster, less flexible)
-
-Run all filtering offline and store pre-computed results in R2:
-- `candidates.json` — list of valid root IDs + weights (small, ~2MB)
-- `artist-index.json` — artist search index (~5MB)
-- `dj-index.json` — DJ search index (~2MB)
-- `genres.json` — genre list (~1KB)
-- `nodes/{first-two-chars}.json` — graph nodes sharded by ID prefix (26 files × ~4MB each)
-
-Shuffle: Worker loads `candidates.json` (small) + picks random ID + loads the relevant
-node shard to run BFS. Each BFS needs ~3 node lookups max (root, r1, r2 neighbors) so
-at most ~3 shard fetches. But R2 has ~1-10ms latency per fetch — 3 fetches ≈ 3-30ms.
-
-Trade-off: Option A is simpler code (logic runs against in-memory graph just like now),
-but has a cold start problem. Option B avoids cold starts but requires more data design
-work and the shard-fetch approach adds per-request R2 latency.
-
-**Recommended**: Start with Option A (DO). The cold start only affects the very first
-request after 30 mins of idle — acceptable for a personal project. If cold starts become
-annoying, add a warmup cron that pings the API every 25 minutes.
+**Migrating to another provider** means writing a new ~100-line adapter that:
+1. Loads the JSON files from wherever (S3, disk, a CDN) into a plain `graphNodes` object
+2. Passes it to the same shared functions
+3. Exposes the same HTTP routes
 
 ---
 
-## 8. R2 Storage Format
+## 8. Memory: The Critical Problem
 
-Bucket: `b2b-graph-data`
+**This is the most likely thing to break on day one.**
+
+110MB of raw JSON expands significantly when parsed into JavaScript objects. Each V8
+object has hidden class overhead, pointer indirection, and string interning costs. A
+reasonable estimate is **2–3× expansion**: 110MB JSON → **220–330MB of live heap**.
+
+The Cloudflare Durable Object memory limit is **128MB**. At current graph size, the DO
+will likely OOM on the first warm-up attempt.
+
+### Option A: Durable Object with slim in-memory format
+
+Strip the graph down before storing it in the DO. The full node structure is:
+```json
+{
+  "artist:::title": {
+    "title": "...", "artist": "...", "genres": [...],
+    "edges": [{ "node": "...", "contexts": [{ "dj": "...", "episode_url": "...", "date": "..." }] }]
+  }
+}
+```
+
+For BFS and filtering, `contexts` is only needed when building the cluster response.
+Index-building only needs `artist`, `genres`, and edge `node` IDs. A stripped graph
+(edge node IDs only, no contexts) might fit in 128MB. Full context data is kept in a
+separate R2 object and fetched only for the ~15 nodes in a cluster response.
+
+Complexity: requires splitting the graph into two R2 objects at pipeline time.
+
+### Option B: Pre-sharded storage (recommended initial approach)
+
+Rather than holding the full graph in memory at once, shard it at deploy time:
 
 ```
 b2b-graph-data/
-  combined_graph.json.gz    # gzip-compressed graph (~15-20MB)
-  audio_cache.json.gz       # gzip-compressed cache (~8-12MB)
-  dj_name_map.json          # small, no compression needed
+  meta.json               # candidates[], weights[], genreList, djIndex, artistIndex (~5MB total)
+  nodes/aa.json           # all nodes whose ID starts with "aa" through "az"
+  nodes/ba.json           # "ba" through "bz"
+  ...                     # ~26 files × ~4-6MB each
 ```
 
-The DO loads and decompresses these on wake. `DecompressionStream` is available in
-Workers — no library needed:
+On each shuffle request:
+1. Load `meta.json` (cached in Worker module-level after first fetch, ~10ms)
+2. Pick a random candidate from the pre-computed list — O(1)
+3. Load the node shard containing the root + its neighbors (~2-4 shard files, ~10-30ms)
+4. Run BFS within those shards — all nodes needed for a 2-ring cluster are typically
+   in the same or adjacent shard by ID prefix
+
+No single request touches more than ~15MB of data. No DO needed. Cold start is near-zero.
+
+**Trade-off**: shard boundaries can split BFS traversal across files (root's r2 neighbors
+may be in different shards than its r1 neighbors). In the worst case this means 3-4
+parallel R2 fetches per shuffle. Still fast enough (~30-50ms total).
+
+**Recommendation**: Start with Option B. It avoids the memory cliff entirely and has no
+cold start. If the shard-boundary edge cases become a pain, revisit Option A with a
+stripped in-memory format.
+
+The local Node server is unaffected by this choice — it loads the full JSON at startup
+and holds everything in Node's heap (no 128MB cap).
+
+---
+
+## 9. CORS
+
+Both the local server and the Worker must return CORS headers on every response,
+including error responses and `OPTIONS` preflight requests.
+
+**Required headers**:
+```
+Access-Control-Allow-Origin: *
+Access-Control-Allow-Methods: GET, OPTIONS
+Access-Control-Allow-Headers: Content-Type
+```
+
+**Local server** (`server/local-server.js`): `app.use(cors({ origin: '*' }))` with the
+`cors` npm package, or manually set headers in a middleware. Bind to `0.0.0.0` (not
+`127.0.0.1`) so requests from phones on the local network are accepted.
+
+**Cloudflare Worker**: add CORS headers in the Worker's `fetch` handler before
+dispatching to the DO. Handle `OPTIONS` preflight at the Worker level so the DO never
+sees it:
 ```js
-const raw = await r2.get('combined_graph.json.gz');
-const ds = new DecompressionStream('gzip');
-const decompressed = await new Response(raw.body.pipeThrough(ds)).json();
+if (request.method === 'OPTIONS') {
+  return new Response(null, { headers: corsHeaders });
+}
+// ... then forward to DO
 ```
 
 ---
 
-## 9. Pipeline Changes
+## 10. R2 Storage Format (Cloudflare adapter)
 
-Add a deploy step after the normal pipeline run. No changes to `graph.py`, `enrich.py`,
-or `extract_dj_names.py`.
+Bucket: `b2b-graph-data`
+
+For Option B (recommended):
+```
+b2b-graph-data/
+  meta.json               # candidates, weights, artistIndex, djIndex, genreList
+  nodes/aa.json           # nodes with IDs starting "aa"–"az" (uncompressed OK at ~4-6MB)
+  nodes/ba.json
+  ...
+  audio_cache.json.gz     # gzip-compressed (~8-12MB compressed)
+  dj_name_map.json
+```
+
+For Option A (if revisited):
+```
+b2b-graph-data/
+  graph-slim.json.gz      # stripped graph: edges only, no contexts (~20-30MB → ~5MB gzip)
+  graph-contexts.json.gz  # full contexts: only needed for cluster responses (~80MB → ~15MB)
+  audio_cache.json.gz
+  dj_name_map.json
+```
+
+The pipeline deploy script generates the appropriate format. See §11.
+
+---
+
+## 11. Pipeline Changes
+
+Add a deploy step. No changes to `graph.py`, `enrich.py`, or `extract_dj_names.py`.
 
 **New file**: `pipeline/deploy_to_r2.sh`
 
@@ -463,22 +629,29 @@ or `extract_dj_names.py`.
 set -e
 cd "$(dirname "$0")"
 
-echo "Compressing graph..."
-gzip -k -f output/combined_graph.json    # creates combined_graph.json.gz
-gzip -k -f output/audio_cache.json
+echo "Building shards..."
+node ../server/build-shards.js   # reads pipeline/output/, writes pipeline/output/shards/
 
-echo "Uploading to R2..."
-npx wrangler r2 object put b2b-graph-data/combined_graph.json.gz \
-  --file output/combined_graph.json.gz --content-encoding gzip
+echo "Uploading meta + shards to R2..."
+npx wrangler r2 object put b2b-graph-data/meta.json --file output/shards/meta.json
+for f in output/shards/nodes/*.json; do
+  key="nodes/$(basename $f)"
+  npx wrangler r2 object put "b2b-graph-data/$key" --file "$f"
+done
+
+echo "Uploading audio cache..."
+gzip -k -f output/audio_cache.json
 npx wrangler r2 object put b2b-graph-data/audio_cache.json.gz \
   --file output/audio_cache.json.gz --content-encoding gzip
-npx wrangler r2 object put b2b-graph-data/dj_name_map.json \
-  --file output/dj_name_map.json
 
-echo "Deployed. Pinging Worker to warm DO..."
-curl -s https://b2b.workers.dev/api/genres > /dev/null
+npx wrangler r2 object put b2b-graph-data/dj_name_map.json --file output/dj_name_map.json
+
 echo "Done."
 ```
+
+**New file**: `server/build-shards.js` — reads `pipeline/output/combined_graph.json`,
+splits into `pipeline/output/shards/nodes/{prefix}.json` + writes
+`pipeline/output/shards/meta.json` (candidates, weights, indexes).
 
 Full pipeline run after a scrape:
 ```bash
@@ -491,124 +664,182 @@ python3 extract_dj_names.py
 
 ---
 
-## 10. `genreWeightCaps` and Candidate Computation
+## 12. Crates Mode: Deterministic Pagination
+
+The current `crates-worker.js` uses a seeded LCG (`crateRand()`) but tracks `usedNodes`
+and `seedIdx` as mutable state across page fetches. The server is stateless, so page N
+must be derivable from `(seed, page, count)` alone — no growing state.
+
+**Solution**: fast-forward the RNG.
+
+The LCG in `crates-worker.js:11`:
+```js
+function crateRand() {
+  crateSeed = (crateSeed * 16807) % 2147483647;
+  return (crateSeed - 1) / 2147483646;
+}
+```
+
+To generate page N with `count` items per page, fast-forward past the first `N * count`
+clusters by re-running the shuffle from scratch up to that offset. Since the LCG is cheap
+(nanoseconds per call), fast-forwarding 1000 clusters takes ~microseconds.
+
+The key change: **drop `usedNodes` overlap tracking entirely.** That was an optimization
+to avoid showing the same track in two crates on the same screen. It's not a correctness
+requirement — a slight overlap between adjacent crates is acceptable. Without `usedNodes`,
+`generateClusters(seed, page, count)` is fully deterministic:
+
+```js
+// In shared/graph-logic.js
+export function generateCratesPage(graphNodes, audioCache, seed, page, count) {
+  // 1. Build shuffled seed pool deterministically from seed
+  let rngState = seed;
+  function rng() {
+    rngState = (rngState * 16807) % 2147483647;
+    return (rngState - 1) / 2147483646;
+  }
+  const seedPool = buildSeedPool(graphNodes, rng);  // same shuffle logic as before
+
+  // 2. Fast-forward: skip first page * count valid clusters
+  const startIdx = page * count;
+  let clusterCount = 0;
+  let poolIdx = 0;
+  while (clusterCount < startIdx && poolIdx < seedPool.length) {
+    const cluster = buildCluster(graphNodes, seedPool[poolIdx++], rng);
+    if (cluster) clusterCount++;
+  }
+
+  // 3. Generate `count` clusters from current position
+  const clusters = [];
+  while (clusters.length < count && poolIdx < seedPool.length) {
+    const cluster = buildCluster(graphNodes, seedPool[poolIdx++], rng);
+    if (cluster) clusters.push(cluster);
+  }
+
+  // 4. treemap layout inline
+  cratesTreemap(clusters, pad, pad, vw - pad*2, vh - pad*2);
+
+  return { clusters, hasMore: poolIdx < seedPool.length };
+}
+```
+
+The `cratesTreemap` function stays in `shared/graph-logic.js` — it's pure math, no graph
+data needed, but co-locating it simplifies the API (server returns positioned rects,
+client just renders).
+
+---
+
+## 13. How the Local/Cloud Toggle Works
+
+In `js/api.js` (see §6 for full code):
+
+```js
+function resolveBase() {
+  const param = new URLSearchParams(window.location.search).get('api');
+  if (param) return param;
+  if (window.location.hostname === 'localhost') return 'http://localhost:3001';
+  return 'https://b2b.workers.dev';
+}
+```
+
+**Normal dev**: `http://localhost:8000` → auto-routes to `localhost:3001`. Zero config.
+
+**Testing on a phone**: open `http://192.168.1.x:8000?api=http://192.168.1.x:3001`.
+The `?api=` param takes precedence. Works with any local IP, any port. The local Node
+server must be bound to `0.0.0.0` for this to work (see §7a).
+
+**Production**: any non-localhost hostname → auto-routes to `workers.dev`.
+
+**Overriding in prod for debugging**: `https://b2b.example.com?api=https://staging.workers.dev`.
+
+---
+
+## 14. `genreWeightCaps` and Candidate Computation
 
 Currently in `data.js:20-25`:
 ```js
 const genreWeightCaps = { 'Ambient': 20, 'Folk': 5, 'Soul': 15, 'Indie Rock': 14 };
 ```
 
-This config needs to live server-side (in `shared/graph-logic.js` or a config file).
-The server computes weights once at startup; the client never sees them. The client only
-sends genre filter params; the server handles weighting internally.
+Moves to `shared/graph-logic.js` as a module-level constant. The server computes weights
+once at startup; the frontend never sees them. The client only sends genre filter names
+as params; weighting is opaque.
 
-Candidate criteria (currently `app.js:244-253`):
+Candidate criteria (from `app.js:244-253`):
 - 2+ edges
 - Not a Mixcloud-only node
 - No Mixcloud-only neighbors
 
 ---
 
-## 11. URL Hash Navigation
+## 15. URL Hash Navigation
 
 Currently `app.js` puts the root track ID in the hash: `#four tet:::baby`.
-This should continue working — when the page loads with a hash, `loadClusterById()` calls
-`api.loadCluster(id)` which is just a GET to `/api/cluster/:id`.
-
-Share links remain valid. No change to URL scheme.
+This continues working — `loadClusterById(id)` calls `api.loadCluster(id)` which is
+a GET to `/api/cluster/:id`. Share links remain valid. No change to URL scheme.
 
 ---
 
-## 12. Crates Mode
+## 16. Migration Steps (in order)
 
-`crates-worker.js` currently fetches both JSON files independently (second full download).
-With the API:
-1. Worker calls `api.getCratesPage(seed, page, count, vw, vh)` via `fetch()`
-2. Server runs `generateClusters()` + `cratesTreemap()` and returns the page
-3. Client worker just receives the page and renders it — no BFS in browser
-
-The Worker file becomes much simpler — mostly just message passing. The treemap layout
-can stay client-side (it's fast pure math with no graph data) or move server-side for
-simplicity. Moving it server-side means passing `vw`/`vh` to the API which is slightly
-awkward if the user resizes, but treemap rects are only used for initial layout so this
-is fine.
-
----
-
-## 13. How the Local/Cloud Toggle Works
-
-In `js/api.js`:
-```js
-// Change this one line to switch environments:
-const API_BASE = window.location.hostname === 'localhost'
-  ? 'http://localhost:3001'
-  : 'https://b2b.workers.dev';
-```
-
-Or make it explicit with a build-time `?dev=1` query param. The auto-detect
-`hostname === 'localhost'` approach requires zero manual switching.
-
-The local Node server and the Worker share `shared/graph-logic.js` exactly — any bug fix
-or behavior change applies to both automatically.
-
----
-
-## 14. Migration Steps (in order)
-
-Do these one at a time. Each step is independently testable.
+Each step is independently testable. Do not move to the next step until the current
+one passes a manual smoke test.
 
 **Step 1: Extract shared logic module**
 - Create `shared/graph-logic.js`
 - Copy `selectCluster`, `getNeighbors`, `getEdgeContext`, `collectDjs`, `enrichFromCache`,
   `getFilteredPool`, `weightedPickFromPool`, `buildCandidates`, `buildGenreList`,
   `buildIndexes`, `splitArtists` into it
-- Write the module to work with passed-in data (not global vars)
-- No changes to frontend yet — just extraction + unit tests
+- Rewrite all functions to take data as arguments (no global vars)
+- Write a quick smoke test: `node shared/smoke-test.js` that loads the JSONs, calls
+  `selectCluster`, prints root node — verifies parity with browser behavior
+- No frontend changes yet
 
 **Step 2: Local Node server**
 - Create `server/local-server.js` using `shared/graph-logic.js`
 - Load JSONs from `pipeline/output/`
-- Wire all API endpoints
-- Test with curl/browser: `curl http://localhost:3001/api/genres`
+- Wire all API endpoints with CORS headers, bound to `0.0.0.0:3001`
+- Test: `curl http://localhost:3001/api/genres`, `curl 'http://localhost:3001/api/shuffle'`
 
 **Step 3: `js/api.js` + frontend plumbing**
-- Create `js/api.js` with `BASE_URL` auto-detect + all endpoint functions
-- Wire `app.js`: replace `shuffle()` body with `api.shuffleCluster(...)` call,
-  replace `loadClusterById()` with `api.loadCluster(id)` call
-- The rest of `showCluster()`, `computeLayout()`, `renderCards()` is unchanged
-- Remove global `graphNodes`, `audioCache`, `candidates`, `candidateWeights` from `data.js`
-- Remove the JSON fetch block from `DOMContentLoaded` in `app.js`
-- Test: open `index.html` with local server running
+- Create `js/api.js` with `resolveBase()` + all endpoint functions
+- Wire `app.js`: replace `shuffle()` + `loadClusterById()` to use API
+- Remove global graph state from `data.js` / startup fetch from `app.js`
+- Test: open `http://localhost:8000` with local server running; basic shuffle works
 
 **Step 4: Filters + autocomplete**
 - Replace `initFilters()` index-building with API calls
 - `getGenres()` → populate genre pills
-- `searchArtists(q)` → feed desktop + mobile autocomplete
+- `searchArtists(q)` → feed autocomplete
 - `searchDjs(q)` → feed DJ autocomplete
-- `getFilteredPoolSize()` → call `/api/shuffle?...` with `countOnly=1` or store count
-  in shuffle response `meta.poolSize`
+- `meta.poolSize` feeds filter label count
 - Test filter UX end-to-end
 
 **Step 5: Crates mode**
-- Replace `crates-worker.js` BFS + `initFromUrls()` with `api.getCratesPage()` call
-- Keep treemap layout in worker or move to server (decide based on complexity)
-- Test crates view
+- Rewrite `crates-worker.js` to be a thin API proxy (no BFS)
+- Implement deterministic `generateCratesPage()` in `shared/graph-logic.js`
+- Test crates pagination (page 0, 1, 2 return different non-repeating clusters)
 
-**Step 6: Cloudflare Worker**
+**Step 6: Build-shards script**
+- Create `server/build-shards.js`
+- Run against current graph, verify shard sizes and total
+- Verify that BFS for a random root stays within ~3 shard files
+
+**Step 7: Cloudflare Worker**
 - Create `worker/index.js` + `wrangler.toml`
-- Implement `GraphDO` Durable Object that loads from R2 and exposes same API
-- Test locally with `wrangler dev`
+- Implement the Worker adapter using Option B (sharded R2 loads)
+- Wire CORS preflight handling at Worker level
+- Test locally: `wrangler dev`
 - Deploy: `wrangler deploy`
-- Flip `API_BASE` auto-detect
 
-**Step 7: R2 deploy script**
+**Step 8: R2 deploy script**
 - Write `pipeline/deploy_to_r2.sh`
 - Do first production deploy
-- Test on live domain
+- Test on live domain from desktop + phone
 
 ---
 
-## 15. What Stays Exactly the Same
+## 17. What Stays Exactly the Same
 
 - All scrapers (`scrapers/lot-radio/`, `scrapers/nts/`)
 - `pipeline/graph.py`, `pipeline/enrich.py`, `pipeline/extract_dj_names.py`
@@ -617,51 +848,52 @@ Do these one at a time. Each step is independently testable.
 - All audio playback in `audio.js`
 - All mobile layout in `mobile.js`
 - Filter UI DOM in `filters.js` (chips, popovers, pill state)
-- `css/desktop.css`, `css/mobile.css` — untouched
-- `index.html` — untouched (add `js/api.js` to load order before `app.js`)
+- `css/desktop.css`, `css/mobile.css`
+- `index.html` — untouched except: add `<script src="js/api.js">` before `app.js`
 - URL hash scheme — same `#artist:::title` format
 - SoundCloud widget integration
 - Audio cache schema (`audio_cache.json`) — unchanged
 
 ---
 
-## 16. Risks and Drawbacks
+## 18. Risks and Drawbacks
 
-**Cloudflare DO cold start (~2-5s)**
-On first request after the DO sleeps (30 mins idle), it must reload and decompress
-~110MB of JSON from R2. This shows as a slow shuffle. Mitigation: cron warmup ping
-every 25 mins, or implement a simple loading spinner in the frontend.
+**V8 heap explosion (Option A)**
+110MB of JSON → ~220-330MB of live V8 heap. The DO's 128MB limit is almost certainly
+not enough at current graph size. This is why Option B (sharded) is the recommended
+starting point. If you add more sources and the graph grows, Option A becomes even
+less viable.
 
-**Worker memory limits**
-DO memory budget is ~128MB. Compressed graph is ~15-20MB; decompressed is ~110MB.
-This is tight. If the graph grows significantly (e.g. adding more sources), may need to
-move to Option B (pre-computed shards). Monitor with `wrangler tail` on memory metrics.
+**Shard boundary BFS (Option B)**
+A root node's r1 or r2 neighbors may fall in different shards. In the worst case, a
+single `/api/shuffle` needs 3-4 parallel R2 fetches (~10-30ms each). This is fine
+for a personal project but worth monitoring. Mitigation: if shard misses become
+frequent, switch to content-based sharding (group by artist first char) so tracks
+from the same DJ set tend to cluster in the same shard.
 
 **Local server startup time**
-Parsing 110MB of JSON takes ~3-5 seconds in Node. Acceptable for dev — it's a one-time
-cost. If it becomes annoying, cache a parsed binary (MessagePack or `.json.bin`).
+~3-5s to parse ~110MB of JSON. Acceptable — one-time cost per server start. If annoying
+over many restart cycles during dev, serialize the pre-built data structures to a binary
+format (MessagePack, or JSON of just the derived indexes) and cache at a known path.
 
-**Latency added to shuffle**
-Each shuffle now involves an HTTP round trip (~30-100ms to Cloudflare vs. ~0ms local).
-This is barely perceptible for a user-initiated action. The current cold start of parsing
-110MB in the browser (~8-15s) is much worse, so this is a net win.
+**Latency added to shuffle (~30-100ms)**
+Each shuffle is now a round trip. This is imperceptible for a user-initiated tap/click.
+The current browser cold start (~8-15s to download + parse 110MB) is far worse.
 
-**Shared module compatibility**
-`shared/graph-logic.js` must work in both Node (CommonJS) and Workers (ESM). Use ESM
-natively (`export`/`import`) since Workers require ESM and Node 18+ supports it.
-Avoid `require()` in the shared module.
+**ESM in Node**
+`shared/graph-logic.js` uses ESM. Node requires `"type": "module"` in `package.json`
+or `.mjs` extension. The local server must also use ESM. This is a minor gotcha if
+you're used to `require()`.
 
-**Maintaining the toggle**
-The auto-detect (`hostname === 'localhost'`) approach is clean but means local dev must
-always run on localhost (not a local IP like 192.168.x.x). If you ever test on a phone
-via local IP, you'd need to temporarily override the base URL.
+**Durable Object lock-in (acknowledged)**
+The DO is a Cloudflare-specific API. It's the only Cloudflare-specific part of the
+Worker adapter. If migrating to Fly.io, replace the DO with a long-running Node process
+(Fly keeps processes alive). On Vercel, replace with a serverless function that loads
+the sharded data from S3/R2. In both cases, `shared/graph-logic.js` is untouched — only
+the adapter changes.
 
-**Crates mode pagination state**
-Currently the Web Worker tracks `seedIdx` and `usedNodes` across page requests. With the
-API, the server is stateless — it must re-derive pagination state from `seed` + `page`
-parameters. The `generateClusters` function needs to be deterministic and resumable:
-given `(seed, page, count)`, skip the first `page * count` clusters. This requires
-making the seeded shuffle reproducible across calls, which the current `crateRand()` LCG
-already supports — but the "usedNodes" overlap tracking is stateful. Simplest fix:
-discard overlap tracking entirely (it was an optimization, not a correctness requirement)
-or pass `usedKeys` as a request body param.
+**Crates fast-forward cost**
+Fast-forwarding to page 50 means re-running 600 cluster constructions from scratch. At
+~0.5ms per cluster, that's ~300ms. Acceptable for page 50 but noticeable for very deep
+pagination. Mitigation: limit max page depth in the API (e.g. 50 pages), or cache
+cluster lists by `(seed, count)` key in the server process.
