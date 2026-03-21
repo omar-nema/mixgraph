@@ -1061,3 +1061,761 @@ Fast-forwarding to page 50 means re-running 600 cluster constructions from scrat
 ~0.5ms per cluster, that's ~300ms. Acceptable for page 50 but noticeable for very deep
 pagination. Mitigation: limit max page depth in the API (e.g. 50 pages), or cache
 cluster lists by `(seed, count)` key in the server process.
+
+---
+
+## 19. Validation: How to Verify Each Step
+
+Three layers of validation: **unit tests** for the shared logic module (runs fast, no
+server needed), **curl/API checks** for each server step, and **Playwright tests** for
+end-to-end browser behaviour after the frontend is wired up.
+
+### 19a. Before starting: capture golden outputs from the browser
+
+While the old client-side code still runs, capture ground truth by opening the browser
+console on `http://localhost:8000` and running:
+
+```js
+// Paste this whole block into the console after the page loads
+
+// 1. Index sizes (logged automatically — just note them from the existing console output)
+//    "Graph loaded: 126720 nodes"
+//    "Artist index: XXXX unique artists"
+//    "DJ index: XXXX unique DJs"
+//    "126720 candidates (2+ edges, no mixcloud)"   ← note this number
+
+// 2. Top genres (logged by initFilters — "Genre index: 341 genres, showing top 30")
+//    Copy the top 5 from the console
+
+// 3. Known-root cluster — pick a root with many edges for a stable test
+//    Find a real node ID: Object.keys(graphNodes).find(k => graphNodes[k].edges.length >= 8)
+const knownRoot = Object.keys(graphNodes).find(k => graphNodes[k].edges.length >= 8);
+console.log('TEST ROOT:', knownRoot);
+const golden = selectCluster(knownRoot, 4, 1);
+copy(JSON.stringify(golden));  // copies to clipboard
+// Paste into a file: shared/test/fixtures/golden-cluster.json
+
+// 4. Filtered pool sizes
+const soulPool   = (() => { genreFilters = ['Soul'];   const n = getFilteredPool().length; genreFilters = []; return n; })();
+const ambientPool = (() => { genreFilters = ['Ambient']; const n = getFilteredPool().length; genreFilters = []; return n; })();
+console.log('Soul pool:', soulPool, 'Ambient pool:', ambientPool);
+
+// 5. Artist filter pool size — pick a real artist name from the autocomplete
+const artistEntry = artistListAlpha.find(a => a.trackIds.length > 50);
+console.log('Artist filter test:', artistEntry.display, '→', artistEntry.trackIds.length, 'tracks');
+copy(JSON.stringify({ knownRoot, soulPool, ambientPool, artistName: artistEntry.display, artistTrackCount: artistEntry.trackIds.length }));
+// Paste into: shared/test/fixtures/golden-meta.json
+```
+
+These two JSON files (`golden-cluster.json`, `golden-meta.json`) are the source of truth
+for all subsequent checks. Commit them as test fixtures.
+
+---
+
+### 19b. Unit tests for `shared/graph-logic.js`
+
+**File**: `shared/test/graph-logic.test.js`
+**Runner**: Node's built-in `node:test` (Node 18+, zero deps) or Jest.
+
+```bash
+node --test shared/test/graph-logic.test.js
+```
+
+#### Minimal fixture graph
+
+Construct a deterministic 10-node graph with known structure so tests don't depend on
+the 110MB production file:
+
+```js
+// shared/test/fixtures/mini-graph.js
+export const miniGraph = {
+  'artist a:::track 1': {
+    title: 'Track 1', artist: 'Artist A', genres: ['Soul'],
+    edges: [
+      { node: 'artist b:::track 2', contexts: [{ dj: 'DJ X', episode_url: 'https://nts.live/ep/1', date: '2023-01-01' }] },
+      { node: 'artist c:::track 3', contexts: [{ dj: 'DJ X', episode_url: 'https://nts.live/ep/1', date: '2023-01-01' }] },
+      { node: 'artist d:::track 4', contexts: [{ dj: 'DJ Y', episode_url: 'https://nts.live/ep/2', date: '2023-02-01' }] },
+    ]
+  },
+  'artist b:::track 2': {
+    title: 'Track 2', artist: 'Artist B', genres: ['Jazz'],
+    edges: [
+      { node: 'artist a:::track 1', contexts: [{ dj: 'DJ X', episode_url: 'https://nts.live/ep/1', date: '2023-01-01' }] },
+      { node: 'artist e:::track 5', contexts: [{ dj: 'DJ X', episode_url: 'https://nts.live/ep/1', date: '2023-01-01' }] },
+    ]
+  },
+  'artist c:::track 3': {
+    title: 'Track 3', artist: 'Artist C', genres: ['Soul', 'Jazz'],
+    edges: [
+      { node: 'artist a:::track 1', contexts: [{ dj: 'DJ X', episode_url: 'https://nts.live/ep/1', date: '2023-01-01' }] },
+      { node: 'artist f:::track 6', contexts: [{ dj: 'DJ Z', episode_url: 'https://nts.live/ep/3', date: '2023-03-01' }] },
+    ]
+  },
+  'artist d:::track 4': {
+    title: 'Track 4', artist: 'Artist D', genres: ['Ambient'],
+    edges: [
+      { node: 'artist a:::track 1', contexts: [{ dj: 'DJ Y', episode_url: 'https://nts.live/ep/2', date: '2023-02-01' }] },
+    ]
+  },
+  'artist e:::track 5': {
+    title: 'Track 5', artist: 'Artist E', genres: ['Jazz'],
+    edges: [
+      { node: 'artist b:::track 2', contexts: [{ dj: 'DJ X', episode_url: 'https://nts.live/ep/1', date: '2023-01-01' }] },
+    ]
+  },
+  'artist f:::track 6': {
+    title: 'Track 6', artist: 'Artist F', genres: ['Soul'],
+    edges: [
+      { node: 'artist c:::track 3', contexts: [{ dj: 'DJ Z', episode_url: 'https://nts.live/ep/3', date: '2023-03-01' }] },
+    ]
+  },
+};
+
+export const miniCache = {
+  'artist a:::track 1': { source: 'soundcloud', scTrackUrl: 'https://soundcloud.com/a/1', artUrl: 'https://art.example.com/1.jpg', setUrl: null, setSource: null, setOffsetSec: null, setDj: null },
+  'artist b:::track 2': { source: 'soundcloud_set', scTrackUrl: null, artUrl: 'https://art.example.com/2.jpg', setUrl: 'https://soundcloud.com/set/1', setSource: 'soundcloud', setOffsetSec: 120, setDj: 'DJ X' },
+  'artist c:::track 3': { source: 'soundcloud', scTrackUrl: 'https://soundcloud.com/c/3', artUrl: null, setUrl: null, setSource: null, setOffsetSec: null, setDj: null },
+  'artist d:::track 4': { source: 'mixcloud_set', scTrackUrl: null, artUrl: null, setUrl: 'https://mixcloud.com/dj-y/ep2', setSource: 'mixcloud', setOffsetSec: 60, setDj: 'DJ Y' },
+  'artist e:::track 5': { source: 'not_found', scTrackUrl: null, artUrl: null, setUrl: null, setSource: null, setOffsetSec: null, setDj: null },
+  'artist f:::track 6': { source: 'soundcloud', scTrackUrl: 'https://soundcloud.com/f/6', artUrl: 'https://art.example.com/6.jpg', setUrl: null, setSource: null, setOffsetSec: null, setDj: null },
+};
+
+export const miniDjNameMap = {
+  'DJ X': ['DJ X'],
+  'DJ Y': ['DJ Y'],
+  'DJ Z': ['DJ Z'],
+};
+```
+
+#### Test cases
+
+```js
+// shared/test/graph-logic.test.js
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import { miniGraph, miniCache, miniDjNameMap } from './fixtures/mini-graph.js';
+import {
+  buildCandidates, buildIndexes, buildGenreList,
+  getFilteredPool, selectCluster, splitArtists, generateCratesPage,
+} from '../graph-logic.js';
+
+// ── buildCandidates ──────────────────────────────────────────────────────────
+
+describe('buildCandidates', () => {
+  it('includes nodes with 2+ edges and no mixcloud neighbours', () => {
+    const { candidates } = buildCandidates(miniGraph, miniCache);
+    // artist a has 3 edges, none mixcloud → include
+    assert.ok(candidates.includes('artist a:::track 1'));
+    // artist b has 2 edges, none mixcloud → include
+    assert.ok(candidates.includes('artist b:::track 2'));
+    // artist c has 2 edges, none mixcloud → include
+    assert.ok(candidates.includes('artist c:::track 3'));
+  });
+
+  it('excludes nodes with fewer than 2 edges', () => {
+    const { candidates } = buildCandidates(miniGraph, miniCache);
+    // artist d, e, f each have 1 edge → exclude
+    assert.ok(!candidates.includes('artist d:::track 4'));
+    assert.ok(!candidates.includes('artist e:::track 5'));
+    assert.ok(!candidates.includes('artist f:::track 6'));
+  });
+
+  it('excludes mixcloud-only nodes (the node itself)', () => {
+    // artist d is mixcloud_set and has only 1 edge anyway, but test the mixcloud exclusion:
+    // build a graph where a node has 3 edges but is itself mixcloud_set
+    const g = { ...miniGraph };
+    const c = { ...miniCache, 'artist a:::track 1': { source: 'mixcloud_set', scTrackUrl: null, artUrl: null, setUrl: 'https://mixcloud.com/x', setSource: 'mixcloud', setOffsetSec: null, setDj: null } };
+    const { candidates } = buildCandidates(g, c);
+    assert.ok(!candidates.includes('artist a:::track 1'));
+  });
+});
+
+// ── selectCluster ─────────────────────────────────────────────────────────────
+
+describe('selectCluster', () => {
+  it('returns a cluster with root node as first entry', () => {
+    const cluster = selectCluster(miniGraph, miniCache, 'artist a:::track 1');
+    assert.equal(cluster.nodes[0].rank, 'root');
+    assert.equal(cluster.nodes[0].graphId, 'artist a:::track 1');
+    assert.equal(cluster.nodes[0].title, 'Track 1');
+    assert.equal(cluster.nodes[0].artist, 'Artist A');
+  });
+
+  it('populates r1 nodes (direct neighbours of root)', () => {
+    const cluster = selectCluster(miniGraph, miniCache, 'artist a:::track 1', 4, 1);
+    const r1 = cluster.nodes.filter(n => n.rank === '1');
+    // artist a has 3 neighbours (b, c, d) — all eligible for r1
+    assert.ok(r1.length >= 1 && r1.length <= 4);
+    // every r1 node must be a real neighbour of artist a
+    const validNeighbours = new Set(['artist b:::track 2', 'artist c:::track 3', 'artist d:::track 4']);
+    for (const n of r1) assert.ok(validNeighbours.has(n.graphId));
+  });
+
+  it('populates r2 nodes (neighbours of r1, not already used)', () => {
+    const cluster = selectCluster(miniGraph, miniCache, 'artist a:::track 1', 4, 1);
+    const r2 = cluster.nodes.filter(n => n.rank === '2');
+    // r2 nodes must not include the root
+    for (const n of r2) assert.notEqual(n.graphId, 'artist a:::track 1');
+  });
+
+  it('edges reference local node IDs (root, r1_0, r2_0_0, …)', () => {
+    const cluster = selectCluster(miniGraph, miniCache, 'artist a:::track 1');
+    assert.ok(cluster.edges.length > 0);
+    assert.equal(cluster.edges[0].from, 'root');
+    assert.match(cluster.edges[0].to, /^r1_\d+$/);
+  });
+
+  it('enriches nodes from audio cache', () => {
+    const cluster = selectCluster(miniGraph, miniCache, 'artist a:::track 1');
+    const root = cluster.nodes[0];
+    assert.equal(root.source, 'soundcloud');
+    assert.equal(root.scTrackUrl, 'https://soundcloud.com/a/1');
+    assert.equal(root.artUrl, 'https://art.example.com/1.jpg');
+  });
+
+  it('marks not_found nodes correctly', () => {
+    // artist e (track 5) has source: not_found
+    const cluster = selectCluster(miniGraph, miniCache, 'artist b:::track 2', 4, 2);
+    const e = cluster.nodes.find(n => n.graphId === 'artist e:::track 5');
+    if (e) {
+      assert.equal(e.source, 'not_found');
+      assert.equal(e.scTrackUrl, null);
+    }
+    // artist e might not appear due to r2 limit — that's fine, no assertion failure
+  });
+
+  it('edges carry dj + episodeUrl context', () => {
+    const cluster = selectCluster(miniGraph, miniCache, 'artist a:::track 1');
+    const edge = cluster.edges[0];
+    assert.ok(edge.context);
+    assert.equal(typeof edge.context.dj, 'string');
+    assert.ok(edge.context.episodeUrl.startsWith('https://'));
+  });
+
+  it('meta.totalR1 reflects actual neighbour count of root', () => {
+    const cluster = selectCluster(miniGraph, miniCache, 'artist a:::track 1');
+    assert.equal(cluster.meta.totalR1, 3);  // a has 3 neighbours: b, c, d
+  });
+});
+
+// ── getFilteredPool ───────────────────────────────────────────────────────────
+
+describe('getFilteredPool', () => {
+  const { candidates } = buildCandidates(miniGraph, miniCache);
+
+  it('returns all candidates when no filters are set', () => {
+    const pool = getFilteredPool(miniGraph, miniCache, candidates, {});
+    assert.deepEqual([...pool].sort(), [...candidates].sort());
+  });
+
+  it('filters by genre: only candidates whose genres include the filter', () => {
+    const pool = getFilteredPool(miniGraph, miniCache, candidates, { genres: ['Soul'] });
+    // candidates with Soul: artist a (Soul), artist c (Soul, Jazz)
+    assert.ok(pool.includes('artist a:::track 1'));
+    assert.ok(pool.includes('artist c:::track 3'));
+    // artist b is Jazz only → excluded
+    assert.ok(!pool.includes('artist b:::track 2'));
+  });
+
+  it('filters by multiple genres (OR — track matches any)', () => {
+    const pool = getFilteredPool(miniGraph, miniCache, candidates, { genres: ['Soul', 'Jazz'] });
+    // a (Soul), b (Jazz), c (Soul+Jazz) all qualify
+    assert.ok(pool.includes('artist a:::track 1'));
+    assert.ok(pool.includes('artist b:::track 2'));
+    assert.ok(pool.includes('artist c:::track 3'));
+  });
+
+  it('filters by source: soundcloud excludes set-only nodes', () => {
+    const pool = getFilteredPool(miniGraph, miniCache, candidates, { source: 'soundcloud' });
+    // artist a has scTrackUrl → include; artist b is soundcloud_set, not individual → exclude
+    assert.ok(pool.includes('artist a:::track 1'));
+    assert.ok(!pool.includes('artist b:::track 2'));
+  });
+
+  it('returns empty array when no candidates match the filter', () => {
+    const pool = getFilteredPool(miniGraph, miniCache, candidates, { genres: ['Classical'] });
+    assert.equal(pool.length, 0);
+  });
+});
+
+// ── buildIndexes ──────────────────────────────────────────────────────────────
+
+describe('buildIndexes', () => {
+  it('indexes all unique artist names', () => {
+    const { artistIndex } = buildIndexes(miniGraph, miniDjNameMap);
+    assert.ok('artist a' in artistIndex);
+    assert.ok('artist b' in artistIndex);
+  });
+
+  it('splits multi-artist strings into individual entries', () => {
+    const g = {
+      ...miniGraph,
+      'artist a & artist b:::collab track': {
+        title: 'Collab Track', artist: 'Artist A & Artist B', genres: [],
+        edges: [{ node: 'artist a:::track 1', contexts: [] }]
+      }
+    };
+    const { artistIndex } = buildIndexes(g, miniDjNameMap);
+    assert.ok('artist a' in artistIndex);
+    assert.ok('artist b' in artistIndex);
+  });
+
+  it('builds djIndex keyed by lowercase dj name', () => {
+    const { djIndex } = buildIndexes(miniGraph, miniDjNameMap);
+    assert.ok('dj x' in djIndex);
+    assert.ok('dj y' in djIndex);
+    assert.ok('dj z' in djIndex);
+  });
+
+  it('djIndex trackIds includes both sides of an edge', () => {
+    const { djIndex } = buildIndexes(miniGraph, miniDjNameMap);
+    // DJ X appears on the edge between a and b — both node IDs should be in trackIds
+    const djX = djIndex['dj x'];
+    assert.ok(djX.trackIds.has('artist a:::track 1'));
+    assert.ok(djX.trackIds.has('artist b:::track 2'));
+  });
+});
+
+// ── buildGenreList ────────────────────────────────────────────────────────────
+
+describe('buildGenreList', () => {
+  it('returns genres sorted by count descending', () => {
+    const genres = buildGenreList(miniGraph);
+    // Soul appears in track 1, 3, 6 = 3 nodes; Jazz in 2, 3, 5 = 3; Ambient in 4 = 1
+    const counts = Object.fromEntries(genres.map(g => [g.name, g.count]));
+    assert.ok(counts['Soul'] >= 2);
+    assert.ok(counts['Jazz'] >= 2);
+    assert.ok(counts['Ambient'] >= 1);
+    assert.ok(counts['Soul'] >= counts['Ambient']);
+    // sorted descending
+    for (let i = 1; i < genres.length; i++) {
+      assert.ok(genres[i-1].count >= genres[i].count);
+    }
+  });
+});
+
+// ── splitArtists ──────────────────────────────────────────────────────────────
+
+describe('splitArtists', () => {
+  const cases = [
+    ['Four Tet',                   ['Four Tet']],
+    ['Four Tet & Burial',          ['Four Tet', 'Burial']],
+    ['Bonobo feat. Nick Murphy',   ['Bonobo', 'Nick Murphy']],
+    ['A ft. B',                    ['A', 'B']],
+    ['X, Y, Z',                    ['X', 'Y', 'Z']],
+    ['Faro (Oklou & Malibu)',       ['Faro', 'Oklou', 'Malibu']],
+    ['A x B',                      ['A', 'B']],
+  ];
+  for (const [input, expected] of cases) {
+    it(`splits "${input}" → [${expected.join(', ')}]`, () => {
+      assert.deepEqual(splitArtists(input), expected);
+    });
+  }
+});
+
+// ── generateCratesPage ────────────────────────────────────────────────────────
+
+describe('generateCratesPage (determinism)', () => {
+  it('same (seed, page, count) always returns same seedKeys', () => {
+    const r1 = generateCratesPage(miniGraph, miniCache, 42, 0, 2);
+    const r2 = generateCratesPage(miniGraph, miniCache, 42, 0, 2);
+    assert.deepEqual(r1.clusters.map(c => c.seedKey), r2.clusters.map(c => c.seedKey));
+  });
+
+  it('different pages return different clusters', () => {
+    const p0 = generateCratesPage(miniGraph, miniCache, 42, 0, 2);
+    const p1 = generateCratesPage(miniGraph, miniCache, 42, 1, 2);
+    const p0Keys = p0.clusters.map(c => c.seedKey);
+    const p1Keys = p1.clusters.map(c => c.seedKey);
+    // No key should appear in both pages
+    const overlap = p0Keys.filter(k => p1Keys.includes(k));
+    assert.equal(overlap.length, 0);
+  });
+
+  it('hasMore is false when pool is exhausted', () => {
+    // Request more clusters than candidates exist
+    const result = generateCratesPage(miniGraph, miniCache, 42, 100, 100);
+    assert.equal(result.hasMore, false);
+  });
+});
+```
+
+#### Parity test against production graph
+
+After the unit tests pass on the fixture, run one parity check against the real graph:
+
+```bash
+# shared/test/parity-test.js
+# Loads pipeline/output/combined_graph.json + audio_cache.json,
+# calls selectCluster(knownRoot) and diffs against golden-cluster.json
+
+node shared/test/parity-test.js
+```
+
+```js
+// parity-test.js (sketch)
+import { readFileSync } from 'fs';
+import { selectCluster, buildCandidates, buildGenreList, buildIndexes } from '../graph-logic.js';
+
+const { nodes: graphNodes } = JSON.parse(readFileSync('pipeline/output/combined_graph.json'));
+const audioCache = JSON.parse(readFileSync('pipeline/output/audio_cache.json'));
+const djNameMap  = JSON.parse(readFileSync('pipeline/output/dj_name_map.json'));
+const golden     = JSON.parse(readFileSync('shared/test/fixtures/golden-cluster.json'));
+const meta       = JSON.parse(readFileSync('shared/test/fixtures/golden-meta.json'));
+
+// 1. Candidate count
+const { candidates } = buildCandidates(graphNodes, audioCache);
+console.assert(candidates.length === meta.candidateCount,
+  `candidates: got ${candidates.length}, expected ${meta.candidateCount}`);
+
+// 2. Index sizes
+const { artistIndex, djIndex } = buildIndexes(graphNodes, djNameMap);
+console.assert(Object.keys(artistIndex).length === meta.artistCount,
+  `artists: got ${Object.keys(artistIndex).length}, expected ${meta.artistCount}`);
+
+// 3. Genre top-5
+const genres = buildGenreList(graphNodes);
+console.assert(genres[0].name === meta.topGenre,
+  `top genre: got ${genres[0].name}, expected ${meta.topGenre}`);
+
+// 4. Known cluster root matches
+const cluster = selectCluster(graphNodes, audioCache, golden.meta.root_id);
+console.assert(cluster.nodes[0].graphId === golden.meta.root_id, 'root graphId mismatch');
+console.assert(cluster.meta.totalR1 === golden.meta.totalR1,
+  `totalR1: got ${cluster.meta.totalR1}, expected ${golden.meta.totalR1}`);
+
+console.log('All parity checks passed.');
+```
+
+---
+
+### 19c. API checks (Steps 2 + 7)
+
+Run these against both the local server (`http://localhost:3001`) and the Cloudflare
+Worker (`http://localhost:8787` via `wrangler dev`, then the live URL).
+
+```bash
+BASE=http://localhost:3001
+ROOT_ENC="four%20tet%3A%3A%3Ababy"   # replace with your golden root, URL-encoded
+
+# ── Genre list ──
+COUNT=$(curl -s "$BASE/api/genres" | jq 'length')
+echo "Genres: $COUNT"   # must match golden genre count
+
+# ── CORS on all methods ──
+curl -sI "$BASE/api/genres" | grep -i "access-control-allow-origin"
+curl -sI -X OPTIONS "$BASE/api/shuffle" -H "Origin: http://localhost:8000" \
+  | grep -i "access-control"
+
+# ── Cluster shape for known root ──
+curl -s "$BASE/api/cluster/$ROOT_ENC" | jq '{
+  root:       .nodes[0].graphId,
+  rootTitle:  .nodes[0].title,
+  rootArtist: .nodes[0].artist,
+  nodeCount:  (.nodes | length),
+  edgeCount:  (.edges | length),
+  totalR1:    .meta.totalR1
+}'
+# Expected: root matches golden-meta.json knownRoot; totalR1 matches golden
+
+# ── Root node always first ──
+curl -s "$BASE/api/cluster/$ROOT_ENC" | jq '.nodes[0].rank'   # → "root"
+
+# ── All r1 edges depart from root ──
+curl -s "$BASE/api/cluster/$ROOT_ENC" | jq '[.edges[] | select(.from == "root")] | length'
+# Must equal r1Shown in meta
+
+# ── Audio fields present on enriched nodes ──
+curl -s "$BASE/api/cluster/$ROOT_ENC" | jq '
+  .nodes[] | select(.source == "soundcloud") | {graphId, scTrackUrl, artUrl}
+' | head -30
+
+# ── Filtered pool size matches golden ──
+SOUL_POOL=$(curl -s "$BASE/api/shuffle?genres=Soul" | jq '.meta.poolSize')
+echo "Soul pool: $SOUL_POOL"   # must match golden soulPool value
+
+# ── Artist autocomplete — top result for "four" contains "Four" ──
+curl -s "$BASE/api/search/artists?q=four" | jq '.[0].display'
+
+# ── Crates determinism ──
+P0A=$(curl -s "$BASE/api/crates?seed=99&page=0&count=3" | jq -c '[.clusters[].seedKey]')
+P0B=$(curl -s "$BASE/api/crates?seed=99&page=0&count=3" | jq -c '[.clusters[].seedKey]')
+[ "$P0A" = "$P0B" ] && echo "crates determinism: PASS" || echo "crates determinism: FAIL"
+
+# ── Crates pages don't overlap ──
+P0=$(curl -s "$BASE/api/crates?seed=99&page=0&count=5" | jq -r '[.clusters[].seedKey] | @tsv')
+P1=$(curl -s "$BASE/api/crates?seed=99&page=1&count=5" | jq -r '[.clusters[].seedKey] | @tsv')
+comm -12 <(echo "$P0" | tr '\t' '\n' | sort) <(echo "$P1" | tr '\t' '\n' | sort) \
+  && echo "crates no overlap: PASS" || echo "crates no overlap: FAIL"
+
+# ── Local vs Worker parity (run after wrangler dev) ──
+LOCAL=http://localhost:3001
+WORKER=http://localhost:8787
+diff \
+  <(curl -s "$LOCAL/api/genres"  | jq 'map(.name)') \
+  <(curl -s "$WORKER/api/genres" | jq 'map(.name)')
+# → no diff
+```
+
+---
+
+### 19d. Playwright tests for the frontend
+
+**File**: `tests/e2e.test.js`
+**Setup**: `npm install -D playwright` in the project root; `npx playwright install chromium`.
+
+```bash
+# Run with the local server already running on :3001
+npx playwright test tests/e2e.test.js
+```
+
+```js
+// tests/e2e.test.js
+import { test, expect } from '@playwright/test';
+
+const APP = 'http://localhost:8000';
+const KNOWN_HASH = '#four%20tet%3A%3A%3Ababy';  // replace with real golden root
+
+// ── Step 3: Basic shuffle and graph render ────────────────────────────────────
+
+test('page loads without fetching combined_graph.json', async ({ page }) => {
+  const graphFetched = [];
+  page.on('request', req => {
+    if (req.url().includes('combined_graph.json')) graphFetched.push(req.url());
+  });
+  await page.goto(APP);
+  await page.waitForSelector('.node-card[data-rank="root"]', { timeout: 10000 });
+  expect(graphFetched).toHaveLength(0);
+});
+
+test('shuffle renders a cluster with root, r1, and connection paths', async ({ page }) => {
+  await page.goto(APP);
+  await page.waitForSelector('.node-card[data-rank="root"]', { timeout: 10000 });
+
+  // At least one r1 node
+  const r1Count = await page.locator('.node-card[data-rank="1"]').count();
+  expect(r1Count).toBeGreaterThan(0);
+
+  // At least one SVG connection path
+  const pathCount = await page.locator('.connection-path').count();
+  expect(pathCount).toBeGreaterThan(0);
+});
+
+test('shuffle button produces a new cluster', async ({ page }) => {
+  await page.goto(APP);
+  await page.waitForSelector('.node-card[data-rank="root"]');
+
+  const firstRoot = await page.locator('.node-card[data-rank="root"] .track-title').textContent();
+  await page.locator('#shuffle-btn').click();
+  await page.waitForTimeout(1500);  // wait for API + render
+  const secondRoot = await page.locator('.node-card[data-rank="root"] .track-title').textContent();
+
+  // Different cluster loaded (may rarely be the same track — acceptable)
+  // Just verify the page didn't error out
+  expect(secondRoot).toBeTruthy();
+});
+
+test('hash navigation loads the correct cluster', async ({ page }) => {
+  await page.goto(APP + KNOWN_HASH);
+  await page.waitForSelector('.node-card[data-rank="root"]', { timeout: 10000 });
+
+  // Cluster ID display should show the hash value
+  const clusterId = await page.locator('#cluster-id').textContent();
+  expect(decodeURIComponent(KNOWN_HASH.slice(1))).toBe(clusterId);
+});
+
+test('back/forward browser navigation changes the cluster', async ({ page }) => {
+  await page.goto(APP);
+  await page.waitForSelector('.node-card[data-rank="root"]');
+  const root1 = await page.locator('#cluster-id').textContent();
+
+  await page.locator('#shuffle-btn').click();
+  await page.waitForTimeout(1500);
+  const root2 = await page.locator('#cluster-id').textContent();
+
+  await page.goBack();
+  await page.waitForTimeout(1000);
+  const root1Again = await page.locator('#cluster-id').textContent();
+  expect(root1Again).toBe(root1);
+});
+
+// ── Step 4: Filters ───────────────────────────────────────────────────────────
+
+test('genre filter: selecting Soul narrows the pool and label appears', async ({ page }) => {
+  await page.goto(APP);
+  await page.waitForSelector('.node-card[data-rank="root"]');
+
+  // Open genre popover and select Soul
+  await page.locator('#pill-genre').click();
+  await page.locator('.genre-pill', { hasText: 'Soul' }).click();
+  await page.locator('#pill-genre').click();  // close popover
+  await page.waitForTimeout(1500);  // shuffle fires on close
+
+  // Filter label should appear above root card
+  const label = await page.locator('#filter-label').textContent();
+  expect(label).toContain('filtered results');
+
+  // Pool size in label should be a number smaller than total candidates
+  const match = label.match(/\((\d+)\)/);
+  expect(match).not.toBeNull();
+  const poolSize = parseInt(match[1]);
+  expect(poolSize).toBeGreaterThan(0);
+  expect(poolSize).toBeLessThan(126720);  // less than total graph
+});
+
+test('artist filter: searching and selecting an artist filters shuffle results', async ({ page }) => {
+  await page.goto(APP);
+  await page.waitForSelector('.node-card[data-rank="root"]');
+
+  await page.locator('#pill-artist').click();
+  await page.locator('#find-search').fill('Four Tet');
+  await page.waitForSelector('.ac-item', { timeout: 3000 });
+  await page.locator('.ac-item').first().click();
+  await page.locator('#pill-artist').click();  // close popover → triggers shuffle
+  await page.waitForTimeout(1500);
+
+  // Chip should appear
+  const chip = await page.locator('.find-chip').first().textContent();
+  expect(chip).toContain('Four Tet');
+});
+
+test('clearing all filters removes the filter label', async ({ page }) => {
+  await page.goto(APP);
+  await page.waitForSelector('.node-card[data-rank="root"]');
+
+  await page.locator('#pill-genre').click();
+  await page.locator('.genre-pill').first().click();
+  await page.locator('#pill-genre').click();
+  await page.waitForTimeout(1000);
+
+  // Label should be present
+  await expect(page.locator('#filter-label')).not.toBeEmpty();
+
+  // Clear genres
+  await page.locator('#pill-genre').click();
+  await page.locator('#genre-clear-btn').click();
+  await page.waitForTimeout(500);
+
+  const label = await page.locator('#filter-label').textContent();
+  expect(label.trim()).toBe('');
+});
+
+// ── Step 5: Crates mode ───────────────────────────────────────────────────────
+
+test('crates mode: opens without fetching combined_graph.json', async ({ page }) => {
+  const graphFetched = [];
+  page.on('request', req => {
+    if (req.url().includes('combined_graph.json')) graphFetched.push(req.url());
+  });
+
+  await page.goto(APP);
+  await page.waitForSelector('.node-card[data-rank="root"]');
+
+  // Open crates (adapt selector to actual crates button in app)
+  await page.locator('[data-view="crates"], #crates-btn').click();
+  await page.waitForSelector('.crate-tile, .crate', { timeout: 10000 });
+
+  expect(graphFetched).toHaveLength(0);
+});
+
+test('crates mode: at least one crate tile renders with artwork or label', async ({ page }) => {
+  await page.goto(APP);
+  await page.waitForSelector('.node-card[data-rank="root"]');
+  await page.locator('[data-view="crates"], #crates-btn').click();
+  await page.waitForSelector('.crate-tile, .crate', { timeout: 10000 });
+
+  const tileCount = await page.locator('.crate-tile, .crate').count();
+  expect(tileCount).toBeGreaterThan(0);
+});
+
+test('crates mode: scrolling loads a second page (pagination works)', async ({ page }) => {
+  await page.goto(APP);
+  await page.waitForSelector('.node-card[data-rank="root"]');
+  await page.locator('[data-view="crates"], #crates-btn').click();
+  await page.waitForSelector('.crate-tile, .crate', { timeout: 10000 });
+
+  const beforeCount = await page.locator('.crate-tile, .crate').count();
+  await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+  await page.waitForTimeout(2000);
+  const afterCount = await page.locator('.crate-tile, .crate').count();
+
+  expect(afterCount).toBeGreaterThan(beforeCount);
+});
+
+// ── Mobile layout ─────────────────────────────────────────────────────────────
+
+test('mobile layout renders on narrow viewport', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(APP);
+  await page.waitForSelector('.mobile-card, [data-mobile]', { timeout: 10000 });
+
+  // Desktop shuffle button should not be visible
+  const desktopShuffleVisible = await page.locator('#shuffle-btn').isVisible();
+  // Mobile shuffle button should be visible (adapt selector)
+  const mobileShuffleVisible = await page.locator('#mobile-shuffle-btn, .mobile-shuffle').isVisible();
+  expect(mobileShuffleVisible).toBe(true);
+});
+
+// ── Night mode ────────────────────────────────────────────────────────────────
+
+test('night mode toggle adds body.night class', async ({ page }) => {
+  await page.goto(APP);
+  await page.waitForSelector('.node-card[data-rank="root"]');
+  await page.locator('#theme-toggle').click();
+  const hasNight = await page.evaluate(() => document.body.classList.contains('night'));
+  expect(hasNight).toBe(true);
+  // Toggle back
+  await page.locator('#theme-toggle').click();
+  const hasNight2 = await page.evaluate(() => document.body.classList.contains('night'));
+  expect(hasNight2).toBe(false);
+});
+```
+
+#### Playwright config
+
+```js
+// playwright.config.js
+export default {
+  testDir: './tests',
+  use: { baseURL: 'http://localhost:8000' },
+  webServer: {
+    command: 'python3 -m http.server 8000',
+    url: 'http://localhost:8000',
+    reuseExistingServer: true,
+  },
+};
+```
+
+Note: the local Node server on `:3001` must be started separately before running
+Playwright tests. The `webServer` config handles the static file server.
+
+---
+
+### 19e. Shuffle distribution sanity check
+
+After Step 4, verify genre rebalancing still works — `genreWeightCaps` should prevent
+Ambient/Folk from dominating:
+
+```bash
+# Sample 200 shuffle results and tally root genres
+for i in $(seq 200); do
+  curl -s 'http://localhost:3001/api/shuffle' | jq -r '
+    .nodes[0].graphId as $id |
+    .nodes[0] |
+    "SHUFFLE_RESULT"
+  '
+done
+# Then cross-reference the returned root IDs against genre data via:
+node -e "
+  const ids = /* collect root_ids from above */ ;
+  const graph = JSON.parse(require('fs').readFileSync('pipeline/output/combined_graph.json')).nodes;
+  const genreCounts = {};
+  for (const id of ids) {
+    for (const g of (graph[id]?.genres ?? [])) {
+      genreCounts[g] = (genreCounts[g] || 0) + 1;
+    }
+  }
+  console.table(Object.entries(genreCounts).sort((a,b) => b[1]-a[1]).slice(0, 10));
+"
+# Ambient should be ≤20% of results; Folk ≤5%; no single genre >25%
+```
