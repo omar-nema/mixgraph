@@ -577,7 +577,38 @@ document.addEventListener('DOMContentLoaded', async () => {
       });
     }
 
-    // Request a page from the API (non-blocking)
+    // Crates index — fetched once, shuffled once, pages sliced client-side
+    let cratesIndexPromise = null;
+    let cratesShuffledPool = null;
+
+    function getCratesPool() {
+      if (!cratesIndexPromise) cratesIndexPromise = apiGetCratesIndex();
+      return cratesIndexPromise.then(index => {
+        if (!cratesShuffledPool) {
+          // LCG shuffle (same algorithm as worker) — deterministic for this session
+          let rngState = crateSeed === 0 ? 1 : crateSeed;
+          const rng = () => { rngState = (rngState * 16807) % 2147483647; return (rngState - 1) / 2147483646; };
+          cratesShuffledPool = [...index];
+          for (let i = cratesShuffledPool.length - 1; i > 0; i--) {
+            const j = Math.floor(rng() * (i + 1));
+            [cratesShuffledPool[i], cratesShuffledPool[j]] = [cratesShuffledPool[j], cratesShuffledPool[i]];
+          }
+        }
+        // Apply active filters
+        const gf = genreFilters;
+        const af = searchFilters.map(f => f.display.toLowerCase());
+        const df = djSearchFilters.map(f => f.display.toLowerCase());
+        if (!gf.length && !af.length && !df.length) return cratesShuffledPool;
+        return cratesShuffledPool.filter(c => {
+          if (gf.length && !gf.some(g => (c.g || []).includes(g))) return false;
+          if (af.length && !af.some(a => (c.a || '').includes(a))) return false;
+          if (df.length && !(c.d || []).some(d => df.includes(d))) return false;
+          return true;
+        });
+      });
+    }
+
+    // Request a page from the index (non-blocking, no worker call)
     function requestPage(col, row) {
       const key = `${col},${row}`;
       if (pages[key] || pendingPageKeys.has(key)) return;
@@ -588,29 +619,22 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (pageNums[key] === undefined) pageNums[key] = pageIdCounter++;
       const pageNum = pageNums[key];
 
-      const filters = {};
-      if (genreFilters.length) filters.genres = genreFilters;
-      if (searchFilters.length) filters.artists = searchFilters.map(f => f.display);
-      if (djSearchFilters.length) filters.djs = djSearchFilters.map(f => f.display);
-
-      apiGetCratesPage({
-        seed: crateSeed,
-        page: pageNum,
-        count: CLUSTERS_PER_PAGE,
-        ...filters,
-      }).then(result => {
+      getCratesPool().then(pool => {
+        const slice = pool.slice(pageNum * CLUSTERS_PER_PAGE, (pageNum + 1) * CLUSTERS_PER_PAGE);
         delete pageNums[key];
-        const clusters = result.clusters || [];
-        // Run treemap layout client-side
-        if (clusters.length > 0) {
-          const items = clusters.map((c, i) => ({ ...c, idx: i }));
+        if (slice.length > 0) {
+          const items = slice.map(c => {
+            const [artist, title] = c.id.split(':::');
+            return { seedKey: c.id, artist: artist || '', title: title || '',
+              artworks: c.artworks || [], artKeys: [], count: c.count, weight: c.weight };
+          });
           cratesTreemap(items, pad, pad, vw - pad * 2, vh - pad * 2);
           receivePage(col, row, items);
         } else {
           receivePage(col, row, []);
         }
       }).catch(err => {
-        console.error('Crates page failed:', err.message);
+        console.error('Crates index failed:', err.message);
         pendingPageKeys.delete(key); // pageNums[key] kept — same number used on retry
       });
     }

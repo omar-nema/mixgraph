@@ -61,6 +61,10 @@ function apiGetGenres() {
   return apiFetch('/api/genres');
 }
 
+function apiGetCratesIndex() {
+  return apiFetch('/api/crates-index');
+}
+
 function apiGetCratesPage(opts = {}) {
   const params = { seed: opts.seed, page: opts.page, count: opts.count };
   if (opts.genres && opts.genres.length) params.genres = opts.genres.join(',');
