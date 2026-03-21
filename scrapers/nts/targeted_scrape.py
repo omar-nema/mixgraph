@@ -39,13 +39,13 @@ EPISODES_FILE = OUTPUT_DIR / "nts_episodes.json"
 TARGETS = [
     ("Ben UFO", ["ben-ufo"], 10),
     ("Zack Fox", ["zack-fox"], 10),
-    ("Powder", ["powder"], 10),
+    ("Powder", ["powder"], 6),  # all 6
     ("David August", ["david-august"], 10),
     ("Tim Reaper", ["tim-reaper"], 10),
     ("Kelman Duran", ["kelman-duran"], 10),
     ("DJ Haram", ["dj-haram", "haram"], 10),
     ("Retro Cassetta", ["retro-cassetta"], 10),
-    ("Logic1000", ["logic1000", "logic-1000"], 10),
+    ("Logic1000", ["logic1000", "logic-1000"], 4),  # all 4
     ("Against All Logic", ["against-all-logic"], 10),  # Nicolas Jaar alias
     ("Avalon Emerson", ["avalon-emerson"], 10),
     ("Shyboi", ["shyboi"], 10),
@@ -57,6 +57,7 @@ TARGETS = [
 # Specific episodes to scrape by (show_alias, episode_alias) — for guests not in the slug
 SPECIFIC_EPISODES = [
     ("INVT (on Tash LC)", "tash-lc", "tash-lc-7th-june-2023"),
+    ("Zeemuffin", "guests", "zeemuffin-8th-august-2025"),
 ]
 
 # Exclude false positives (episode aliases that match but aren't the target DJ)
