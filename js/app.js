@@ -156,6 +156,30 @@ function getFilteredPoolSize() {
   return getFilteredPool().length;
 }
 
+// Weighted random pick from a pool of candidate IDs
+function weightedPick(pool) {
+  if (!candidateWeights || pool.length === 0) {
+    return pool[Math.floor(Math.random() * pool.length)];
+  }
+  // Build index lookup once (candidates array → index)
+  if (!weightedPick._idxMap) {
+    weightedPick._idxMap = new Map();
+    for (let i = 0; i < candidates.length; i++) weightedPick._idxMap.set(candidates[i], i);
+  }
+  let totalW = 0;
+  for (const id of pool) {
+    const idx = weightedPick._idxMap.get(id);
+    totalW += idx !== undefined ? candidateWeights[idx] : 1;
+  }
+  let r = Math.random() * totalW;
+  for (const id of pool) {
+    const idx = weightedPick._idxMap.get(id);
+    r -= idx !== undefined ? candidateWeights[idx] : 1;
+    if (r <= 0) return id;
+  }
+  return pool[pool.length - 1];
+}
+
 function shuffle() {
   if (frozen || candidates.length === 0) return;
   const pool = getFilteredPool();
@@ -168,7 +192,7 @@ function shuffle() {
     shuffleHistory.clear();
     unseen = pool;
   }
-  const rootId = unseen[Math.floor(Math.random() * unseen.length)];
+  const rootId = weightedPick(unseen);
   shuffleHistory.add(rootId);
   const cluster = selectCluster(rootId);
   showCluster(cluster);
@@ -236,6 +260,30 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (candidates.length === 0) {
     console.error('No candidates found in graph');
     return;
+  }
+
+  // Compute genre rebalancing weights
+  if (Object.keys(genreWeightCaps).length > 0) {
+    // Natural frequency of each capped genre among candidates
+    const naturalCounts = {};
+    for (const id of candidates) {
+      for (const g of (graphNodes[id].genres || [])) {
+        if (g in genreWeightCaps) naturalCounts[g] = (naturalCounts[g] || 0) + 1;
+      }
+    }
+    const n = candidates.length;
+    candidateWeights = new Float64Array(n);
+    for (let i = 0; i < n; i++) {
+      let w = 1;
+      for (const g of (graphNodes[candidates[i]].genres || [])) {
+        if (g in genreWeightCaps) {
+          const ratio = (genreWeightCaps[g] / 100 * n) / (naturalCounts[g] || 1);
+          if (ratio < w) w = ratio;
+        }
+      }
+      candidateWeights[i] = w;
+    }
+    console.log('Genre rebalancing active:', genreWeightCaps);
   }
 
   // Init filters, search indexes, autocomplete, popovers
@@ -475,51 +523,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   // ── Crates view (infinite canvas) ──
   let cratesInitialized = false;
 
-  function cratesTreemap(items, x, y, w, h) {
-    if (items.length === 0) return [];
-    if (items.length === 1) { items[0].rect = { x, y, w, h }; return items; }
-    const total = items.reduce((s, it) => s + it.weight, 0);
-    const sorted = [...items].sort((a, b) => b.weight - a.weight);
-    let bestDiff = Infinity, splitIdx = 1, runSum = 0;
-    for (let i = 0; i < sorted.length - 1; i++) {
-      runSum += sorted[i].weight;
-      const diff = Math.abs(runSum - (total - runSum));
-      if (diff < bestDiff) { bestDiff = diff; splitIdx = i + 1; }
-    }
-    const left = sorted.slice(0, splitIdx);
-    const right = sorted.slice(splitIdx);
-    const ratio = left.reduce((s, it) => s + it.weight, 0) / total;
-    if (w >= h) {
-      const sw = w * ratio;
-      cratesTreemap(left, x, y, sw, h);
-      cratesTreemap(right, x + sw, y, w - sw, h);
-    } else {
-      const sh = h * ratio;
-      cratesTreemap(left, x, y, w, sh);
-      cratesTreemap(right, x, y + sh, w, h - sh);
-    }
-    return sorted;
-  }
-
-  function cratesBfs(startKey, maxNodes) {
-    const visited = new Set();
-    const queue = [startKey];
-    visited.add(startKey);
-    while (queue.length && visited.size < maxNodes) {
-      const key = queue.shift();
-      const node = graphNodes[key];
-      if (!node || !node.edges) continue;
-      for (const edge of node.edges) {
-        if (visited.size >= maxNodes) break;
-        if (!visited.has(edge.node) && graphNodes[edge.node]) {
-          visited.add(edge.node);
-          queue.push(edge.node);
-        }
-      }
-    }
-    return [...visited];
-  }
-
   function initCrates() {
     if (cratesInitialized) return;
     cratesInitialized = true;
@@ -533,75 +536,59 @@ document.addEventListener('DOMContentLoaded', async () => {
     const vw = cratesView.clientWidth || window.innerWidth;
     const vh = cratesView.clientHeight || (window.innerHeight - 60);
 
-    // Seeded random — random each session (testing)
-    let crateSeed = Date.now() % 2147483647 || 1;
+    // Local RNG for placeholder colors (doesn't need to match worker)
+    let localSeed = Date.now() % 2147483647 || 1;
     function crateRand() {
-      crateSeed = (crateSeed * 16807) % 2147483647;
-      return (crateSeed - 1) / 2147483646;
+      localSeed = (localSeed * 16807) % 2147483647;
+      return (localSeed - 1) / 2147483646;
     }
 
-    // Build shuffled seed pool (nodes with 4+ edges)
-    const allKeys = Object.keys(graphNodes);
-    const seedPool = allKeys.filter(k => graphNodes[k].edges && graphNodes[k].edges.length >= 4);
-    for (let i = seedPool.length - 1; i > 0; i--) {
-      const j = Math.floor(crateRand() * (i + 1));
-      [seedPool[i], seedPool[j]] = [seedPool[j], seedPool[i]];
-    }
-    let seedIdx = 0;
-    const usedNodes = new Set();
+    // Initialize worker — it fetches data directly (avoids postMessage bottleneck)
+    const workerSeed = Date.now() % 2147483647 || 1;
+    const worker = new Worker('js/crates-worker.js');
+    const pendingPages = {};  // id -> { col, row, resolve }
+    let pageIdCounter = 0;
+    let workerReady = false;
+    const queuedRequests = [];
+
+    worker.onerror = function(e) { console.error('Crates worker error:', e.message, e.filename, e.lineno); };
+    worker.onmessage = function(e) {
+      if (e.data.type === 'error') {
+        console.error('Crates worker error:', e.data.message);
+        return;
+      }
+      if (e.data.type === 'ready') {
+        workerReady = true;
+        console.log(`Crates: worker ready (${e.data.seedCount} seeds)`);
+        // Process any requests that came in before worker was ready
+        for (const req of queuedRequests) requestPage(req.col, req.row);
+        queuedRequests.length = 0;
+        return;
+      }
+      if (e.data.type === 'page') {
+        const pending = pendingPages[e.data.id];
+        if (!pending) return;
+        delete pendingPages[e.data.id];
+        receivePage(pending.col, pending.row, e.data.clusters);
+        return;
+      }
+    };
+
+    // Worker fetches data itself — send absolute URLs and seed
+    const base = new URL('.', window.location.href).href;
+    worker.postMessage({
+      type: 'init',
+      graphUrl: base + 'web-app/output/combined_graph.json',
+      audioCacheUrl: base + 'web-app/output/audio_cache.json',
+      crateSeed: workerSeed,
+    });
 
     // Page grid: each page is viewport-sized, keyed by "col,row"
     const pages = {};       // "col,row" -> { clusters, el, stacks, artLoaded }
+    const pendingPageKeys = new Set(); // pages requested but not yet received
 
     // Canvas bounds (grow dynamically)
     let minCol = 0, maxCol = 0, minRow = 0, maxRow = 0;
-
-    // Estimate how many nodes selectCluster will produce for a seed
-    function estimateClusterSize(seedKey) {
-      const root = graphNodes[seedKey];
-      if (!root || !root.edges) return 1;
-      const used = new Set([seedKey]);
-      const r1Ids = root.edges.map(e => e.node).filter(id => id in graphNodes && !used.has(id));
-      r1Ids.forEach(id => used.add(id));
-      let total = 1 + r1Ids.length; // root + R1
-      for (const r1Id of r1Ids) {
-        const r1Node = graphNodes[r1Id];
-        if (!r1Node || !r1Node.edges) continue;
-        const r2 = r1Node.edges.map(e => e.node).filter(id => id in graphNodes && !used.has(id));
-        const r2Count = Math.min(2, r2.length);
-        total += r2Count;
-        for (let i = 0; i < r2Count; i++) used.add(r2[i]);
-      }
-      return total;
-    }
-
-    function generateClusters(count) {
-      const clusters = [];
-      while (clusters.length < count && seedIdx < seedPool.length) {
-        const seedKey = seedPool[seedIdx++];
-        if (usedNodes.has(seedKey)) continue;
-        const size = 15 + Math.floor(crateRand() * 40);
-        const members = cratesBfs(seedKey, size);
-        const overlap = members.filter(m => usedNodes.has(m)).length;
-        if (overlap > members.length * 0.3) continue;
-        members.forEach(m => usedNodes.add(m));
-
-        const artworks = [], artKeys = [];
-        for (const key of members) {
-          const cached = audioCache[key];
-          if (cached && cached.artUrl) { artworks.push(cached.artUrl); artKeys.push(key); }
-        }
-        const [artist, title] = seedKey.split(':::');
-        const displayCount = estimateClusterSize(seedKey);
-        clusters.push({
-          seedKey, label: artist || 'unknown',
-          title: title || '', artist: artist || '',
-          count: displayCount, artworks, artKeys,
-          memberKeys: members, weight: members.length,
-        });
-      }
-      return clusters;
-    }
 
     function renderStack(item, pageOffsetX, pageOffsetY) {
       const r = item.rect;
@@ -709,27 +696,34 @@ document.addEventListener('DOMContentLoaded', async () => {
       });
     }
 
-    // Build a page: generate data, create placeholder DOM, add to surface permanently
-    function buildPage(col, row) {
+    // Request a page from the worker (non-blocking)
+    function requestPage(col, row) {
       const key = `${col},${row}`;
-      if (pages[key]) return pages[key];
-      const clusters = generateClusters(CLUSTERS_PER_PAGE);
-      if (clusters.length === 0) return null;
-      const items = clusters.map((c, i) => ({ ...c, idx: i }));
-      cratesTreemap(items, pad, pad, vw - pad * 2, vh - pad * 2);
+      if (pages[key] || pendingPageKeys.has(key)) return;
+      if (!workerReady) { queuedRequests.push({ col, row }); return; }
+      pendingPageKeys.add(key);
+      const id = pageIdCounter++;
+      pendingPages[id] = { col, row };
+      worker.postMessage({ type: 'generatePage', id, count: CLUSTERS_PER_PAGE, vw, vh, pad });
+    }
+
+    // Handle page data from the worker — build DOM on main thread
+    function receivePage(col, row, clusters) {
+      const key = `${col},${row}`;
+      pendingPageKeys.delete(key);
+      if (pages[key] || clusters.length === 0) return;
       minCol = Math.min(minCol, col);
       maxCol = Math.max(maxCol, col);
       minRow = Math.min(minRow, row);
       maxRow = Math.max(maxRow, row);
 
-      // Create DOM (placeholders) and append permanently
       const pageOffsetX = col * vw;
       const pageOffsetY = row * vh;
       const container = document.createElement('div');
       container.className = 'crate-page';
 
       const stacks = [];
-      items.forEach(item => {
+      clusters.forEach(item => {
         const stackEl = renderStack(item, pageOffsetX, pageOffsetY);
         if (stackEl) {
           container.appendChild(stackEl);
@@ -739,9 +733,23 @@ document.addEventListener('DOMContentLoaded', async () => {
       });
       surface.appendChild(container);
 
-      const page = { clusters: items, el: container, stacks, artLoaded: false };
+      const page = { clusters, el: container, stacks, artLoaded: false };
       pages[key] = page;
-      return page;
+      // Load art if page is near viewport
+      updateVisibleForPage(key, page);
+    }
+
+    // Check if a single newly-added page should have art loaded
+    function updateVisibleForPage(key, page) {
+      const viewL = -panX, viewT = -panY;
+      const colVis0 = Math.floor(viewL / vw);
+      const colVis1 = Math.floor((viewL + vw / crateScale) / vw);
+      const rowVis0 = Math.floor(viewT / vh);
+      const rowVis1 = Math.floor((viewT + vh / crateScale) / vh);
+      const [c, r] = key.split(',').map(Number);
+      if (c >= colVis0 - 1 && c <= colVis1 + 1 && r >= rowVis0 - 1 && r <= rowVis1 + 1) {
+        loadPageArt(page);
+      }
     }
 
     // Load artwork images into a page's stacks
@@ -812,10 +820,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       const rowMin = Math.floor(viewT / vh) - 1;
       const rowMax = Math.floor(viewB / vh) + 1;
 
-      // Build placeholder DOM for all nearby pages
+      // Request nearby pages from worker (non-blocking)
       for (let c = colMin; c <= colMax; c++) {
         for (let r = rowMin; r <= rowMax; r++) {
-          buildPage(c, r);
+          requestPage(c, r);
         }
       }
 
@@ -975,10 +983,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (touchDidDrag) { e.stopPropagation(); touchDidDrag = false; }
     }, true);
 
-    // Initial render: center page + neighbors
-    buildPage(0, 0);
+    // Initial render: request center page + neighbors from worker
     updateVisible();
-    console.log(`Crates: infinite canvas initialized (${seedPool.length} seeds available)`);
+    console.log('Crates: infinite canvas initialized (worker mode)');
   }
 
   // Wire mode tabs
