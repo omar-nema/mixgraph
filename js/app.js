@@ -153,19 +153,13 @@ function getFilteredPool() {
 }
 
 function getFilteredPoolSize() {
-  const pool = getFilteredPool();
-  if (!candidateWeights || !weightedPick._idxMap) return pool.length;
-  let totalW = 0;
-  for (const id of pool) {
-    const idx = weightedPick._idxMap.get(id);
-    totalW += idx !== undefined ? candidateWeights[idx] : 1;
-  }
-  return Math.round(totalW);
+  return getFilteredPool().length;
 }
 
 // Weighted random pick from a pool of candidate IDs
 function weightedPick(pool) {
-  if (!candidateWeights || pool.length === 0) {
+  const hasArtistDjFilter = searchFilters.length > 0 || djSearchFilters.length > 0 || clusterArtistFilters.length > 0 || clusterDjFilters.length > 0;
+  if (!candidateWeights || pool.length === 0 || hasArtistDjFilter) {
     return pool[Math.floor(Math.random() * pool.length)];
   }
   let totalW = 0;
@@ -253,11 +247,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   );
   candidates = Object.keys(graphNodes).filter(nid => {
     const edges = graphNodes[nid].edges || [];
-    if (edges.length < 3) return false;
+    if (edges.length < 2) return false;
     if (mcNodes.has(nid)) return false;
     return !edges.some(e => mcNodes.has(e.node));
   });
-  console.log(`${candidates.length} candidates (3+ edges, no mixcloud)`);
+  console.log(`${candidates.length} candidates (2+ edges, no mixcloud)`);
 
   if (candidates.length === 0) {
     console.error('No candidates found in graph');
