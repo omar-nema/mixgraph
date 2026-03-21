@@ -433,18 +433,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     const gap = 25, pad = 0, STEP = 3;
     const CLUSTERS_PER_PAGE = isMobileView() ? 10 : 20;
 
-    // Local RNG for placeholder colors (doesn't need to match worker)
+    // Local RNG for placeholder colors
     let localSeed = Date.now() % 2147483647 || 1;
     function crateRand() {
       localSeed = (localSeed * 16807) % 2147483647;
       return (localSeed - 1) / 2147483646;
     }
 
-    // Crates uses direct API calls (no worker for data fetching)
-    const workerSeed = Date.now() % 2147483647 || 1;
-    const pendingPages = {};  // id -> { col, row }
+    const crateSeed = Date.now() % 2147483647 || 1;
+    const pendingPages = {};
     let pageIdCounter = 0;
-    let workerReady = true; // No init needed — API is always ready
 
     // Page grid: each page is viewport-sized, keyed by "col,row"
     const pages = {};       // "col,row" -> { clusters, el, stacks, artLoaded }
@@ -564,7 +562,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (djSearchFilters.length) filters.djs = djSearchFilters.map(f => f.display);
 
       apiGetCratesPage({
-        seed: workerSeed,
+        seed: crateSeed,
         page: pageNum,
         count: CLUSTERS_PER_PAGE,
         ...filters,
@@ -584,7 +582,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       });
     }
 
-    // Client-side treemap layout (same algorithm as the worker had)
+    // Client-side treemap layout
     function cratesTreemap(items, x, y, w, h) {
       if (items.length === 0) return items;
       if (items.length === 1) { items[0].rect = { x, y, w, h }; return items; }
@@ -611,7 +609,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       return sorted;
     }
 
-    // Handle page data from the worker — build DOM on main thread
+    // Handle page data from API — build DOM on main thread
     function receivePage(col, row, clusters) {
       const key = `${col},${row}`;
       pendingPageKeys.delete(key);
@@ -715,13 +713,13 @@ document.addEventListener('DOMContentLoaded', async () => {
       const viewR = viewL + vw / crateScale;
       const viewB = viewT + vh / crateScale;
 
-      // Pages to build (visible only — worker is async so no buffer needed)
+      // Pages to build (visible viewport)
       const colMin = Math.floor(viewL / vw);
       const colMax = Math.floor(viewR / vw);
       const rowMin = Math.floor(viewT / vh);
       const rowMax = Math.floor(viewB / vh);
 
-      // Request nearby pages from worker (non-blocking)
+      // Request nearby pages (non-blocking)
       for (let c = colMin; c <= colMax; c++) {
         for (let r = rowMin; r <= rowMax; r++) {
           requestPage(c, r);
@@ -883,9 +881,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (touchDidDrag) { e.stopPropagation(); touchDidDrag = false; }
     }, true);
 
-    // Initial render: request center page + neighbors from worker
+    // Initial render
     updateVisible();
-    console.log('Crates: infinite canvas initialized (worker mode)');
+    console.log('Crates: initialized');
   }
 
   // Wire mode tabs
