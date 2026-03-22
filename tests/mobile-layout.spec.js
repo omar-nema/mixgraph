@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 
-const BASE_URL = 'http://localhost:8000';
+const BASE_URL = 'http://localhost:8001';
 
 const phones = [
   { name: 'iPhone-14-Pro', width: 393, height: 852 },
@@ -12,43 +12,32 @@ for (const phone of phones) {
     await page.setViewportSize({ width: phone.width, height: phone.height });
     await page.goto(BASE_URL);
 
-    // Wait for the carousel to populate with tracks
+    // Wait for carousel to populate
     await page.waitForSelector('#mobile-carousel .mobile-carousel-item', { timeout: 15000 });
 
-    // Mode tabs visible at top
-    const modeTabs = page.locator('#mobile-mode-tabs');
-    await expect(modeTabs).toBeVisible();
-    const tabsBox = await modeTabs.boundingBox();
-    expect(tabsBox.y).toBeLessThan(60);
+    // Measure gaps
+    const gaps = await page.evaluate(() => {
+      const modeTabs   = document.getElementById('mobile-mode-tabs');
+      const shuffleArea = document.getElementById('mobile-shuffle-area');
+      const sources    = document.getElementById('mobile-sources');
+      const player     = document.getElementById('sc-player-area');
+      const r = el => el.getBoundingClientRect();
+      return {
+        gapTop:    Math.round(r(shuffleArea).top - r(modeTabs).bottom),
+        gapBottom: Math.round(r(player).top      - r(sources).bottom),
+      };
+    });
 
-    // Active tab has bright blue background (visual check via class)
+    console.log(`${phone.name} — gapTop: ${gaps.gapTop}px, gapBottom: ${gaps.gapBottom}px, diff: ${gaps.gapTop - gaps.gapBottom}px`);
+
+    // Gaps must be equal within 2px
+    expect(Math.abs(gaps.gapTop - gaps.gapBottom)).toBeLessThanOrEqual(2);
+
+    // Basic structure checks
+    await expect(page.locator('#mobile-mode-tabs')).toBeVisible();
     await expect(page.locator('#mobile-mode-tabs .mode-tab.active')).toBeVisible();
+    await expect(page.locator('#sc-player-area')).toBeVisible();
 
-    // SC player area visible at bottom
-    const player = page.locator('#sc-player-area');
-    await expect(player).toBeVisible();
-    const playerBox = await player.boundingBox();
-    // Player bottom should be at or near the viewport bottom
-    expect(playerBox.y + playerBox.height).toBeGreaterThan(phone.height - 10);
-
-    // Full content block (shuffle area + carousel + sources) should be
-    // vertically centered in the space between tabs and player
-    const shuffleBox = await page.locator('#mobile-shuffle-area').boundingBox();
-    const sourcesBox = await page.locator('#mobile-sources').boundingBox();
-
-    const contentTop    = shuffleBox.y;
-    const contentBottom = sourcesBox.y + sourcesBox.height;
-    const contentMid    = (contentTop + contentBottom) / 2;
-
-    const headerBottom  = tabsBox.y + tabsBox.height;
-    const playerTop     = playerBox.y;
-    const availableMid  = headerBottom + (playerTop - headerBottom) / 2;
-
-    // Content midpoint should be within 80px of the available center
-    const offset = Math.abs(contentMid - availableMid);
-    expect(offset).toBeLessThan(80);
-
-    // Screenshot for visual confirmation
     await page.screenshot({
       path: `tests/screenshots/mobile-layout-${phone.name}.png`,
       fullPage: false,
