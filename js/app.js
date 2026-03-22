@@ -801,7 +801,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // Pan state
-    let crateScale = isMobileView() ? 0.75 : 0.8;
+    let crateScale = isMobileView() ? 0.975 : 0.8;
     let panX = 0, panY = 0;
     surface.style.transform = `scale3d(${crateScale},${crateScale},1) translate3d(${panX}px,${panY}px,0)`;
 
