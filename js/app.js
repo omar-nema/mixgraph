@@ -159,7 +159,7 @@ function buildFilterParams() {
 
 async function shuffle() {
   if (frozen) return;
-  showStatus('loading');
+  showStatus('');
   try {
     const cluster = await apiShuffle(buildFilterParams());
     if (cluster.meta.poolSize !== undefined) lastPoolSize = cluster.meta.poolSize;
@@ -187,7 +187,7 @@ async function shuffle() {
 
 async function loadClusterById(id) {
   id = id.trim();
-  showStatus('loading');
+  showStatus('');
   try {
     const cluster = await apiLoadCluster(id);
     hideStatus();
