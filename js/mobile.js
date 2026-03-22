@@ -47,6 +47,7 @@ function showClusterMobile(cluster) {
     const anyOpen = Object.values(mobilePopovers).some(p => p.classList.contains('open'));
     Object.values(mobilePopovers).forEach(p => p.classList.remove('open'));
     mobileBackdrop.classList.remove('open');
+    document.querySelectorAll('.mobile-filter-pill').forEach(p => p.classList.remove('semi-open'));
     if (andReshuffle && anyOpen) {
       const hasFilters = genreFilters.length > 0 || searchFilters.length > 0 || djSearchFilters.length > 0 || clusterArtistFilters.length > 0 || clusterDjFilters.length > 0;
       if (hasFilters) shuffle();
@@ -66,6 +67,7 @@ function showClusterMobile(cluster) {
     mobilePopovers[name].style.top = (rect.bottom + 8) + 'px';
     mobilePopovers[name].classList.add('open');
     mobileBackdrop.classList.add('open');
+    if (pillEl) pillEl.classList.add('semi-open');
   }
   mobileBackdrop.addEventListener('click', () => closeMobilePopovers(true));
   document.getElementById('mobile-pill-genre').addEventListener('click', function() {

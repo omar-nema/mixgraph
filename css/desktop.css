@@ -1001,6 +1001,19 @@ body.crates-mode { overflow: hidden; }
   border-color: var(--text-tertiary);
   color: var(--text-primary);
 }
+/* Semi-selected: popover open, no filter applied yet */
+#genre-pill-anchor:has(#genre-popover.open) #pill-genre,
+#artist-pill-anchor:has(#artist-popover.open) #pill-artist,
+#dj-pill-anchor:has(#dj-popover.open) #pill-dj {
+  background: rgba(80, 100, 240, 0.08);
+  border-color: rgba(80, 100, 240, 0.25);
+}
+body.night #genre-pill-anchor:has(#genre-popover.open) #pill-genre,
+body.night #artist-pill-anchor:has(#artist-popover.open) #pill-artist,
+body.night #dj-pill-anchor:has(#dj-popover.open) #pill-dj {
+  background: rgba(100, 120, 255, 0.12);
+  border-color: rgba(100, 120, 255, 0.3);
+}
 .filter-pill.active {
   background: #dedeee;
   border-color: #d0d0e0;

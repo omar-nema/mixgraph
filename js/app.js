@@ -124,7 +124,11 @@ function showStatus(message, isError) {
   el.classList.remove('hidden', 'error');
   if (isError) el.classList.add('error');
   el.querySelector('.status-message').textContent = message;
-  el.querySelector('.status-retry').classList.toggle('hidden', !isError);
+  const retryBtn = el.querySelector('.status-retry');
+  const isFilterEmpty = isError && message.toLowerCase().includes('no tracks match');
+  retryBtn.textContent = isFilterEmpty ? 'clear filters' : 'try again';
+  retryBtn.dataset.action = isFilterEmpty ? 'clear' : 'retry';
+  retryBtn.classList.toggle('hidden', !isError);
 }
 
 function hideStatus() {
@@ -200,12 +204,15 @@ async function loadClusterById(id) {
 document.addEventListener('DOMContentLoaded', async () => {
   console.log(`API base: ${API_BASE}`);
 
-  // Wire retry button
-  const retryBtn = document.querySelector('.status-retry');
-  if (retryBtn) retryBtn.addEventListener('click', () => shuffle());
-
   // Init filters, search indexes, autocomplete, popovers
   const filterCtrl = await initFilters();
+
+  // Wire retry button (needs filterCtrl for "clear filters" action)
+  const retryBtn = document.querySelector('.status-retry');
+  if (retryBtn) retryBtn.addEventListener('click', () => {
+    if (retryBtn.dataset.action === 'clear') filterCtrl.clearAllFilters();
+    shuffle();
+  });
 
   // Register cluster pills hook before initial load
   onClusterShown = () => { filterCtrl.updateClusterPills(); filterCtrl.updateFilterUI(); };
