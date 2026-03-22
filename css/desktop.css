@@ -74,10 +74,8 @@ body.night #help-overlay { background: rgba(0, 0, 0, 0.6); }
 body.night #help-modal { box-shadow: 0 8px 40px rgba(0, 0, 0, 0.5); }
 body.night #find-popover { box-shadow: 0 8px 40px rgba(0, 0, 0, 0.5); }
 body.night .find-chip { background: rgba(255, 255, 255, 0.1); }
-body.night .genre-pill { background: #40464f; }
-body.night .genre-pill.selected { background: #9b9bff; border-color: #9b9bff; }
-body.night .cluster-pill { background: #40464f; }
-body.night .cluster-pill.added { background: #9b9bff; border-color: #9b9bff; }
+body.night .genre-pill, body.night .cluster-pill { background: #40464f; }
+body.night .genre-pill.selected, body.night .cluster-pill.added { background: #9b9bff; border-color: #9b9bff; }
 body.night .mode-tab.active { background: none; color: var(--connection-highlight); box-shadow: none; }
 body.night #mode-tabs { background: none; }
 body.night #mobile-mode-tabs { background: #252a31; }

@@ -252,7 +252,7 @@
     border-radius: 12px;
     padding: 14px;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
-    max-height: 55vh;
+    max-height: 75vh;
     overflow-y: auto;
   }
   .mobile-popover.open { display: block; }
@@ -333,6 +333,8 @@
     border-color: var(--connection-highlight);
     color: #fff;
   }
+  body.night #mobile-genre-pills .genre-pill { background: #40464f; }
+  body.night #mobile-genre-pills .genre-pill.selected { background: #9b9bff; border-color: #9b9bff; }
 
   /* Mobile cluster sections in popovers */
   #mobile-artist-cluster-section, #mobile-dj-cluster-section {
