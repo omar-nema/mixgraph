@@ -480,7 +480,7 @@
     scroll-snap-type: x mandatory;
 
     scrollbar-width: none;
-    padding: 0 calc((100vw - 70vw) / 2 + 5vw) 0 calc((100vw - 70vw) / 2 - 5vw);
+    padding: 0 calc((100vw - 70vw) / 2 + 5vw) 2px calc((100vw - 70vw) / 2 - 5vw);
     scroll-padding-inline: calc((100vw - 70vw) / 2 - 5vw) calc((100vw - 70vw) / 2 + 5vw);
     flex-shrink: 0;
     margin-bottom: 12px;
