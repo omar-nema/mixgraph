@@ -261,7 +261,12 @@
       <button class="status-retry hidden">try again</button>
     </div>
   </div>
-  <div id="crates-view" class="hidden"><div id="crates-surface"></div></div>
+  <div id="crates-view" class="hidden">
+    <div id="crates-loading" class="view-loading hidden">
+      <div class="status-spinner"><span></span><span></span><span></span></div>
+    </div>
+    <div id="crates-surface"></div>
+  </div>
 
   <div id="sc-player-area">
     <div id="sc-placeholder">tap on a track to play</div>

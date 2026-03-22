@@ -74,9 +74,9 @@ body.night #help-overlay { background: rgba(0, 0, 0, 0.6); }
 body.night #help-modal { box-shadow: 0 8px 40px rgba(0, 0, 0, 0.5); }
 body.night #find-popover { box-shadow: 0 8px 40px rgba(0, 0, 0, 0.5); }
 body.night .find-chip { background: rgba(255, 255, 255, 0.1); }
-body.night .genre-pill { background: #353b44; }
+body.night .genre-pill { background: #40464f; }
 body.night .genre-pill.selected { background: #9b9bff; border-color: #9b9bff; }
-body.night .cluster-pill { background: #353b44; }
+body.night .cluster-pill { background: #40464f; }
 body.night .cluster-pill.added { background: #9b9bff; border-color: #9b9bff; }
 body.night .mode-tab.active { background: none; color: var(--connection-highlight); box-shadow: none; }
 body.night #mode-tabs { background: none; }
@@ -92,7 +92,8 @@ body.night .help-diagram rect[stroke="#D4C9BD"] { stroke: #333; }
 body.night .help-diagram text[fill="#2a2520"] { fill: #e8e4e0; }
 body.night .help-diagram text[fill="#B5705A"] { fill: #9b9bff; }
 body.night .help-diagram text[fill="#7a7068"] { fill: #9a9590; }
-body.night .ac-item:hover { background: rgba(255,255,255,0.06); }
+body.night .ac-item:hover, body.night .ac-item.active { background: rgba(255,255,255,0.1); }
+body.night #find-ac, body.night #dj-ac, body.night #artist-autocomplete { box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5); }
 body.night .help-diagram path[stroke="#2A2520"] { stroke: #e8e4e0; }
 body.night .help-diagram path[stroke="#212121"] { stroke: #666; }
 body.night .help-diagram path[stroke="#C4B5A5"] { stroke: #444; }
@@ -321,6 +322,11 @@ body.night .mode-tab.active { color: var(--connection-highlight); background: no
   transition: opacity 0.3s ease;
 }
 .crate-stack.fade-out { opacity: 0; transition: opacity 0.15s ease; }
+.crate-stack.crate-loading { animation: cratePulse 1s ease-in-out infinite; pointer-events: none; }
+@keyframes cratePulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
 
 #crates-surface.has-hover .crate-stack.hovered { z-index: 100 !important; }
 
@@ -406,6 +412,19 @@ body.night .mode-tab.active { color: var(--connection-highlight); background: no
 }
 
 .crate-page { position: absolute; top: 0; left: 0; }
+
+.view-loading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  background: var(--bg);
+  opacity: 1;
+  transition: opacity 0.3s ease;
+}
+.view-loading.hidden { opacity: 0; pointer-events: none; visibility: hidden; }
 
 #tracks-view.hidden, #crates-view.hidden {
   display: none;

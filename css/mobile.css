@@ -316,7 +316,7 @@
 
     font-size: 12px;
     font-weight: 400;
-    color: var(--text-secondary);
+    color: var(--text-primary);
     background: none;
     border: 1px solid var(--card-border);
     border-radius: 20px;
