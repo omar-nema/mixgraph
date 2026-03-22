@@ -273,10 +273,17 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // ── Crates → Tracks fly-out transition ──
   async function transitionToTracks(seedKey, stackEl) {
+    // Show loading state on the clicked crate
+    stackEl.classList.add('crate-loading');
     let cluster;
     try {
       cluster = await apiLoadCluster(seedKey);
-    } catch (err) { console.error('Failed to load cluster:', err.message); return; }
+    } catch (err) {
+      stackEl.classList.remove('crate-loading');
+      console.error('Failed to load cluster:', err.message);
+      return;
+    }
+    stackEl.classList.remove('crate-loading');
 
     const cratesView = document.getElementById('crates-view');
     const tracksView = document.getElementById('tracks-view');
@@ -459,7 +466,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const cap = s => s.replace(/\b\w/g, c => c.toUpperCase());
     const gap = 25, pad = 0, STEP = 3;
-    const CLUSTERS_PER_PAGE = isMobileView() ? 10 : 20;
+    const CLUSTERS_PER_PAGE = isMobileView() ? 6 : 20;
 
     // Local RNG for placeholder colors
     let localSeed = Date.now() % 2147483647 || 1;
@@ -696,6 +703,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       pages[key] = page;
       // Load art if page is near viewport
       updateVisibleForPage(key, page);
+
+      // Hide loading spinner once first page renders
+      const cratesLoading = document.getElementById('crates-loading');
+      if (!cratesLoading.classList.contains('hidden')) {
+        cratesLoading.classList.add('hidden');
+      }
     }
 
     // Check if a single newly-added page should have art loaded
@@ -801,7 +814,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // Pan state
-    let crateScale = isMobileView() ? 0.975 : 0.8;
+    let crateScale = isMobileView() ? 0.75 : 0.8;
     let panX = 0, panY = 0;
     surface.style.transform = `scale3d(${crateScale},${crateScale},1) translate3d(${panX}px,${panY}px,0)`;
 
@@ -954,6 +967,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       document.body.classList.toggle('crates-mode', mode === 'crates');
       // Lazy init crates — defer so tab switch is instant
       if (mode === 'crates') {
+        // Show loading spinner if crates haven't initialized yet
+        if (!cratesInitialized) {
+          const cl = document.getElementById('crates-loading');
+          cl.classList.remove('hidden');
+          cl.style.visibility = 'visible';
+        }
         requestAnimationFrame(() => initCrates());
         showHelper(cratesHelperToast, 'b2b-crates-helper-dismissed');
       }
