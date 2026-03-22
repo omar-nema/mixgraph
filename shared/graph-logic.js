@@ -62,17 +62,21 @@ export function getEdgeContext(graphNodes, fromId, toId) {
   return null;
 }
 
-export function collectDjs(graphNodes, graphId) {
+export function collectDjs(graphNodes, graphId, djNameMap = {}) {
   const n = graphNodes[graphId];
   if (!n) return [];
   const seen = new Set();
   const djs = [];
   for (const edge of n.edges) {
     for (const ctx of (edge.contexts || [])) {
-      const name = (ctx.dj || '').trim();
-      if (name && !seen.has(name)) {
-        seen.add(name);
-        djs.push({ name, episodeUrl: ctx.episode_url || '' });
+      const rawDj = (ctx.dj || '').trim();
+      if (!rawDj) continue;
+      const names = djNameMap[rawDj] || [rawDj];
+      for (const name of names) {
+        if (name && !seen.has(name)) {
+          seen.add(name);
+          djs.push({ name, episodeUrl: ctx.episode_url || '' });
+        }
       }
     }
   }
@@ -107,7 +111,7 @@ export function enrichFromCache(audioCache, clusterNodes) {
 
 // ── Cluster selection (BFS) ──
 
-export function selectCluster(graphNodes, audioCache, rootId, r1Limit = 4, r2Limit = 1) {
+export function selectCluster(graphNodes, audioCache, rootId, r1Limit = 4, r2Limit = 1, djNameMap = {}) {
   const rootNode = graphNodes[rootId];
   if (!rootNode) return null;
 
@@ -124,7 +128,7 @@ export function selectCluster(graphNodes, audioCache, rootId, r1Limit = 4, r2Lim
       rank,
       title: n.title,
       artist: n.artist,
-      djs: collectDjs(graphNodes, graphId),
+      djs: collectDjs(graphNodes, graphId, djNameMap),
     };
   }
 

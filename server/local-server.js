@@ -80,7 +80,7 @@ app.get('/api/shuffle', (req, res) => {
 
   const hasArtistDjFilter = !!(filters.artists || filters.djs);
   const rootId = weightedPickFromPool(unseen, candidateWeights, idxMap, hasArtistDjFilter);
-  const cluster = selectCluster(graphNodes, audioCache, rootId, r1, r2);
+  const cluster = selectCluster(graphNodes, audioCache, rootId, r1, r2, djNameMap);
   cluster.meta.poolSize = pool.length;
 
   res.json(cluster);
@@ -100,7 +100,7 @@ app.get('/api/cluster/:id', (req, res) => {
   if (expand === 1) { r1Limit = 8; }
   if (expand >= 2) { r1Limit = Infinity; r2Limit = Infinity; }
 
-  const cluster = selectCluster(graphNodes, audioCache, id, r1Limit, r2Limit);
+  const cluster = selectCluster(graphNodes, audioCache, id, r1Limit, r2Limit, djNameMap);
   if (!cluster) {
     return res.status(404).json({ error: `Node "${id}" not found` });
   }
