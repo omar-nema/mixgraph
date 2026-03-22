@@ -1,5 +1,12 @@
 @media (max-width: 768px) {
-  #sc-player-area { display: block; }
+  #sc-player-area {
+    display: block;
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    z-index: 99;
+    background: var(--bg);
+    border-top: 1px solid var(--card-border);
+  }
   #sc-widget {
     position: static;
     width: 0;
@@ -7,13 +14,6 @@
     clip: auto;
   }
   #filter-row { display: none !important; }
-  #sc-player-area {
-    position: fixed;
-    bottom: 0; left: 0; right: 0;
-    z-index: 99;
-    background: var(--bg);
-    border-top: 1px solid var(--card-border);
-  }
   #sc-placeholder {
     width: 100%;
     height: 80px;
@@ -125,12 +125,18 @@
     flex-shrink: 0;
     margin-bottom: 20px;
     display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 0 12px;
+    justify-content: center;
     width: 100%;
     position: relative;
     z-index: 295;
+  }
+  .mobile-shuffle-inner {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    max-width: 390px;
+    width: 100%;
+    padding: 0 12px;
   }
   .mobile-filter-pill {
 
@@ -169,6 +175,7 @@
 
   #mobile-shuffle-area .mobile-shuffle {
     flex: 1;
+    max-width: 150px;
     display: flex;
     align-items: center;
 
@@ -237,123 +244,48 @@
   #mobile-find-btn .find-count { font-size: 11px; font-weight: 500; }
   #mobile-find-btn .find-clear { font-size: 14px; line-height: 1; opacity: 0.7; }
 
-  /* Mobile popover backdrop */
-  #mobile-popover-backdrop {
+  /* Popover backdrop (shared, visible on mobile only) */
+  #popover-backdrop {
     display: none;
     position: fixed;
     inset: 0;
     z-index: 290;
     background: transparent;
   }
-  #mobile-popover-backdrop.open { display: block; }
+  #popover-backdrop.open { display: block; }
 
-  /* Mobile filter popovers */
-  .mobile-popover {
-    display: none;
+  /* Filter popovers — mobile overrides (base in desktop.css) */
+  .filter-popover {
     position: fixed;
     left: 12px;
     right: 12px;
-    z-index: 300;
-    background: color-mix(in srgb, var(--bg) 92%, transparent);
-    -webkit-backdrop-filter: blur(20px) saturate(1.4);
-    backdrop-filter: blur(20px) saturate(1.4);
-    border: 1px solid var(--card-border);
-    border-radius: 12px;
+    min-width: unset;
+    max-width: unset;
+    width: auto;
     padding: 14px;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
     max-height: 75vh;
     overflow-y: auto;
   }
-  .mobile-popover.open { display: block; }
-  body.night .mobile-popover { background: #363b44; }
-  body.night #mobile-find-chips-input, body.night #mobile-dj-chips-input { background: var(--bg); }
+  .filter-popover .genre-pill { font-size: 12px; padding: 6px 14px; }
 
-  /* Mobile find search area with chips */
-  #mobile-find-chips-input, #mobile-dj-chips-input {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 6px;
-    background: #fff;
-    border: 1px solid var(--card-border);
-    border-radius: var(--card-radius);
-    padding: 8px 12px;
-    min-height: 40px;
+  /* Artist/DJ popovers: allow autocomplete to overflow */
+  #artist-popover, #dj-popover {
+    overflow: visible;
+    max-height: none;
   }
-  #mobile-find-chips-input:focus-within, #mobile-dj-chips-input:focus-within {
-    border-color: var(--connection-highlight);
-  }
-  #mobile-find-search, #mobile-dj-search {
-    flex: 1;
-    min-width: 100px;
-
-    font-size: 14px;
-    color: var(--text-primary);
-    background: none;
-    border: none;
-    outline: none;
-    padding: 0;
-  }
-  #mobile-find-search::placeholder, #mobile-dj-search::placeholder { color: var(--text-tertiary); }
-
-  /* Mobile find autocomplete */
-  #mobile-find-ac, #mobile-dj-ac {
-    max-height: 200px;
+  /* Autocomplete dropdowns: high z-index to sit above everything */
+  #find-ac, #dj-ac {
+    z-index: 400;
+    max-height: 45vh;
     overflow-y: auto;
-    display: none;
-    margin-top: 4px;
-    background: var(--card-bg);
-    border: 1px solid var(--card-border);
     border-radius: var(--card-radius);
   }
-  #mobile-find-ac.open, #mobile-dj-ac.open { display: block; }
-  #mobile-find-ac .ac-section-header, #mobile-dj-ac .ac-section-header {
-
-    font-size: 10px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: var(--text-tertiary);
-    padding: 8px 14px 4px;
-  }
-
-  /* Mobile genre pills */
-  #mobile-genre-pills {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-  }
-  #mobile-genre-pills .genre-pill {
-
-    font-size: 12px;
-    font-weight: 400;
-    color: var(--text-primary);
-    background: #fff;
-    border: 1px solid var(--card-border);
-    border-radius: 20px;
-    padding: 6px 14px;
-    cursor: pointer;
-    transition: background 0.15s, border-color 0.15s, color 0.15s;
-  }
-  #mobile-genre-pills .genre-pill:hover {
-    border-color: var(--text-tertiary);
-    color: var(--text-primary);
-  }
-  #mobile-genre-pills .genre-pill.selected {
-    background: var(--connection-highlight);
-    border-color: var(--connection-highlight);
-    color: #fff;
-  }
-  body.night #mobile-genre-pills .genre-pill { background: rgba(255, 255, 255, 0.12); }
-  body.night #mobile-genre-pills .genre-pill.selected { background: #9b9bff; border-color: #9b9bff; }
-
-  /* Mobile cluster sections in popovers */
-  #mobile-artist-cluster-section, #mobile-dj-cluster-section {
-    margin-top: 12px;
-  }
-  #mobile-artist-cluster-section:has(.cluster-pills:empty),
-  #mobile-dj-cluster-section:has(.cluster-pills:empty) {
-    display: none;
+  /* Cap cluster pills height so popover doesn't grow unbounded */
+  #artist-cluster-section .cluster-pills,
+  #dj-cluster-section .cluster-pills {
+    max-height: 30vh;
+    overflow-y: auto;
   }
 
   /* Mobile filter pill count badge */
@@ -448,17 +380,17 @@
   #mobile-help-panel h3 {
     font-size: 16px;
     font-weight: 600;
-    color: #22222a;
+    color: var(--text-primary);
     margin: 0 0 12px 0;
   }
   #mobile-help-panel p {
     font-size: 13px;
     line-height: 1.5;
-    color: #22222a;
+    color: var(--text-primary);
     margin: 0 0 8px 0;
   }
   #mobile-help-panel p:last-child { margin-bottom: 0; }
-  body.night #mobile-help-panel { background: rgba(255, 255, 255, 0.97); }
+  #mobile-help-panel a { color: var(--connection-highlight); }
   @keyframes mobile-help-in {
     from { opacity: 0; transform: scale(0.95); }
     to { opacity: 1; transform: scale(1); }

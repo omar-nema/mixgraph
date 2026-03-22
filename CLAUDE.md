@@ -70,16 +70,9 @@ python3 -m http.server 8000
 - SoundCloud widget API for individual tracks + DJ sets, Mixcloud widget as fallback
 - Graph layout is hand-rolled (no D3) — keep it that way unless I say otherwise
 
-## Mobile vs Desktop — CRITICAL
+## Mobile vs Desktop
 
-Mobile and desktop are **completely separate layouts** that must not leak into each other. Breaking this rule has caused bugs before. Follow these rules strictly:
-
-- **Mobile** is defined by `@media (max-width: ...)` breakpoints in the CSS. Desktop is everything outside those breakpoints.
-- **When making a change, always ask:** "Is this for mobile, desktop, or both?" If unclear, **ask me before writing code.**
-- **Never apply a style globally when you mean it for one mode only.** If you're editing a desktop element, make sure the selector doesn't also affect the mobile version (and vice versa).
-- **Test both after every change.** Resize the browser or use devtools device mode to verify the other layout wasn't affected.
-- **Mobile has its own shuffle button, header, card carousel, etc.** These are separate DOM elements from the desktop versions — don't assume they share selectors.
-- **CSS specificity matters.** Mobile overrides in media queries must match or exceed the specificity of the desktop rule they override, or they'll silently fail.
+- **Always test both mobile and desktop after any visual or layout change.** Resize the browser or use devtools device mode to verify nothing broke on the other side.
 
 ## Backend (Python scrapers)
 

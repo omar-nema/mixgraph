@@ -34,31 +34,30 @@ async function initFilters() {
   }
 
   // ── Filter state management ──
-  function modifyFilter(arr, action, renderDesktop, renderMobile) {
+  function modifyFilter(arr, action, renderFn) {
     action(arr);
     shuffleHistory.clear();
-    renderDesktop();
-    renderMobile();
+    renderFn();
     updateFilterUI();
     updateClusterPills();
   }
 
   function addSearchFilter(entry) {
     if (searchFilters.some(f => f.display === entry.display)) return;
-    modifyFilter(searchFilters, a => a.push({ display: entry.display }), renderFindChips, renderMobileFindChips);
+    modifyFilter(searchFilters, a => a.push({ display: entry.display }), renderFindChips);
   }
 
   function removeSearchFilter(index) {
-    modifyFilter(searchFilters, a => a.splice(index, 1), renderFindChips, renderMobileFindChips);
+    modifyFilter(searchFilters, a => a.splice(index, 1), renderFindChips);
   }
 
   function addDjFilter(entry) {
     if (djSearchFilters.some(f => f.display === entry.display)) return;
-    modifyFilter(djSearchFilters, a => a.push({ display: entry.display }), renderDjChips, renderMobileDjChips);
+    modifyFilter(djSearchFilters, a => a.push({ display: entry.display }), renderDjChips);
   }
 
   function removeDjFilter(index) {
-    modifyFilter(djSearchFilters, a => a.splice(index, 1), renderDjChips, renderMobileDjChips);
+    modifyFilter(djSearchFilters, a => a.splice(index, 1), renderDjChips);
   }
 
   function toggleGenre(name) {
@@ -155,7 +154,6 @@ async function initFilters() {
     }
   }
   renderGenrePills(document.getElementById('genre-pills'));
-  renderGenrePills(document.getElementById('mobile-genre-pills'));
 
   // ── Render chips (shared for desktop + mobile, artist + DJ) ──
   function renderChips(containerId, inputId, filters, removeFn, placeholder) {
@@ -177,10 +175,8 @@ async function initFilters() {
   }
 
   function renderFindChips() { renderChips('find-chips-input', 'find-search', searchFilters, removeSearchFilter, 'Search artists'); }
-  function renderMobileFindChips() { renderChips('mobile-find-chips-input', 'mobile-find-search', searchFilters, removeSearchFilter); }
   function renderDjChips() { renderChips('dj-chips-input', 'dj-search', djSearchFilters, removeDjFilter, 'Search DJs'); }
-  function renderMobileDjChips() { renderChips('mobile-dj-chips-input', 'mobile-dj-search', djSearchFilters, removeDjFilter); }
-  function renderAllChips() { renderFindChips(); renderMobileFindChips(); renderDjChips(); renderMobileDjChips(); }
+  function renderAllChips() { renderFindChips(); renderDjChips(); }
 
   // ── Filter row pill handlers ──
   const findSearchInput = document.getElementById('find-search');
@@ -206,53 +202,65 @@ async function initFilters() {
     });
   }
 
-  // Genre popover
-  document.getElementById('pill-genre').addEventListener('click', (e) => {
-    e.stopPropagation();
-    const wasArtistOpen = artistPopover.classList.contains('open');
-    const wasDjOpen = djPopover.classList.contains('open');
+  // Position a popover below its anchor pill
+  function positionPopover(popover, anchorEl) {
+    const rect = anchorEl.getBoundingClientRect();
+    popover.style.top = (rect.bottom + 8) + 'px';
+    popover.style.left = rect.left + 'px';
+  }
+
+  // Close all popovers
+  function closeAllPopovers() {
+    genrePopover.classList.remove('open');
     artistPopover.classList.remove('open');
     djPopover.classList.remove('open');
+    document.querySelectorAll('.filter-pill.semi-open').forEach(p => p.classList.remove('semi-open'));
     closeFindAc();
     closeDjAc();
-    genrePopover.classList.toggle('open');
-    if (!genrePopover.classList.contains('open') || wasArtistOpen || wasDjOpen) reshuffleIfFiltered();
+  }
+
+  // Genre popover
+  const pillGenreEl = document.getElementById('pill-genre');
+  pillGenreEl.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const wasOpen = genrePopover.classList.contains('open');
+    closeAllPopovers();
+    if (!wasOpen) {
+      positionPopover(genrePopover, pillGenreEl);
+      genrePopover.classList.add('open');
+      pillGenreEl.classList.add('semi-open');
+    }
+    reshuffleIfFiltered();
   });
 
   // Artist popover
-  document.getElementById('pill-artist').addEventListener('click', (e) => {
+  const pillArtistEl = document.getElementById('pill-artist');
+  pillArtistEl.addEventListener('click', (e) => {
     e.stopPropagation();
-    const wasGenreOpen = genrePopover.classList.contains('open');
-    const wasDjOpen = djPopover.classList.contains('open');
-    genrePopover.classList.remove('open');
-    djPopover.classList.remove('open');
-    closeDjAc();
-    artistPopover.classList.toggle('open');
-    if (artistPopover.classList.contains('open')) {
+    const wasOpen = artistPopover.classList.contains('open');
+    closeAllPopovers();
+    if (!wasOpen) {
+      positionPopover(artistPopover, pillArtistEl);
+      artistPopover.classList.add('open');
+      pillArtistEl.classList.add('semi-open');
       setTimeout(() => findSearchInput.focus(), 50);
-      if (wasGenreOpen || wasDjOpen) reshuffleIfFiltered();
-    } else {
-      closeFindAc();
-      reshuffleIfFiltered();
     }
+    reshuffleIfFiltered();
   });
 
   // DJ popover
-  document.getElementById('pill-dj').addEventListener('click', (e) => {
+  const pillDjEl = document.getElementById('pill-dj');
+  pillDjEl.addEventListener('click', (e) => {
     e.stopPropagation();
-    const wasGenreOpen = genrePopover.classList.contains('open');
-    const wasArtistOpen = artistPopover.classList.contains('open');
-    genrePopover.classList.remove('open');
-    artistPopover.classList.remove('open');
-    closeFindAc();
-    djPopover.classList.toggle('open');
-    if (djPopover.classList.contains('open')) {
+    const wasOpen = djPopover.classList.contains('open');
+    closeAllPopovers();
+    if (!wasOpen) {
+      positionPopover(djPopover, pillDjEl);
+      djPopover.classList.add('open');
+      pillDjEl.classList.add('semi-open');
       setTimeout(() => djSearchInput.focus(), 50);
-      if (wasGenreOpen || wasArtistOpen) reshuffleIfFiltered();
-    } else {
-      closeDjAc();
-      reshuffleIfFiltered();
     }
+    reshuffleIfFiltered();
   });
 
   // Re-shuffle when any popover closes (filters apply on close)
@@ -261,37 +269,21 @@ async function initFilters() {
     if (hasFilters) shuffle();
   }
 
-  // Close popovers on outside click
+  // Close popovers on outside click (desktop only — mobile uses backdrop)
   document.addEventListener('click', (e) => {
-    let anyClosed = false;
-    if (!e.target.closest('#genre-pill-anchor') && genrePopover.classList.contains('open')) {
-      genrePopover.classList.remove('open');
-      anyClosed = true;
+    if (isMobileView()) return;
+    // Ignore clicks inside popovers or on pill buttons
+    if (e.target.closest('.filter-popover') || e.target.closest('.filter-pill')) return;
+    const anyOpen = genrePopover.classList.contains('open') || artistPopover.classList.contains('open') || djPopover.classList.contains('open');
+    if (anyOpen) {
+      closeAllPopovers();
+      reshuffleIfFiltered();
     }
-    if (!e.target.closest('#artist-pill-anchor') && artistPopover.classList.contains('open')) {
-      artistPopover.classList.remove('open');
-      closeFindAc();
-      anyClosed = true;
-    } else if (e.target.closest('#artist-popover') && !e.target.closest('#find-ac') && !e.target.closest('#find-chips-input')) {
-      closeFindAc();
-    }
-    if (!e.target.closest('#dj-pill-anchor') && djPopover.classList.contains('open')) {
-      djPopover.classList.remove('open');
-      closeDjAc();
-      anyClosed = true;
-    } else if (e.target.closest('#dj-popover') && !e.target.closest('#dj-ac') && !e.target.closest('#dj-chips-input')) {
-      closeDjAc();
-    }
-    if (anyClosed) reshuffleIfFiltered();
   });
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
       const anyOpen = genrePopover.classList.contains('open') || artistPopover.classList.contains('open') || djPopover.classList.contains('open');
-      genrePopover.classList.remove('open');
-      artistPopover.classList.remove('open');
-      djPopover.classList.remove('open');
-      closeFindAc();
-      closeDjAc();
+      closeAllPopovers();
       if (anyOpen) reshuffleIfFiltered();
     }
   });
@@ -309,7 +301,7 @@ async function initFilters() {
     searchFilters = [];
     clusterArtistFilters = [];
     shuffleHistory.clear();
-    renderFindChips(); renderMobileFindChips();
+    renderFindChips();
     updateFilterUI();
     updateClusterPills();
   }
@@ -318,28 +310,17 @@ async function initFilters() {
     djSearchFilters = [];
     clusterDjFilters = [];
     shuffleHistory.clear();
-    renderDjChips(); renderMobileDjChips();
+    renderDjChips();
     updateFilterUI();
     updateClusterPills();
   }
 
-  // Wire desktop + mobile clear buttons to shared handlers
-  ['genre-clear-btn', 'mobile-genre-clear-btn'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.addEventListener('click', clearGenreFilters);
-  });
-  ['artist-clear-btn', 'mobile-artist-clear-btn'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.addEventListener('click', clearArtistFilters);
-  });
-  ['dj-clear-btn', 'mobile-dj-clear-btn'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.addEventListener('click', clearDjFilters);
-  });
+  // Wire clear buttons
+  document.getElementById('genre-clear-btn')?.addEventListener('click', clearGenreFilters);
+  document.getElementById('artist-clear-btn')?.addEventListener('click', clearArtistFilters);
+  document.getElementById('dj-clear-btn')?.addEventListener('click', clearDjFilters);
 
-  // Click chips-input area to focus the text input
-  findChipsInput.addEventListener('click', () => findSearchInput.focus());
-  djChipsInput.addEventListener('click', () => djSearchInput.focus());
+  // chips-input click-to-focus is handled by createAc()
 
   // ── Autocomplete (shared for artist + DJ, desktop + mobile) ──
   function buildAcItems(container, results, onSelect, onHover) {
@@ -357,8 +338,8 @@ async function initFilters() {
     container.classList.add('open');
   }
 
-  // Desktop autocomplete factory (with keyboard nav + API search)
-  function createDesktopAc(acEl, searchInput, searchFn, addFn, closeFn, filters, removeFn) {
+  // Autocomplete factory (keyboard nav + API search)
+  function createAc(acEl, searchInput, chipsId, searchFn, addFn, filters, removeFn) {
     let items = [], activeIdx = -1;
     let debounceTimer = null;
 
@@ -425,13 +406,14 @@ async function initFilters() {
         close();
       }
     });
+    document.getElementById(chipsId)?.addEventListener('click', () => searchInput.focus());
 
     return { close, show };
   }
 
-  const findAcCtrl = createDesktopAc(findAc, findSearchInput, apiSearchArtists, addSearchFilter, null, searchFilters, removeSearchFilter);
+  const findAcCtrl = createAc(findAc, findSearchInput, 'find-chips-input', apiSearchArtists, addSearchFilter, searchFilters, removeSearchFilter);
   const closeFindAc = findAcCtrl.close;
-  const djAcCtrl = createDesktopAc(djAc, djSearchInput, apiSearchDjs, addDjFilter, null, djSearchFilters, removeDjFilter);
+  const djAcCtrl = createAc(djAc, djSearchInput, 'dj-chips-input', apiSearchDjs, addDjFilter, djSearchFilters, removeDjFilter);
   const closeDjAc = djAcCtrl.close;
 
   // ── Cluster context pills ──
@@ -449,12 +431,10 @@ async function initFilters() {
 
   function updateClusterPills() {
     const artistContainer = document.getElementById('artist-cluster-pills');
-    const mobileArtistContainer = document.getElementById('mobile-artist-cluster-pills');
     const djContainer = document.getElementById('dj-cluster-pills');
-    const mobileDjContainer = document.getElementById('mobile-dj-cluster-pills');
 
-    [artistContainer, mobileArtistContainer].forEach(c => { if (c) c.innerHTML = ''; });
-    [djContainer, mobileDjContainer].forEach(c => { if (c) c.innerHTML = ''; });
+    if (artistContainer) artistContainer.innerHTML = '';
+    if (djContainer) djContainer.innerHTML = '';
 
     if (nodes.length === 0) return;
 
@@ -469,14 +449,13 @@ async function initFilters() {
         seenArtists.add(key);
         const entry = { display: name };
         const isActive = clusterArtistFilters.some(f => f.display.toLowerCase() === key);
-        [artistContainer, mobileArtistContainer].forEach(container => {
-          if (!container) return;
+        if (artistContainer) {
           const pill = document.createElement('button');
           pill.className = 'cluster-pill' + (isActive ? ' added' : '');
           pill.textContent = name;
           pill.addEventListener('click', (e) => { e.stopPropagation(); toggleClusterFilter(clusterArtistFilters, entry); });
-          container.appendChild(pill);
-        });
+          artistContainer.appendChild(pill);
+        }
       }
     }
 
@@ -490,56 +469,16 @@ async function initFilters() {
         seenDjs.add(key);
         const entry = { display: name };
         const isActive = clusterDjFilters.some(f => f.display.toLowerCase() === key);
-        [djContainer, mobileDjContainer].forEach(container => {
-          if (!container) return;
+        if (djContainer) {
           const pill = document.createElement('button');
           pill.className = 'cluster-pill' + (isActive ? ' added' : '');
           pill.textContent = name;
           pill.addEventListener('click', (e) => { e.stopPropagation(); toggleClusterFilter(clusterDjFilters, entry); });
-          container.appendChild(pill);
-        });
+          djContainer.appendChild(pill);
+        }
       }
     }
   }
-
-  // ── Mobile search autocomplete ──
-  function createMobileAc(acEl, searchInput, chipsId, searchFn, addFn, filters, removeFn) {
-    let debounceTimer = null;
-    function close() { acEl.classList.remove('open'); acEl.innerHTML = ''; }
-    async function show(query) {
-      const q = query.trim();
-      if (!q) { close(); return; }
-      try {
-        const results = await searchFn(q, 15);
-        if (results.length === 0) { close(); return; }
-        buildAcItems(acEl, results, (entry) => {
-          close();
-          addFn(entry);
-          searchInput.value = '';
-        });
-      } catch (e) { console.warn('Mobile AC error:', e.message); }
-    }
-    searchInput.addEventListener('input', () => {
-      clearTimeout(debounceTimer);
-      if (searchInput.value.trim()) {
-        debounceTimer = setTimeout(() => show(searchInput.value), 150);
-      } else {
-        close();
-      }
-    });
-    searchInput.addEventListener('keydown', (e) => {
-      if (e.key === 'Backspace' && searchInput.value === '' && filters.length > 0) {
-        removeFn(filters.length - 1);
-      }
-    });
-    document.getElementById(chipsId).addEventListener('click', () => searchInput.focus());
-    return { close, show };
-  }
-
-  createMobileAc(document.getElementById('mobile-find-ac'), document.getElementById('mobile-find-search'),
-    'mobile-find-chips-input', apiSearchArtists, addSearchFilter, searchFilters, removeSearchFilter);
-  createMobileAc(document.getElementById('mobile-dj-ac'), document.getElementById('mobile-dj-search'),
-    'mobile-dj-chips-input', apiSearchDjs, addDjFilter, djSearchFilters, removeDjFilter);
 
   // Populate cluster pills now that indexes are built
   updateClusterPills();

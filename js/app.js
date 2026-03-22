@@ -204,6 +204,11 @@ async function loadClusterById(id) {
 document.addEventListener('DOMContentLoaded', async () => {
   console.log(`API base: ${API_BASE}`);
 
+  // Populate help panels from shared template
+  const helpTpl = document.getElementById('help-content');
+  document.getElementById('mobile-help-panel').appendChild(helpTpl.content.cloneNode(true));
+  document.getElementById('help-modal-content').appendChild(helpTpl.content.cloneNode(true));
+
   // Init filters, search indexes, autocomplete, popovers
   const filterCtrl = await initFilters();
 

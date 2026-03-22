@@ -22,7 +22,7 @@ function showClusterMobile(cluster) {
   const ac = typeof searchFilters !== 'undefined' ? searchFilters.length : 0;
   const dc = typeof djSearchFilters !== 'undefined' ? djSearchFilters.length : 0;
   const hasFilters = gc + ac + dc > 0;
-  shuffleArea.innerHTML = `<button class="mobile-filter-pill${gc > 0 ? ' active' : ''}" id="mobile-pill-genre">Genre</button><button class="mobile-filter-pill${ac > 0 ? ' active' : ''}" id="mobile-pill-artist">Artist</button><button class="mobile-filter-pill${dc > 0 ? ' active' : ''}" id="mobile-pill-dj">DJ</button><button class="mobile-shuffle"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/><line x1="4" y1="4" x2="9" y2="9"/></svg></button>`;
+  shuffleArea.innerHTML = `<div class="mobile-shuffle-inner"><button class="mobile-filter-pill${gc > 0 ? ' active' : ''}" id="mobile-pill-genre">Genre</button><button class="mobile-filter-pill${ac > 0 ? ' active' : ''}" id="mobile-pill-artist">Artist</button><button class="mobile-filter-pill${dc > 0 ? ' active' : ''}" id="mobile-pill-dj">DJ</button><button class="mobile-shuffle"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/><line x1="4" y1="4" x2="9" y2="9"/></svg></button></div>`;
   const shuffleBtn = shuffleArea.querySelector('.mobile-shuffle');
   shuffleBtn.addEventListener('click', () => {
     shuffleBtn.classList.add('shuffling');
@@ -37,49 +37,50 @@ function showClusterMobile(cluster) {
     }, 250);
   });
   // Filter pill clicks toggle individual popovers
-  const mobileBackdrop = document.getElementById('mobile-popover-backdrop');
-  const mobilePopovers = {
-    genre: document.getElementById('mobile-genre-popover'),
-    artist: document.getElementById('mobile-artist-popover'),
-    dj: document.getElementById('mobile-dj-popover'),
+  const popoverBackdrop = document.getElementById('popover-backdrop');
+  const popovers = {
+    genre: document.getElementById('genre-popover'),
+    artist: document.getElementById('artist-popover'),
+    dj: document.getElementById('dj-popover'),
   };
-  function closeMobilePopovers(andReshuffle) {
-    const anyOpen = Object.values(mobilePopovers).some(p => p.classList.contains('open'));
-    Object.values(mobilePopovers).forEach(p => p.classList.remove('open'));
-    mobileBackdrop.classList.remove('open');
+  function closePopovers(andReshuffle) {
+    const anyOpen = Object.values(popovers).some(p => p && p.classList.contains('open'));
+    Object.values(popovers).forEach(p => { if (p) p.classList.remove('open'); });
+    popoverBackdrop.classList.remove('open');
     document.querySelectorAll('.mobile-filter-pill').forEach(p => p.classList.remove('semi-open'));
     if (andReshuffle && anyOpen) {
       const hasFilters = genreFilters.length > 0 || searchFilters.length > 0 || djSearchFilters.length > 0 || clusterArtistFilters.length > 0 || clusterDjFilters.length > 0;
       if (hasFilters) shuffle();
     }
   }
-  function openMobilePopover(name, pillEl) {
-    const already = mobilePopovers[name].classList.contains('open');
-    closeMobilePopovers(false);
+  function openPopover(name, pillEl) {
+    const popover = popovers[name];
+    if (!popover) return;
+    const already = popover.classList.contains('open');
+    closePopovers(false);
     if (already) {
-      // Closing by re-tapping the same pill — reshuffle if filtered
       const hasFilters = genreFilters.length > 0 || searchFilters.length > 0 || djSearchFilters.length > 0 || clusterArtistFilters.length > 0 || clusterDjFilters.length > 0;
       if (hasFilters) shuffle();
       return;
     }
     // Position popover below the pill row
     const rect = pillEl.getBoundingClientRect();
-    mobilePopovers[name].style.top = (rect.bottom + 8) + 'px';
-    mobilePopovers[name].classList.add('open');
-    mobileBackdrop.classList.add('open');
+    popover.style.top = (rect.bottom + 8) + 'px';
+    popover.classList.add('open');
+    popoverBackdrop.classList.add('open');
     if (pillEl) pillEl.classList.add('semi-open');
   }
-  mobileBackdrop.addEventListener('click', () => closeMobilePopovers(true));
+  popoverBackdrop.addEventListener('click', () => closePopovers(true));
   document.getElementById('mobile-pill-genre').addEventListener('click', function() {
-    openMobilePopover('genre', this);
+    openPopover('genre', this);
   });
   document.getElementById('mobile-pill-artist').addEventListener('click', function() {
-    openMobilePopover('artist', this);
-    setTimeout(() => document.getElementById('mobile-find-search').focus(), 100);
+    openPopover('artist', this);
+    setTimeout(() => document.getElementById('find-search').focus(), 100);
   });
   document.getElementById('mobile-pill-dj').addEventListener('click', function() {
-    openMobilePopover('dj', this);
-    setTimeout(() => document.getElementById('mobile-dj-search').focus(), 100);
+    openPopover('dj', this);
+    setTimeout(() => document.getElementById('dj-search').focus(), 100);
   });
 
   const root = cluster.nodes.find(n => n.rank === 'root');
