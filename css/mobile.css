@@ -39,7 +39,10 @@
   body.night #sc-widget.sc-active {
     filter: invert(0.88) hue-rotate(180deg);
   }
-  body { padding-bottom: 84px; }
+  body {
+    padding-bottom: 84px;
+    overscroll-behavior: none;
+  }
 }
 
 /* ═══════════════════════════════════════════
@@ -89,9 +92,13 @@
     align-items: center;
   }
   #mobile-mode-tabs .mode-tab.active {
-    background: #3c3cfa18;
-    color: var(--connection-highlight);
+    background: var(--connection-highlight);
+    color: #fff;
     font-weight: 500;
+  }
+  body.night #mobile-mode-tabs .mode-tab.active {
+    background: var(--connection-highlight);
+    color: #fff;
   }
 
   /* Show mobile tracks container */
@@ -132,13 +139,18 @@
     transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
   }
   .mobile-filter-pill.active {
-    background: var(--connection-highlight);
-    border-color: var(--connection-highlight);
-    color: #fff;
+    background: #dedeee;
+    border-color: #d0d0e0;
+    color: var(--connection-highlight);
   }
   body.night .mobile-filter-pill {
     background: #353b44;
     border-color: #353b44;
+  }
+  body.night .mobile-filter-pill.active {
+    background: #353b44;
+    border-color: #353b44;
+    color: var(--connection-highlight);
   }
 
   #mobile-shuffle-area .mobile-shuffle {
@@ -148,8 +160,8 @@
 
     font-size: 14px;
     color: #fff;
-    background: #344F9F;
-    border: 1px solid #2d4590;
+    background: var(--connection-highlight);
+    border: 1px solid var(--connection-highlight);
     border-radius: 20px;
     padding: 6px 12px;
     cursor: pointer;
@@ -157,11 +169,11 @@
     transition: background 0.15s ease, transform 0.2s cubic-bezier(0.22, 1, 0.36, 1);
   }
   body.night #mobile-shuffle-area .mobile-shuffle {
-    background: #353b44;
-    border-color: #353b44;
-    color: var(--connection-highlight);
+    background: var(--connection-highlight);
+    border-color: var(--connection-highlight);
+    color: #fff;
   }
-  #mobile-shuffle-area .mobile-shuffle:active { background: #2d4590; }
+  #mobile-shuffle-area .mobile-shuffle:active { background: #2a2ae0; }
 
   /* Mobile header title — hidden, replaced by mode tabs */
   #mobile-title {
@@ -257,7 +269,7 @@
     flex: 1;
     min-width: 100px;
 
-    font-size: 14px;
+    font-size: 16px;
     color: var(--text-primary);
     background: none;
     border: none;
@@ -340,7 +352,8 @@
     margin-left: 4px;
   }
   .mobile-filter-pill.active .pill-count {
-    background: rgba(255, 255, 255, 0.3);
+    background: rgba(60, 60, 250, 0.12);
+    color: var(--connection-highlight);
   }
 
   #mobile-help-btn {
