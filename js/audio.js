@@ -247,7 +247,7 @@ function prepareCardForPlayback(nodeId, source) {
   return { card, btn };
 }
 
-const SC_LOAD_OPTS = { auto_play: true, show_artwork: false, visual: false, show_teaser: false, sharing: false, buying: false, show_user: true, color: 'B5705A' };
+const SC_LOAD_OPTS = { auto_play: true, show_artwork: false, visual: false, show_teaser: false, sharing: false, buying: false, show_user: true, color: '3C3CFA' };
 
 function setupScWidget(nodeId, card, offsetSec, onError) {
   scWidgetReady = false;

@@ -35,9 +35,10 @@
     overflow: visible;
     pointer-events: auto;
     z-index: 99;
+    filter: hue-rotate(215deg);
   }
   body.night #sc-widget.sc-active {
-    filter: invert(0.88) hue-rotate(180deg);
+    filter: invert(0.88) hue-rotate(35deg);
   }
   html {
     height: 100%;
@@ -253,7 +254,9 @@
     left: 12px;
     right: 12px;
     z-index: 300;
-    background: var(--card-bg);
+    background: color-mix(in srgb, var(--bg) 92%, transparent);
+    -webkit-backdrop-filter: blur(20px) saturate(1.4);
+    backdrop-filter: blur(20px) saturate(1.4);
     border: 1px solid var(--card-border);
     border-radius: 12px;
     padding: 14px;
@@ -262,6 +265,8 @@
     overflow-y: auto;
   }
   .mobile-popover.open { display: block; }
+  body.night .mobile-popover { background: #363b44; }
+  body.night #mobile-find-chips-input, body.night #mobile-dj-chips-input { background: var(--bg); }
 
   /* Mobile find search area with chips */
   #mobile-find-chips-input, #mobile-dj-chips-input {
@@ -269,7 +274,7 @@
     flex-wrap: wrap;
     align-items: center;
     gap: 6px;
-    background: var(--bg);
+    background: #fff;
     border: 1px solid var(--card-border);
     border-radius: var(--card-radius);
     padding: 8px 12px;
@@ -282,7 +287,7 @@
     flex: 1;
     min-width: 100px;
 
-    font-size: 16px;
+    font-size: 14px;
     color: var(--text-primary);
     background: none;
     border: none;
@@ -323,7 +328,7 @@
     font-size: 12px;
     font-weight: 400;
     color: var(--text-primary);
-    background: none;
+    background: #fff;
     border: 1px solid var(--card-border);
     border-radius: 20px;
     padding: 6px 14px;
@@ -339,7 +344,7 @@
     border-color: var(--connection-highlight);
     color: #fff;
   }
-  body.night #mobile-genre-pills .genre-pill { background: #40464f; }
+  body.night #mobile-genre-pills .genre-pill { background: rgba(255, 255, 255, 0.12); }
   body.night #mobile-genre-pills .genre-pill.selected { background: #9b9bff; border-color: #9b9bff; }
 
   /* Mobile cluster sections in popovers */
@@ -365,10 +370,12 @@
     border-radius: 8px;
     padding: 0 4px;
     margin-left: 4px;
+    opacity: 0.3;
   }
   .mobile-filter-pill.active .pill-count {
     background: rgba(60, 60, 250, 0.12);
     color: var(--connection-highlight);
+    opacity: 1;
   }
 
   #mobile-help-btn {

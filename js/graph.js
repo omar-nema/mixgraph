@@ -309,7 +309,8 @@ function computeLayout() {
   }
 
   // Use viewport dimensions to compute layout width
-  const vpW = window.innerWidth;
+  const vpEl = document.getElementById('graph-viewport');
+  const vpW = vpEl ? vpEl.clientWidth : window.innerWidth;
   const vpH = document.getElementById('graph-viewport').clientHeight || (window.innerHeight - 60);
 
   // Compute horizontal gaps to fill available width

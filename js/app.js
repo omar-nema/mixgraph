@@ -297,7 +297,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     if (isMobileView()) {
       document.querySelectorAll('.mode-tab').forEach(t => t.classList.remove('active'));
-      document.querySelector('.mode-tab[data-mode="tracks"]').classList.add('active');
+      document.querySelectorAll('.mode-tab[data-mode="tracks"]').forEach(t => t.classList.add('active'));
       document.body.classList.remove('crates-mode');
       tracksView.classList.remove('hidden');
       cratesView.classList.add('hidden');
@@ -323,7 +323,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     tracksView.classList.remove('hidden');
     document.body.classList.remove('crates-mode');
     document.querySelectorAll('.mode-tab').forEach(t => t.classList.remove('active'));
-    document.querySelector('.mode-tab[data-mode="tracks"]').classList.add('active');
+    document.querySelectorAll('.mode-tab[data-mode="tracks"]').forEach(t => t.classList.add('active'));
 
     const graphContainer = document.getElementById('graph-container');
 
@@ -967,7 +967,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.querySelectorAll('.mode-tab').forEach(tab => {
     tab.addEventListener('click', () => {
       document.querySelectorAll('.mode-tab').forEach(t => t.classList.remove('active'));
-      tab.classList.add('active');
+      document.querySelectorAll(`.mode-tab[data-mode="${tab.dataset.mode}"]`).forEach(t => t.classList.add('active'));
       const mode = tab.dataset.mode;
       document.getElementById('tracks-view').classList.toggle('hidden', mode !== 'tracks');
       document.getElementById('crates-view').classList.toggle('hidden', mode !== 'crates');

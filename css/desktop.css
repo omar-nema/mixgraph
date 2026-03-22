@@ -75,7 +75,8 @@ body.night #help-modal { box-shadow: 0 8px 40px rgba(0, 0, 0, 0.5); background: 
 body.night #help-modal h2, body.night #help-modal p { color: #22222a; }
 body.night #find-popover { box-shadow: 0 8px 40px rgba(0, 0, 0, 0.5); }
 body.night .find-chip { background: rgba(255, 255, 255, 0.1); }
-body.night .genre-pill, body.night .cluster-pill { background: #40464f; }
+body.night .genre-pill, body.night .cluster-pill { background: rgba(255, 255, 255, 0.12); }
+body.night #find-chips-input, body.night #dj-chips-input, body.night #artist-search { background: var(--bg); }
 body.night .genre-pill.selected, body.night .cluster-pill.added { background: #9b9bff; border-color: #9b9bff; }
 body.night .mode-tab.active { background: none; color: var(--connection-highlight); box-shadow: none; }
 body.night #mode-tabs { background: none; }
@@ -785,7 +786,7 @@ a.track-title:hover { text-decoration-color: var(--text-secondary); }
 }
 .source-badge .eq-bar {
   width: 2.5px;
-  background: var(--connection-highlight);
+  background: #fff;
   border-radius: 1.5px;
   height: 2px;
 }
@@ -987,7 +988,7 @@ body.crates-mode { overflow: hidden; }
 .filter-pill {
   font-size: 16px;
   font-weight: 300;
-  color: var(--text-secondary);
+  color: var(--text-primary);
   background: var(--card-bg);
   border: 1px solid var(--card-border);
   border-radius: 20px;
@@ -1038,10 +1039,12 @@ body.night .filter-pill.active {
   color: var(--text-secondary);
   margin-left: 6px;
   padding: 0 4px;
+  opacity: 0.3;
 }
 .filter-pill.active .pill-count {
   background: rgba(60,60,250,0.12);
   color: var(--connection-highlight);
+  opacity: 1;
 }
 .filter-dot {
   color: var(--text-tertiary);
@@ -1097,7 +1100,9 @@ body.night .filter-shuffle:hover {
   top: calc(100% + 8px);
   left: 0;
   z-index: 300;
-  background: var(--card-bg);
+  background: color-mix(in srgb, var(--bg) 92%, transparent);
+  -webkit-backdrop-filter: blur(20px) saturate(1.4);
+  backdrop-filter: blur(20px) saturate(1.4);
   border: 1px solid var(--card-border);
   border-radius: 12px;
   padding: 16px;
@@ -1106,7 +1111,7 @@ body.night .filter-shuffle:hover {
 /* open state set via flex in .popover-clear section */
 #genre-popover, #artist-popover, #dj-popover { min-width: 540px; }
 #artist-popover, #dj-popover { padding-top: 12px; padding-bottom: 12px; }
-body.night #genre-popover, body.night #artist-popover, body.night #dj-popover { box-shadow: 0 8px 40px rgba(0, 0, 0, 0.5); }
+body.night #genre-popover, body.night #artist-popover, body.night #dj-popover { background: #363b44; box-shadow: 0 8px 40px rgba(0, 0, 0, 0.5); }
 
 .popover-clear {
   font-size: 14px;
@@ -1139,7 +1144,7 @@ body.night #genre-popover, body.night #artist-popover, body.night #dj-popover { 
   flex-wrap: wrap;
   align-items: center;
   gap: 6px;
-  background: var(--bg);
+  background: #fff;
   border: 1px solid var(--card-border);
   border-radius: var(--card-radius);
   padding: 8px 12px;
@@ -1655,7 +1660,7 @@ body.night #genre-popover, body.night #artist-popover, body.night #dj-popover { 
   font-size: 11px;
   font-weight: 400;
   color: var(--text-primary);
-  background: var(--bg);
+  background: #fff;
   border: 1px solid var(--card-border);
   border-radius: 6px;
   padding: 5px 8px 5px 28px;
@@ -1708,7 +1713,7 @@ body.night #genre-popover, body.night #artist-popover, body.night #dj-popover { 
 
 .ac-item {
   padding: 8px 14px;
-  font-size: 12px;
+  font-size: 14px;
   color: var(--text-primary);
   cursor: pointer;
   display: flex;
