@@ -41,16 +41,28 @@ async function getNode(kv, id) {
   return kv.get(`node:${id}`, 'json');
 }
 
-function collectDjsFromNode(node) {
+// Module-level cache — persists within a Worker isolate lifetime
+let _djNameMap = null;
+async function getDjNameMap(kv) {
+  if (!_djNameMap) _djNameMap = await kv.get('dj-name-map', 'json') || {};
+  return _djNameMap;
+}
+
+// Expand raw show title via djNameMap so pills match the extracted names in c.d
+function collectDjsFromNode(node, djNameMap = {}) {
   if (!node || !node.edges) return [];
   const seen = new Set();
   const djs = [];
   for (const edge of node.edges) {
     for (const ctx of (edge.contexts || [])) {
-      const name = (ctx.dj || '').trim();
-      if (name && !seen.has(name)) {
-        seen.add(name);
-        djs.push({ name, episodeUrl: ctx.episode_url || '' });
+      const rawDj = (ctx.dj || '').trim();
+      if (!rawDj) continue;
+      const names = djNameMap[rawDj] || [rawDj];
+      for (const name of names) {
+        if (name && !seen.has(name)) {
+          seen.add(name);
+          djs.push({ name, episodeUrl: ctx.episode_url || '' });
+        }
       }
     }
   }
@@ -76,12 +88,12 @@ function shuffleArray(arr) {
   return arr;
 }
 
-function enrichNodeFromKV(kvNode, graphId) {
+function enrichNodeFromKV(kvNode, graphId, djNameMap = {}) {
   const n = {
     graphId,
     title: kvNode.title,
     artist: kvNode.artist,
-    djs: collectDjsFromNode(kvNode),
+    djs: collectDjsFromNode(kvNode, djNameMap),
     source: kvNode.source || 'not_found',
     scTrackUrl: kvNode.scTrackUrl || null,
     artUrl: kvNode.artUrl || null,
@@ -94,7 +106,7 @@ function enrichNodeFromKV(kvNode, graphId) {
 }
 
 async function selectClusterFromKV(kv, rootId, r1Limit = 4, r2Limit = 1) {
-  const rootKV = await getNode(kv, rootId);
+  const [rootKV, djNameMap] = await Promise.all([getNode(kv, rootId), getDjNameMap(kv)]);
   if (!rootKV) return null;
 
   const clusterNodes = [];
@@ -102,7 +114,7 @@ async function selectClusterFromKV(kv, rootId, r1Limit = 4, r2Limit = 1) {
   const usedIds = new Set([rootId]);
 
   // Root
-  const rootNode = enrichNodeFromKV(rootKV, rootId);
+  const rootNode = enrichNodeFromKV(rootKV, rootId, djNameMap);
   rootNode.id = 'root';
   rootNode.rank = 'root';
   clusterNodes.push(rootNode);
@@ -130,7 +142,7 @@ async function selectClusterFromKV(kv, rootId, r1Limit = 4, r2Limit = 1) {
   for (let i = 0; i < r1Selected.length; i++) {
     const { id: r1Id, kv: r1KV } = r1Selected[i];
     usedIds.add(r1Id);
-    const r1Node = enrichNodeFromKV(r1KV, r1Id);
+    const r1Node = enrichNodeFromKV(r1KV, r1Id, djNameMap);
     r1Node.id = `r1_${i}`;
     r1Node.rank = '1';
     clusterNodes.push(r1Node);
@@ -155,7 +167,7 @@ async function selectClusterFromKV(kv, rootId, r1Limit = 4, r2Limit = 1) {
   for (let k = 0; k < r2Fetches.length; k++) {
     const { r1Idx, r2Idx, r2Id, r1KV } = r2Fetches[k];
     if (!r2KVs[k]) continue;
-    const r2Node = enrichNodeFromKV(r2KVs[k], r2Id);
+    const r2Node = enrichNodeFromKV(r2KVs[k], r2Id, djNameMap);
     r2Node.id = `r2_${r1Idx}_${r2Idx}`;
     r2Node.rank = '2';
     clusterNodes.push(r2Node);
