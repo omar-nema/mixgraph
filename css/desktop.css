@@ -71,7 +71,8 @@ body.night .progress-bar .bar-track { background: rgba(255,255,255,0.2); border-
 body.night .progress-bar .bar-fill { background: #dde4ff; }
 body.night .node-card.loading::after { background: linear-gradient(90deg, transparent 25%, rgba(255,255,255,0.06) 50%, transparent 75%); background-size: 200% 100%; animation: card-shimmer 2.5s ease-in-out infinite; }
 body.night #help-overlay { background: rgba(0, 0, 0, 0.6); }
-body.night #help-modal { box-shadow: 0 8px 40px rgba(0, 0, 0, 0.5); }
+body.night #help-modal { box-shadow: 0 8px 40px rgba(0, 0, 0, 0.5); background: #fff; }
+body.night #help-modal h2, body.night #help-modal p { color: #22222a; }
 body.night #find-popover { box-shadow: 0 8px 40px rgba(0, 0, 0, 0.5); }
 body.night .find-chip { background: rgba(255, 255, 255, 0.1); }
 body.night .genre-pill, body.night .cluster-pill { background: #40464f; }
