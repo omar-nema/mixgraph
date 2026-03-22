@@ -45,6 +45,7 @@
   }
   body {
     height: 100%;
+    padding-top: 48px;
     padding-bottom: 84px;
     overscroll-behavior: none;
     overflow: hidden;
@@ -456,8 +457,8 @@
     flex-direction: column;
     flex: 1;
     overflow: hidden;
-    justify-content: flex-start;
-    padding: 48px 0 0;
+    justify-content: center;
+    padding: 0;
   }
 
   /* ── Carousel ── */
