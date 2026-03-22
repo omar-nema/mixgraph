@@ -39,9 +39,15 @@
   body.night #sc-widget.sc-active {
     filter: invert(0.88) hue-rotate(180deg);
   }
+  html {
+    height: 100%;
+    overflow: hidden;
+  }
   body {
+    height: 100%;
     padding-bottom: 84px;
     overscroll-behavior: none;
+    overflow: hidden;
   }
 }
 
@@ -162,7 +168,7 @@
     color: #fff;
     background: var(--connection-highlight);
     border: 1px solid var(--connection-highlight);
-    border-radius: 20px;
+    border-radius: 5px;
     padding: 6px 12px;
     cursor: pointer;
     justify-content: center;
@@ -450,8 +456,8 @@
     flex-direction: column;
     flex: 1;
     overflow: hidden;
-    justify-content: center;
-    padding: 40px 0;
+    justify-content: flex-start;
+    padding: 48px 0 0;
   }
 
   /* ── Carousel ── */
