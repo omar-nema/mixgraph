@@ -15,6 +15,7 @@ Usage:
     python enrich.py --skip-sets                        # skip DJ set lookups
     python enrich.py --reprocess-deezer                 # re-enrich old deezer entries
     python enrich.py --reprocess-mixcloud               # upgrade mixcloud -> SC set
+    python enrich.py --fix-sets                         # fix NTS set URLs via API
 """
 
 import json
@@ -152,16 +153,24 @@ def get_nts_sc_set_url(
     return None
 
 
-def get_nts_mixcloud_url(episode_url: str, episode_cache: Dict[str, Any]) -> Optional[str]:
-    """Fetch Mixcloud URL for an NTS episode from their API."""
-    cache_key = f"mc:{episode_url}"
+def get_nts_episode_urls(episode_url: str, episode_cache: Dict[str, Any]) -> Dict[str, Optional[str]]:
+    """Fetch SoundCloud and Mixcloud URLs for an NTS episode from their API.
+
+    Returns dict with keys 'soundcloud' and 'mixcloud' (either may be None).
+    """
+    cache_key = f"nts_urls:{episode_url}"
     if cache_key in episode_cache:
         return episode_cache[cache_key]
 
+    # Rate limit only on actual API calls
+    time.sleep(0.15)
+
+    result: Dict[str, Optional[str]] = {"soundcloud": None, "mixcloud": None}
+
     m = re.search(r"nts\.live/shows/([^/]+)/episodes/([^/?#]+)", episode_url)
     if not m:
-        episode_cache[cache_key] = None
-        return None
+        episode_cache[cache_key] = result
+        return result
 
     show_slug, ep_slug = m.group(1), m.group(2)
     api_url = f"https://www.nts.live/api/v2/shows/{show_slug}/episodes/{ep_slug}"
@@ -171,12 +180,21 @@ def get_nts_mixcloud_url(episode_url: str, episode_cache: Dict[str, Any]) -> Opt
         with urllib.request.urlopen(req, timeout=15) as resp:
             data = json.loads(resp.read())
     except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError, OSError):
-        episode_cache[cache_key] = None
-        return None
+        episode_cache[cache_key] = result
+        return result
 
-    mixcloud_url = data.get("mixcloud")
-    episode_cache[cache_key] = mixcloud_url
-    return mixcloud_url
+    result["mixcloud"] = data.get("mixcloud")
+
+    # Extract SC URL from audio_sources
+    for src in data.get("audio_sources", []):
+        src_url = src.get("url", "")
+        if "soundcloud.com" in src_url:
+            # Strip tracking params
+            result["soundcloud"] = src_url.split("?")[0]
+            break
+
+    episode_cache[cache_key] = result
+    return result
 
 
 def get_lotradio_set_url(
@@ -281,6 +299,10 @@ def main():
         "--reprocess-mixcloud", action="store_true",
         help="Try to upgrade mixcloud_set entries to soundcloud_set",
     )
+    parser.add_argument(
+        "--fix-sets", action="store_true",
+        help="Re-fetch NTS set URLs from API for all NTS soundcloud_set entries",
+    )
     args = parser.parse_args()
 
     # Load graph
@@ -314,6 +336,14 @@ def main():
         # Try to upgrade mixcloud entries to SC sets
         to_enrich = [nid for nid in all_ids if cache.get(nid, {}).get("source") == "mixcloud_set"]
         print(f"  Upgrading {len(to_enrich)} mixcloud entries")
+    elif args.fix_sets:
+        # Re-fetch NTS set URLs from API for all NTS SC set entries
+        to_enrich = [
+            nid for nid in all_ids
+            if cache.get(nid, {}).get("setSource") == "soundcloud"
+            and "nts.live" in graph_nodes.get(nid, {}).get("first_episode_url", "")
+        ]
+        print(f"  Fixing set URLs for {len(to_enrich)} NTS SC set entries")
     else:
         to_enrich = [nid for nid in all_ids if nid not in cache]
         print(f"  To enrich: {len(to_enrich)} / {len(all_ids)}")
@@ -350,15 +380,15 @@ def main():
         artist = node["artist"]
         title = node["title"]
 
-        # For --reprocess-mixcloud, keep the existing entry and try to add SC set
-        if args.reprocess_mixcloud:
+        # Keep existing entry for modes that only update set URLs
+        if args.reprocess_mixcloud or args.fix_sets:
             entry = cache.get(nid, {"source": "not_found"})
         else:
             entry: Dict[str, Any] = {"source": "not_found"}
 
         try:
             # --- Step 1: SoundCloud individual track ---
-            if not args.reprocess_mixcloud:
+            if not args.reprocess_mixcloud and not args.fix_sets:
                 if i > 0:
                     time.sleep(0.3)
                 sc_result = search_soundcloud(artist, title, sc_client_id)
@@ -378,17 +408,18 @@ def main():
                     offset_sec = timestamp_to_seconds(ts)
 
                     if "nts.live" in ep_url:
-                        # 2a: Try SC set first
-                        time.sleep(0.3)
-                        # Use existing mixcloud URL if available for better search
-                        existing_mc = entry.get("setUrl") if entry.get("setSource") == "mixcloud" else None
-                        if not existing_mc:
-                            time.sleep(0.15)
-                            existing_mc = get_nts_mixcloud_url(ep_url, episode_cache)
+                        # 2a: Get SC + Mixcloud URLs from NTS API
+                        nts_urls = get_nts_episode_urls(ep_url, episode_cache)
+                        sc_set_url = nts_urls["soundcloud"]
 
-                        sc_set_url = get_nts_sc_set_url(
-                            ep_url, sc_client_id, episode_cache, existing_mc
-                        )
+                        # 2b: Fall back to SC search if NTS API had no SC URL
+                        if not sc_set_url:
+                            time.sleep(0.3)
+                            existing_mc = nts_urls["mixcloud"]
+                            sc_set_url = get_nts_sc_set_url(
+                                ep_url, sc_client_id, episode_cache, existing_mc
+                            )
+
                         if sc_set_url:
                             entry["setUrl"] = sc_set_url
                             entry["setSource"] = "soundcloud"
@@ -399,9 +430,8 @@ def main():
                                 entry["source"] = "soundcloud_set"
                                 stats["soundcloud_set"] += 1
                         else:
-                            # 2b: Fall back to Mixcloud
-                            if not existing_mc:
-                                existing_mc = get_nts_mixcloud_url(ep_url, episode_cache)
+                            # 2c: Fall back to Mixcloud
+                            existing_mc = nts_urls["mixcloud"]
                             if existing_mc:
                                 entry["setUrl"] = existing_mc
                                 entry["setSource"] = "mixcloud"

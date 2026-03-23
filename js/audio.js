@@ -293,6 +293,8 @@ function playSC(nodeId, trackUrl) {
   });
 
   showScPlayer();
+  // Safari: call play() synchronously in user gesture to unlock iframe audio
+  try { scWidget.play(); } catch (e) {}
   scWidget.load(trackUrl, SC_LOAD_OPTS);
   startPlayTimeout(nodeId, true);
 }
@@ -308,6 +310,8 @@ function playSCSet(nodeId, setUrl, offsetSec) {
   setupScWidget(nodeId, card, offsetSec, () => { hideScPlayer(); onPlaybackEnded(); });
 
   showScPlayer();
+  // Safari: call play() synchronously in user gesture to unlock iframe audio
+  try { scWidget.play(); } catch (e) {}
   scWidget.load(setUrl, SC_LOAD_OPTS);
   startPlayTimeout(nodeId, false);
 }

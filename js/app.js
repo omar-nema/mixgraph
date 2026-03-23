@@ -1,10 +1,10 @@
 function showCluster(cluster) {
+  currentCluster = cluster;
   if (isMobileView()) {
     showClusterMobile(cluster);
     return;
   }
   clearGraph();
-  currentCluster = cluster;
   nodes = cluster.nodes;
   edges = cluster.edges;
   nodeMap = {};

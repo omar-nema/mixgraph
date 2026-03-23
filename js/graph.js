@@ -458,3 +458,35 @@ function logCluster(cluster) {
 function isMobileView() {
   return window.innerWidth <= 768;
 }
+
+// Recompute layout on window resize (debounced)
+let _resizeTimer, _wasMobile = isMobileView();
+window.addEventListener('resize', () => {
+  clearTimeout(_resizeTimer);
+  _resizeTimer = setTimeout(() => {
+    if (!currentCluster) return;
+    const nowMobile = isMobileView();
+    // Crossed breakpoint — full re-render via showCluster
+    if (nowMobile !== _wasMobile) {
+      _wasMobile = nowMobile;
+      showCluster(currentCluster);
+      return;
+    }
+    if (nowMobile) return;
+    // Desktop resize — reposition existing cards
+    computeLayout();
+    const layer = document.getElementById('nodes-layer');
+    if (layer) {
+      nodes.forEach(node => {
+        const card = layer.querySelector(`[data-node-id="${node.id}"]`);
+        if (card) {
+          card.style.left = node.x + 'px';
+          card.style.top = node.y + 'px';
+        }
+      });
+    }
+    const svg = document.getElementById('connections-layer');
+    if (svg) svg.innerHTML = '';
+    renderConnections();
+  }, 200);
+});
