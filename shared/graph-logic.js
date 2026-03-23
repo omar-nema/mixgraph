@@ -336,6 +336,7 @@ export function buildIndexes(graphNodes, candidates, djNameMap = {}) {
   }
   const artistListAlpha = Object.values(artistIdx)
     .map(e => ({ display: e.display, trackCount: e.trackIds.length, clusterCount: e.trackIds.filter(id => candidateSet.has(id)).length }))
+    .filter(e => e.clusterCount > 0)
     .sort((a, b) => b.trackCount - a.trackCount)
     .sort((a, b) => a.display.localeCompare(b.display));
 
@@ -361,6 +362,7 @@ export function buildIndexes(graphNodes, candidates, djNameMap = {}) {
       const ids = [...e.trackIds];
       return { display: e.display, trackCount: ids.length, clusterCount: ids.filter(id => candidateSet.has(id)).length };
     })
+    .filter(e => e.clusterCount > 0)
     .sort((a, b) => b.trackCount - a.trackCount)
     .sort((a, b) => a.display.localeCompare(b.display));
 
