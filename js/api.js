@@ -62,7 +62,7 @@ function apiGetGenres() {
 }
 
 function apiGetCratesIndex() {
-  return apiFetch('/api/crates-index');
+  return apiFetch('/api/crates-index', { v: 2 });
 }
 
 function apiGetCratesPage(opts = {}) {

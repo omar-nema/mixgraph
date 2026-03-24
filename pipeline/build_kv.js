@@ -86,16 +86,20 @@ const cratesIndex = enrichedCandidates
     const cached = audioCache[c.id] || {};
     // Collect up to 4 artwork URLs: seed's own art + immediate neighbors'
     const artworks = [];
+    const neighborIds = [];
     if (cached.artUrl) artworks.push(cached.artUrl);
     for (const edge of (node.edges || [])) {
       if (artworks.length >= 4) break;
       const nArt = (audioCache[edge.node] || {}).artUrl;
-      if (nArt && !artworks.includes(nArt)) artworks.push(nArt);
+      if (nArt && !artworks.includes(nArt)) {
+        artworks.push(nArt);
+        neighborIds.push(edge.node);
+      }
     }
     // displayCount mirrors worker formula
     const r1 = (node.edges || []).length;
     const displayCount = 1 + r1 + Math.min(2, r1) * 2;
-    return { id: c.id, artworks, count: displayCount, weight: displayCount, g: c.g, a: c.a, d: c.d };
+    return { id: c.id, artworks, n: neighborIds, count: displayCount, weight: displayCount, g: c.g, a: c.a, d: c.d };
   });
 
 const cratesIndexJson = JSON.stringify(cratesIndex);

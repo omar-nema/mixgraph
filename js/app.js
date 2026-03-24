@@ -529,12 +529,20 @@ document.addEventListener('DOMContentLoaded', async () => {
         const base = 148 + Math.floor(crateRand() * 40) - 20;
         card.style.background = `rgb(${base}, ${base - 4}, ${base - 8})`;
 
+        let cardTitle = item.title, cardArtist = item.artist;
+        const isTopCard = (i === numCards - 1);
+        if (!isTopCard && item.neighborIds.length > 0) {
+          const nId = item.neighborIds[i % item.neighborIds.length];
+          const [nArtist, nTitle] = nId.split(':::');
+          cardTitle = nTitle || item.title;
+          cardArtist = nArtist || item.artist;
+        }
         const info = document.createElement('div');
         info.className = 'crate-info';
         info.innerHTML = `
-          <div class="ci-title">${cap(item.title)}</div>
-          <div class="ci-artist">${cap(item.artist)}</div>
-          <div class="ci-count">${item.count} tracks</div>
+          <div class="ci-title">${cap(cardTitle)}</div>
+          <div class="ci-artist">${cap(cardArtist)}</div>
+          ${isTopCard ? `<div class="ci-count">${item.count} tracks</div>` : ''}
         `;
         card.appendChild(info);
         el.appendChild(card);
@@ -645,7 +653,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           const items = slice.map(c => {
             const [artist, title] = c.id.split(':::');
             return { seedKey: c.id, artist: artist || '', title: title || '',
-              artworks: c.artworks || [], artKeys: [], count: c.count, weight: c.weight };
+              artworks: c.artworks || [], neighborIds: c.n || [], artKeys: [], count: c.count, weight: c.weight };
           });
           cratesTreemap(items, pad, pad, vw - pad * 2, vh - pad * 2);
           receivePage(col, row, items);
@@ -743,6 +751,17 @@ document.addEventListener('DOMContentLoaded', async () => {
       page.stacks.forEach(({ el: stackEl, item }) => {
         const cards = stackEl.querySelectorAll('.crate-card');
         const last = cards.length - 1;
+        let pending = 0;
+        const reveal = () => {
+          if (--pending > 0) return;
+          // All images loaded — reveal entire stack at once to prevent jitter
+          cards.forEach(card => {
+            if (card.querySelector('img')) {
+              card.style.background = '';
+              card.classList.remove('placeholder');
+            }
+          });
+        };
         cards.forEach((card, i) => {
           // Top card uses first artwork; others cycle through the rest
           const topUrl = item.artworks.length > 0 ? item.artworks[0] : null;
@@ -750,13 +769,12 @@ document.addEventListener('DOMContentLoaded', async () => {
           const url = (i === last) ? topUrl
             : otherArt.length > 0 ? otherArt[i % otherArt.length] : null;
           if (url) {
+            pending++;
             const img = document.createElement('img');
             img.src = url.replace('-t500x500', '-t120x120');
-            img.loading = 'lazy'; img.draggable = false;
-            img.onload = () => {
-              card.style.background = '';
-              card.classList.remove('placeholder');
-            };
+            img.draggable = false;
+            img.onload = reveal;
+            img.onerror = reveal;
             card.insertBefore(img, card.firstChild);
           }
         });

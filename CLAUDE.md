@@ -42,6 +42,11 @@ plans/                  # Implementation plans and docs
 sandbox/                # Frontend experiments (prototyping)
 ```
 
+## Hosting
+
+- **Frontend**: GitHub Pages (auto-deploys on push to `main`)
+- **Backend**: Cloudflare Worker (`b2b-api`) for BFS cluster selection via KV store
+
 ## Commands
 
 ```bash
@@ -73,6 +78,7 @@ python3 -m http.server 8000
 ## Mobile vs Desktop
 
 - **Always test both mobile and desktop after any visual or layout change.** Resize the browser or use devtools device mode to verify nothing broke on the other side.
+- **Desktop reproduction requires a real browser at >900px width.** When reproducing or verifying desktop issues, use Playwright or Chrome DevTools MCP — not the preview tool, which is too narrow for desktop layout.
 
 ## Backend (Python scrapers)
 
