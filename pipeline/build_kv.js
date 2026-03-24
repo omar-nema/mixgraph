@@ -56,7 +56,7 @@ const enrichedCandidates = candidates.map((id, i) => {
     g: node.genres || [],              // genres
     s: cached.source || 'not_found',   // source
     st: cached.scTrackUrl ? 1 : 0,     // has SC track (for source filter)
-    ss: cached.setSource || null,       // set source (for lotradio filter)
+    ss: (cached.setUrl && cached.setOffsetSec) ? (cached.setSource || null) : null, // set source (strip if no offset)
     a: (node.artist || '').toLowerCase(), // artist (lowercase for filtering)
     e: (node.edges || []).length,       // edge count (for crates 4+ filter)
     d: [...djNames],                    // DJ names (lowercase)
@@ -115,14 +115,14 @@ for (const [id, node] of Object.entries(graphNodes)) {
     artist: node.artist,
     genres: node.genres || [],
     edges: node.edges || [],
-    // Audio fields
+    // Audio fields — strip set audio if no offset (unplayable without timestamp)
     source: cached.source || 'not_found',
     scTrackUrl: cached.scTrackUrl || null,
     artUrl: cached.artUrl || null,
-    setUrl: cached.setUrl || null,
-    setSource: cached.setSource || null,
+    setUrl: (cached.setUrl && cached.setOffsetSec) ? cached.setUrl : null,
+    setSource: (cached.setUrl && cached.setOffsetSec) ? (cached.setSource || null) : null,
     setOffsetSec: cached.setOffsetSec || null,
-    setDj: cached.setDj || null,
+    setDj: (cached.setUrl && cached.setOffsetSec) ? (cached.setDj || null) : null,
   };
   const kvKey = `node:${id}`;
   // KV key limit is 512 bytes — skip nodes with keys that are too long
@@ -156,5 +156,5 @@ for (let i = 0; i < chunks.length; i++) {
 
 console.log(`\nDone. Upload with:`);
 for (let i = 0; i < chunks.length; i++) {
-  console.log(`  npx wrangler kv:bulk put --namespace-id=04f5b3defaf84e6ba843601156adc9d6 pipeline/output/kv-bulk-${i}.json`);
+  console.log(`  npx wrangler kv bulk put --namespace-id=04f5b3defaf84e6ba843601156adc9d6 --remote pipeline/output/kv-bulk-${i}.json`);
 }
