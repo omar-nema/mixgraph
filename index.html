@@ -10,12 +10,12 @@
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <script>
     // Apply theme before first paint to prevent flash
-    (function() {
+    var __night = (function() {
       var saved = localStorage.getItem('b2b-theme');
       var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-      if (saved ? saved === 'night' : prefersDark) {
-        document.documentElement.classList.add('night');
-      }
+      var isNight = saved ? saved === 'night' : prefersDark;
+      if (isNight) document.documentElement.classList.add('night');
+      return isNight;
     })();
   </script>
   <script src="https://w.soundcloud.com/player/api.js"></script>
@@ -23,6 +23,7 @@
   <link rel="stylesheet" href="css/mobile.css">
 </head>
 <body>
+<script>if (__night) document.body.classList.add('night');</script>
   <!-- SVG filters for gradient artwork -->
   <svg width="0" height="0" style="position:absolute">
     <filter id="gradient-distort" color-interpolation-filters="sRGB">
