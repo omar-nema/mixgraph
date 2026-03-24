@@ -83,10 +83,10 @@ def parse_episode(meta: dict, tracklist_data: Optional[Dict], show_alias: str, e
             if not artist or not title:
                 continue
 
-            # Convert offset_estimate (seconds) to HH:MM:SS
+            # Convert offset (seconds) to HH:MM:SS — only use real offsets, not estimates
             timestamp = None
             offset_secs = None
-            offset = track.get("offset") or track.get("offset_estimate")
+            offset = track.get("offset")
             if offset is not None:
                 try:
                     secs = int(offset)
@@ -99,7 +99,7 @@ def parse_episode(meta: dict, tracklist_data: Optional[Dict], show_alias: str, e
             # Estimate duration: gap to next track's offset, or None for last
             duration_secs = None
             if i < len(tracks) - 1:
-                next_offset = tracks[i + 1].get("offset") or tracks[i + 1].get("offset_estimate")
+                next_offset = tracks[i + 1].get("offset")
                 if offset is not None and next_offset is not None:
                     try:
                         duration_secs = int(next_offset) - int(offset)
