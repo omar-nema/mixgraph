@@ -138,7 +138,12 @@ for (const [id, node] of Object.entries(graphNodes)) {
     genres: node.genres || [],
     edges: node.edges || [],
     // Audio fields — strip set audio if no offset (unplayable without timestamp)
-    source: cached.source || 'not_found',
+    source: (() => {
+      const s = cached.source || 'not_found';
+      if ((s === 'soundcloud_set' || s === 'mixcloud_set') && !cached.setOffsetSec)
+        return cached.scTrackUrl ? 'soundcloud' : 'not_found';
+      return s;
+    })(),
     scTrackUrl: cached.scTrackUrl || null,
     artUrl: cached.artUrl || null,
     setUrl: (cached.setUrl && cached.setOffsetSec) ? cached.setUrl : null,

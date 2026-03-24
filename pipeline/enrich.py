@@ -319,6 +319,16 @@ def main():
             cache = json.load(f)
         print(f"  Existing cache: {len(cache)} entries")
 
+        # Cleanup: downgrade set-source entries that have no timestamp offset
+        cleaned = 0
+        for nid, entry in cache.items():
+            if entry.get("source") in ("soundcloud_set", "mixcloud_set") and entry.get("setOffsetSec") is None:
+                entry["source"] = "soundcloud" if entry.get("scTrackUrl") else "not_found"
+                cleaned += 1
+        if cleaned:
+            print(f"  Cleaned {cleaned} set entries with no timestamp offset")
+            save_cache(cache, cache_path)
+
     # Episode-level cache (avoid redundant API calls for same episode)
     episode_cache: Dict[str, Any] = {}
 
@@ -426,7 +436,7 @@ def main():
                             entry["setTimestamp"] = ts
                             entry["setOffsetSec"] = offset_sec
                             entry["setDj"] = ep_ctx.get("dj", "")
-                            if entry["source"] in ("not_found", "mixcloud_set"):
+                            if offset_sec is not None and entry["source"] in ("not_found", "mixcloud_set"):
                                 entry["source"] = "soundcloud_set"
                                 stats["soundcloud_set"] += 1
                         else:
@@ -438,7 +448,7 @@ def main():
                                 entry["setTimestamp"] = ts
                                 entry["setOffsetSec"] = offset_sec
                                 entry["setDj"] = ep_ctx.get("dj", "")
-                                if entry["source"] == "not_found":
+                                if offset_sec is not None and entry["source"] == "not_found":
                                     entry["source"] = "mixcloud_set"
                                     stats["mixcloud_set"] += 1
 
@@ -453,7 +463,7 @@ def main():
                             entry["setTimestamp"] = ts
                             entry["setOffsetSec"] = offset_sec
                             entry["setDj"] = ep_ctx.get("dj", "")
-                            if entry["source"] == "not_found":
+                            if offset_sec is not None and entry["source"] == "not_found":
                                 entry["source"] = "soundcloud_set"
                                 stats["soundcloud_set"] += 1
 
