@@ -55,7 +55,7 @@ body.night {
   --card-bg: #2d3139;
   --card-border: #333;
   --text-primary: #e8e4e0;
-  --text-secondary: #b5b2c1;
+  --text-secondary: #9a9590;
   --text-tertiary: #7f7a75;
   --connection-stroke: #444;
   --connection-highlight: #4a95f8;
@@ -1018,28 +1018,6 @@ body.night .filter-pill.active {
   background: rgba(74, 149, 248, 0.15);
   border-color: rgba(74, 149, 248, 0.3);
   color: var(--connection-highlight);
-}
-.pill-count {
-  font-size: 10px;
-  font-weight: 400;
-  min-width: 18px;
-  height: 18px;
-  line-height: 18px;
-  text-align: center;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  background: var(--card-border);
-  color: var(--text-secondary);
-  margin-left: 6px;
-  padding: 0 4px;
-  opacity: 0.3;
-}
-.filter-pill.active .pill-count {
-  background: rgba(60,60,250,0.12);
-  color: var(--connection-highlight);
-  opacity: 1;
 }
 .filter-dot {
   color: var(--text-tertiary);

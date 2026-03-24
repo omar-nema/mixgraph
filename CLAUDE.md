@@ -80,6 +80,10 @@ python3 -m http.server 8000
 - **Always test both mobile and desktop after any visual or layout change.** Resize the browser or use devtools device mode to verify nothing broke on the other side.
 - **Desktop reproduction requires a real browser at >900px width.** When reproducing or verifying desktop issues, use Playwright or Chrome DevTools MCP — not the preview tool, which is too narrow for desktop layout.
 
+## Testing frontend changes
+
+- **Verify every frontend-facing change in Playwright after editing.** Load the local dev server in Playwright, check for console errors, and confirm the page renders correctly before presenting results to the user. Don't just rely on the preview tool — use Playwright to catch runtime JS errors.
+
 ## Backend (Python scrapers)
 
 - Python 3 with httpx, beautifulsoup4, lxml
@@ -110,6 +114,20 @@ python3 -m http.server 8000
 - Dark mode overrides live in the `body.night` block near the top of the CSS — keep them grouped there.
 - **Test both modes after any visual change.** Toggle with the night mode button in the bottom-left corner.
 - The accent color is `var(--connection-highlight)` — it already adapts between modes (`#B5705A` light, `#d4896e` dark).
+
+## Dev panel
+
+The bottom-right corner has a slider/mixer icon (`#dev-toggle`) that opens a slide-out dev panel (`#dev-panel`). This is the internal tools panel — not user-facing. It contains:
+
+- **DJ search** — search DJs by name with autocomplete
+- **Artist search** — search artists by name with autocomplete
+- **Cluster controls** — current cluster ID (click to copy), freeze button, manual cluster ID input
+- **Cluster limits** — R1 max and R2 per R1 dropdowns (control BFS depth)
+- **Source filter** — filter by audio source (SoundCloud, Mixcloud, etc.)
+- **Helpers** — toggle helper text toasts
+- **Gradient art** — sliders for warp, frequency, blur, grain, saturate, hue shift
+
+When adding experimental/debug features (font switchers, layout toggles, debug info), **put them in the dev panel** as a new section with an `<h4>` heading — don't create floating overlays or separate UI.
 
 ## Style preferences
 

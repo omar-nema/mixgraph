@@ -108,12 +108,9 @@ async function initFilters() {
 
     // Desktop pills
     const pillGenre = document.getElementById('pill-genre');
-    if (pillGenre) {
-      pillGenre.querySelector('.pill-count').textContent = gc;
-      pillGenre.classList.toggle('active', gc > 0);
-    }
-    updatePillState('pill-artist', 'artist-pill-count', 'artist-clear-btn', totalArtist);
-    updatePillState('pill-dj', 'dj-pill-count', 'dj-clear-btn', totalDj);
+    if (pillGenre) pillGenre.classList.toggle('active', gc > 0);
+    updatePillState('pill-artist', null, 'artist-clear-btn', totalArtist);
+    updatePillState('pill-dj', null, 'dj-clear-btn', totalDj);
     updatePillState(null, null, 'genre-clear-btn', gc);
 
     // Mobile pills
