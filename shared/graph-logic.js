@@ -194,10 +194,18 @@ export function buildCandidates(graphNodes, audioCache) {
   const mcNodes = new Set(
     Object.keys(audioCache).filter(nid => audioCache[nid].source === 'mixcloud_set')
   );
+  // Unplayable = no SC track and no set with offset (after build_kv strips offsetless sets)
+  const unplayable = new Set(
+    Object.keys(audioCache).filter(nid => {
+      const c = audioCache[nid];
+      return !c.scTrackUrl && !(c.setUrl && c.setOffsetSec);
+    })
+  );
   const ids = Object.keys(graphNodes).filter(nid => {
     const edges = graphNodes[nid].edges || [];
     if (edges.length < 2) return false;
     if (mcNodes.has(nid)) return false;
+    if (unplayable.has(nid)) return false;
     return !edges.some(e => mcNodes.has(e.node));
   });
 

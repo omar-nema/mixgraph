@@ -129,6 +129,8 @@ async function selectClusterFromKV(kv, rootId, r1Limit = 4, r2Limit = 1) {
   const r1DeadEnds = [];
   for (let i = 0; i < r1All.length; i++) {
     if (!r1KVs[i]) continue;
+    // Skip unplayable nodes (no SC track and no set with offset)
+    if (!r1KVs[i].scTrackUrl && !r1KVs[i].setUrl) continue;
     const childCount = (r1KVs[i].edges || []).filter(e => !usedIds.has(e.node) && e.node !== rootId).length;
     if (childCount >= 1) r1WithKids.push({ id: r1All[i], kv: r1KVs[i] });
     else r1DeadEnds.push({ id: r1All[i], kv: r1KVs[i] });
@@ -167,6 +169,7 @@ async function selectClusterFromKV(kv, rootId, r1Limit = 4, r2Limit = 1) {
   for (let k = 0; k < r2Fetches.length; k++) {
     const { r1Idx, r2Idx, r2Id, r1KV } = r2Fetches[k];
     if (!r2KVs[k]) continue;
+    if (!r2KVs[k].scTrackUrl && !r2KVs[k].setUrl) continue;
     const r2Node = enrichNodeFromKV(r2KVs[k], r2Id, djNameMap);
     r2Node.id = `r2_${r1Idx}_${r2Idx}`;
     r2Node.rank = '2';
