@@ -504,7 +504,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       const y = pageOffsetY + r.y + gap / 2;
       const w = r.w - gap, h = r.h - gap;
       if (w < 20 || h < 20) return null;
-      const numCards = Math.min(item.count, 6);
+      const numCards = Math.min(Math.max(item.artworks.length, 1), 8);
       const pileOffset = (numCards - 1) * STEP;
       const cardW = w - pileOffset, cardH = h - pileOffset;
 
@@ -542,7 +542,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         info.innerHTML = `
           <div class="ci-title">${cap(cardTitle)}</div>
           <div class="ci-artist">${cap(cardArtist)}</div>
-          ${isTopCard ? `<div class="ci-count">${item.count} tracks</div>` : ''}
         `;
         card.appendChild(info);
         el.appendChild(card);
@@ -763,11 +762,9 @@ document.addEventListener('DOMContentLoaded', async () => {
           });
         };
         cards.forEach((card, i) => {
-          // Top card uses first artwork; others cycle through the rest
-          const topUrl = item.artworks.length > 0 ? item.artworks[0] : null;
-          const otherArt = item.artworks.slice(1);
-          const url = (i === last) ? topUrl
-            : otherArt.length > 0 ? otherArt[i % otherArt.length] : null;
+          // Top card = artworks[0] (seed), others = artworks[1..] (neighbors)
+          const url = (i === last) ? (item.artworks[0] || null)
+            : (item.artworks[1 + i] || null);
           if (url) {
             pending++;
             const img = document.createElement('img');

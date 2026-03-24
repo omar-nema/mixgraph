@@ -84,16 +84,34 @@ const cratesIndex = enrichedCandidates
   .map(c => {
     const node = graphNodes[c.id];
     const cached = audioCache[c.id] || {};
-    // Collect up to 4 artwork URLs: seed's own art + immediate neighbors'
+    // Collect artwork URLs: seed + 1st-hop + 2nd-hop neighbors (duplicates OK, cap 10)
     const artworks = [];
     const neighborIds = [];
     if (cached.artUrl) artworks.push(cached.artUrl);
+    // 1st-hop neighbors
     for (const edge of (node.edges || [])) {
-      if (artworks.length >= 4) break;
+      if (artworks.length >= 8) break;
       const nArt = (audioCache[edge.node] || {}).artUrl;
-      if (nArt && !artworks.includes(nArt)) {
+      if (nArt) {
         artworks.push(nArt);
         neighborIds.push(edge.node);
+      }
+    }
+    // 2nd-hop neighbors (walk edges of 1st-hop nodes)
+    if (artworks.length < 8) {
+      for (const edge of (node.edges || [])) {
+        if (artworks.length >= 8) break;
+        const hop1 = graphNodes[edge.node];
+        if (!hop1) continue;
+        for (const e2 of (hop1.edges || [])) {
+          if (artworks.length >= 8) break;
+          if (e2.node === c.id) continue; // skip seed
+          const nArt = (audioCache[e2.node] || {}).artUrl;
+          if (nArt) {
+            artworks.push(nArt);
+            neighborIds.push(e2.node);
+          }
+        }
       }
     }
     // displayCount mirrors worker formula
