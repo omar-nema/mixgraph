@@ -22,7 +22,7 @@
   body.crates-mode:has(.sc-active) { padding-bottom: 84px !important; }
   #filter-row { display: none; }
   #sc-placeholder { display: none; }
-  body.night #sc-player-area { background: #1e2228; border-top-color: #3a3f48; }
+  body.night #sc-player-area { background: var(--bg); border-top-color: var(--card-border); }
   body.night #sc-widget {
     filter: invert(0.88) hue-rotate(35deg) saturate(3);
   }
@@ -62,7 +62,7 @@
     transform: translateX(-50%);
     z-index: 200;
     gap: 2px;
-    background: #ededee;
+    background: var(--toolbar-btn-bg);
     border: none;
     border-radius: var(--card-radius);
     padding: 2px;

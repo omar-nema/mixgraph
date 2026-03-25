@@ -3,17 +3,22 @@
    ═══════════════════════════════════════════ */
 html { background: #f5f5f7; }
 :root {
-  /* Background */
+  /* Background — change --bg (here + body.night) to re-theme surfaces */
   --bg: #f5f5f7;
-  --card-bg: #fbfbfc;
-  --card-border: #d2d2da;
+
+  /* Surface derivatives (auto-computed from --bg) */
+  --card-bg: color-mix(in srgb, white 50%, var(--bg));
+  --card-border: color-mix(in srgb, black 15%, var(--bg));
+  --connection-stroke: color-mix(in srgb, black 25%, var(--bg));
+  --toolbar-btn-bg: color-mix(in srgb, black 4%, var(--bg));
+  --surface-elevated: color-mix(in srgb, white 30%, var(--bg));
 
   /* Text */
   --text-primary: #22222a;
   --text-secondary: #6b6b78;
   --text-tertiary: #9696a4;
 
-  /* Accent — change these two values (here + body.night) to re-theme everything */
+  /* Accent — change --accent (here + body.night) to re-theme highlights */
   --accent: #3c3cfa;
   --connection-highlight: var(--accent);
 
@@ -27,7 +32,6 @@ html { background: #f5f5f7; }
   --accent-fill-soft: color-mix(in oklch, var(--accent) 30%, white);
 
   /* Connections */
-  --connection-stroke: #b8b8c8;
   --connection-width: 1.5;
 
   /* Card sizes */
@@ -48,9 +52,6 @@ html { background: #f5f5f7; }
   --card-shadow: 0 1px 4px rgba(42, 37, 32, 0.04);
   --card-hover-shadow: 0 4px 20px rgba(42, 37, 32, 0.08);
 
-  /* Toolbar buttons */
-  --toolbar-btn-bg: #ede7e0;
-
   /* Font */
   --font: 'Space Grotesk', sans-serif;
 }
@@ -64,12 +65,20 @@ html.night {
 }
 body.night {
   --bg: #1e2228;
-  --card-bg: #2d3139;
-  --card-border: #333;
+
+  /* Surface derivatives (same structure, dark direction) */
+  --card-bg: color-mix(in srgb, white 9%, var(--bg));
+  --card-border: color-mix(in srgb, white 12%, var(--bg));
+  --connection-stroke: color-mix(in srgb, white 20%, var(--bg));
+  --toolbar-btn-bg: color-mix(in srgb, white 4%, var(--bg));
+  --surface-elevated: color-mix(in srgb, white 14%, var(--bg));
+
+  /* Text */
   --text-primary: #e8e4e0;
   --text-secondary: #9a9590;
   --text-tertiary: #7f7a75;
-  --connection-stroke: #444;
+
+  /* Accent */
   --accent: #4a95f8;
   --connection-highlight: var(--accent);
   --accent-wash: color-mix(in oklch, var(--accent) 10%, var(--bg));
@@ -79,12 +88,13 @@ body.night {
   --accent-bold: color-mix(in oklch, var(--accent) 80%, black);
   --accent-border: color-mix(in oklch, var(--accent) 45%, transparent);
   --accent-fill-soft: color-mix(in oklch, var(--accent) 40%, white);
+
+  /* Shadows */
   --card-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
   --card-hover-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
-  --toolbar-btn-bg: #252a31;
 }
-body.night .album-art { background: #363b44; }
-body.night .album-art.no-art { background: #363b44; }
+body.night .album-art { background: var(--surface-elevated); }
+body.night .album-art.no-art { background: var(--surface-elevated); }
 body.night .node-card .rank-tooltip { background: #e8e4e0; color: #141414; }
 body.night .node-card .rank-tooltip::after { border-top-color: #e8e4e0; }
 body.night .progress-bar .bar-track { background: rgba(255,255,255,0.2); border-top-color: rgba(255,255,255,0.15); }
@@ -99,17 +109,17 @@ body.night #find-chips-input, body.night #dj-chips-input, body.night #genre-chip
 body.night .genre-pill.selected, body.night .cluster-pill.added { background: var(--accent); border-color: var(--accent); }
 body.night .mode-tab.active { background: none; color: var(--connection-highlight); box-shadow: none; }
 body.night #mode-tabs { background: none; }
-body.night #mobile-mode-tabs { background: #252a31; }
-body.night #mc-player { background: #1e2228; }
-body.night .help-diagram { background: #252a31; }
-body.night .help-diagram rect[fill="#faf7f4"] { fill: #2d3139; }
-body.night .help-diagram rect[fill="#e8e2db"] { fill: #363b44; }
-body.night .help-diagram rect[fill="#FAF7F4"] { fill: #2d3139; }
-body.night .help-diagram line[stroke="#c4b5a5"] { stroke: #444; }
-body.night .help-diagram rect[stroke="#d4c9bd"] { stroke: #333; }
-body.night .help-diagram rect[stroke="#D4C9BD"] { stroke: #333; }
+body.night #mobile-mode-tabs { background: var(--toolbar-btn-bg); }
+body.night #mc-player { background: var(--bg); }
+body.night .help-diagram { background: var(--toolbar-btn-bg); }
+body.night .help-diagram rect[fill="#faf7f4"] { fill: var(--card-bg); }
+body.night .help-diagram rect[fill="#e8e2db"] { fill: var(--surface-elevated); }
+body.night .help-diagram rect[fill="#FAF7F4"] { fill: var(--card-bg); }
+body.night .help-diagram line[stroke="#c4b5a5"] { stroke: var(--connection-stroke); }
+body.night .help-diagram rect[stroke="#d4c9bd"] { stroke: var(--card-border); }
+body.night .help-diagram rect[stroke="#D4C9BD"] { stroke: var(--card-border); }
 body.night .help-diagram text[fill="#2a2520"] { fill: #e8e4e0; }
-body.night .help-diagram text[fill="#B5705A"] { fill: #4a95f8; }
+body.night .help-diagram text[fill="#B5705A"] { fill: var(--accent); }
 body.night .help-diagram text[fill="#7a7068"] { fill: #9a9590; }
 body.night .ac-item:hover, body.night .ac-item.active { background: rgba(255,255,255,0.1); }
 body.night #find-ac, body.night #dj-ac, body.night #artist-autocomplete { box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5); }
@@ -117,11 +127,11 @@ body.night .help-diagram path[stroke="#2A2520"] { stroke: #e8e4e0; }
 body.night .help-diagram path[stroke="#212121"] { stroke: #666; }
 body.night .help-diagram path[stroke="#C4B5A5"] { stroke: #444; }
 body.night .help-diagram path[fill="#2A2520"] { fill: #e8e4e0; }
-body.night .help-diagram path[fill="#FAF7F4"] { fill: #2d3139; }
+body.night .help-diagram path[fill="#FAF7F4"] { fill: var(--card-bg); }
 body.night .help-diagram path[stroke="#D4C9BD"] { stroke: #333; }
 body.night .help-diagram rect[fill="#E8E2DB"] { fill: #2a2a2a; }
 body.night .help-diagram text[fill="#2A2520"] { fill: #e8e4e0; }
-body.night .help-diagram text[fill="#B5705A"] { fill: #4a95f8; }
+body.night .help-diagram text[fill="#B5705A"] { fill: var(--accent); }
 body.night #dev-panel { background: #1a1a1a; border-color: #333; }
 
 /* Theme toggle */
@@ -1082,7 +1092,7 @@ body.crates-mode { overflow: hidden; }
   max-width: 540px;
 }
 #artist-popover, #dj-popover { padding-top: 12px; padding-bottom: 12px; }
-body.night .filter-popover { background: #363b44; box-shadow: 0 8px 40px rgba(0, 0, 0, 0.5); }
+body.night .filter-popover { background: var(--surface-elevated); box-shadow: 0 8px 40px rgba(0, 0, 0, 0.5); }
 
 .popover-clear {
   font-size: 14px;
