@@ -13,9 +13,21 @@ html { background: #f5f5f7; }
   --text-secondary: #6b6b78;
   --text-tertiary: #9696a4;
 
+  /* Accent — change these two values (here + body.night) to re-theme everything */
+  --accent: #3c3cfa;
+  --connection-highlight: var(--accent);
+
+  /* Accent derivatives (auto-computed from --accent + --bg) */
+  --accent-wash: color-mix(in oklch, var(--accent) 10%, var(--bg));
+  --accent-wash-hover: color-mix(in oklch, var(--accent) 16%, var(--bg));
+  --accent-wash-active: color-mix(in oklch, var(--accent) 22%, var(--bg));
+  --accent-wash-border: color-mix(in oklch, var(--accent) 20%, var(--card-border));
+  --accent-bold: color-mix(in oklch, var(--accent) 80%, black);
+  --accent-border: color-mix(in oklch, var(--accent) 45%, transparent);
+  --accent-fill-soft: color-mix(in oklch, var(--accent) 30%, white);
+
   /* Connections */
   --connection-stroke: #b8b8c8;
-  --connection-highlight: #3c3cfa;
   --connection-width: 1.5;
 
   /* Card sizes */
@@ -58,7 +70,15 @@ body.night {
   --text-secondary: #9a9590;
   --text-tertiary: #7f7a75;
   --connection-stroke: #444;
-  --connection-highlight: #4a95f8;
+  --accent: #4a95f8;
+  --connection-highlight: var(--accent);
+  --accent-wash: color-mix(in oklch, var(--accent) 10%, var(--bg));
+  --accent-wash-hover: color-mix(in oklch, var(--accent) 16%, var(--bg));
+  --accent-wash-active: color-mix(in oklch, var(--accent) 22%, var(--bg));
+  --accent-wash-border: color-mix(in oklch, var(--accent) 20%, var(--card-border));
+  --accent-bold: color-mix(in oklch, var(--accent) 80%, black);
+  --accent-border: color-mix(in oklch, var(--accent) 45%, transparent);
+  --accent-fill-soft: color-mix(in oklch, var(--accent) 40%, white);
   --card-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
   --card-hover-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
   --toolbar-btn-bg: #252a31;
@@ -68,15 +88,15 @@ body.night .album-art.no-art { background: #363b44; }
 body.night .node-card .rank-tooltip { background: #e8e4e0; color: #141414; }
 body.night .node-card .rank-tooltip::after { border-top-color: #e8e4e0; }
 body.night .progress-bar .bar-track { background: rgba(255,255,255,0.2); border-top-color: rgba(255,255,255,0.15); }
-body.night .progress-bar .bar-fill { background: #dde4ff; }
+body.night .progress-bar .bar-fill { background: var(--accent-fill-soft); }
 body.night .node-card.loading::after { background: linear-gradient(90deg, transparent 25%, rgba(255,255,255,0.06) 50%, transparent 75%); background-size: 200% 100%; animation: card-shimmer 2.5s ease-in-out infinite; }
 body.night #help-overlay { background: rgba(0, 0, 0, 0.6); }
 body.night #help-modal { box-shadow: 0 8px 40px rgba(0, 0, 0, 0.5); }
 body.night #find-popover { box-shadow: 0 8px 40px rgba(0, 0, 0, 0.5); }
 body.night .find-chip { background: rgba(255, 255, 255, 0.1); }
 body.night .genre-pill, body.night .cluster-pill { background: rgba(255, 255, 255, 0.12); }
-body.night #find-chips-input, body.night #dj-chips-input, body.night #artist-search { background: var(--bg); }
-body.night .genre-pill.selected, body.night .cluster-pill.added { background: #4a95f8; border-color: #4a95f8; }
+body.night #find-chips-input, body.night #dj-chips-input, body.night #genre-chips-input, body.night #artist-search { background: var(--bg); }
+body.night .genre-pill.selected, body.night .cluster-pill.added { background: var(--accent); border-color: var(--accent); }
 body.night .mode-tab.active { background: none; color: var(--connection-highlight); box-shadow: none; }
 body.night #mode-tabs { background: none; }
 body.night #mobile-mode-tabs { background: #252a31; }
@@ -183,7 +203,7 @@ body {
   margin: -13px -13px 13px -13px;
   display: flex;
 }
-.card-toolbar #shuffle-btn { flex: 1; color: var(--connection-highlight); background: #dedeee; transition: background 0.2s ease; }
+.card-toolbar #shuffle-btn { flex: 1; color: var(--accent); background: var(--accent-wash); transition: background 0.2s ease; }
 .card-toolbar button {
   font-size: 16px;
   font-weight: 400;
@@ -199,11 +219,8 @@ body {
   gap: 5px;
   transition: background 0.15s ease, color 0.15s ease;
 }
-.card-toolbar #shuffle-btn:hover { background: #d0d0f8; }
-.card-toolbar #shuffle-btn:active { background: #c0c0f5; }
-body.night .card-toolbar #shuffle-btn { background: #353b44; color: #4a95f8; }
-body.night .card-toolbar #shuffle-btn:hover { background: #3a3a50; }
-body.night .card-toolbar #shuffle-btn:active { background: #42425a; }
+.card-toolbar #shuffle-btn:hover { background: var(--accent-wash-hover); }
+.card-toolbar #shuffle-btn:active { background: var(--accent-wash-active); }
 .card-toolbar button svg {
   width: 12px;
   height: 12px;
@@ -1004,20 +1021,12 @@ body.crates-mode { overflow: hidden; }
 }
 /* Semi-selected: popover open, no filter applied yet */
 .filter-pill.semi-open {
-  border-color: rgba(80, 100, 240, 0.5);
-}
-body.night .filter-pill.semi-open {
-  border-color: rgba(74, 149, 248, 0.6);
+  border-color: var(--accent-border);
 }
 .filter-pill.active {
-  background: #dedeee;
-  border-color: #d0d0e0;
-  color: var(--connection-highlight);
-}
-body.night .filter-pill.active {
-  background: rgba(74, 149, 248, 0.15);
-  border-color: rgba(74, 149, 248, 0.3);
-  color: var(--connection-highlight);
+  background: var(--accent-wash);
+  border-color: var(--accent-wash-border);
+  color: var(--accent);
 }
 .filter-dot {
   color: var(--text-tertiary);
@@ -1026,22 +1035,13 @@ body.night .filter-pill.active {
   user-select: none;
 }
 .filter-shuffle {
-  background: var(--connection-highlight);
-  border-color: var(--connection-highlight);
+  background: var(--accent);
+  border-color: var(--accent);
   color: #fff;
 }
 .filter-shuffle:hover {
-  background: #2a2ae0;
-  border-color: #2a2ae0;
-}
-body.night .filter-shuffle {
-  background: var(--connection-highlight);
-  border-color: var(--connection-highlight);
-  color: #fff;
-}
-body.night .filter-shuffle:hover {
-  background: #6aabf8;
-  border-color: #6aabf8;
+  background: var(--accent-bold);
+  border-color: var(--accent-bold);
 }
 .filter-shuffle svg {
   flex-shrink: 0;
@@ -1108,7 +1108,7 @@ body.night .filter-popover { background: #363b44; box-shadow: 0 8px 40px rgba(0,
 .filter-popover.open { display: flex; }
 
 /* Search input inside popovers */
-#find-chips-input, #dj-chips-input {
+#find-chips-input, #dj-chips-input, #genre-chips-input {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -1121,10 +1121,10 @@ body.night .filter-popover { background: #363b44; box-shadow: 0 8px 40px rgba(0,
   cursor: text;
   transition: border-color 0.2s ease;
 }
-#find-chips-input:focus-within, #dj-chips-input:focus-within {
+#find-chips-input:focus-within, #dj-chips-input:focus-within, #genre-chips-input:focus-within {
   border-color: var(--connection-highlight);
 }
-#find-search, #dj-search {
+#find-search, #dj-search, #genre-search {
   flex: 1;
   min-width: 120px;
   font-size: 14px;
@@ -1134,7 +1134,7 @@ body.night .filter-popover { background: #363b44; box-shadow: 0 8px 40px rgba(0,
   outline: none;
   padding: 0;
 }
-#find-search::placeholder, #dj-search::placeholder { color: var(--text-tertiary); }
+#find-search::placeholder, #dj-search::placeholder, #genre-search::placeholder { color: var(--text-tertiary); }
 
 /* Filter chips inside search input */
 .find-chip {
@@ -1164,7 +1164,7 @@ body.night .filter-popover { background: #363b44; box-shadow: 0 8px 40px rgba(0,
 .popover-search-wrap { position: relative; }
 
 /* Find autocomplete dropdown */
-#find-ac, #dj-ac {
+#find-ac, #dj-ac, #genre-ac {
   position: absolute;
   top: 100%;
   left: 0; right: 0;
@@ -1178,8 +1178,8 @@ body.night .filter-popover { background: #363b44; box-shadow: 0 8px 40px rgba(0,
   box-shadow: 0 4px 16px rgba(0,0,0,0.08);
   z-index: 3;
 }
-#find-ac.open, #dj-ac.open { display: block; }
-#find-ac .ac-section-header, #dj-ac .ac-section-header {
+#find-ac.open, #dj-ac.open, #genre-ac.open { display: block; }
+#find-ac .ac-section-header, #dj-ac .ac-section-header, #genre-ac .ac-section-header {
   font-size: 10px;
   font-weight: 600;
   text-transform: uppercase;
@@ -1193,6 +1193,7 @@ body.night .filter-popover { background: #363b44; box-shadow: 0 8px 40px rgba(0,
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
+  margin-top: 14px;
 }
 .genre-pill {
   font-size: 14px;
@@ -1297,13 +1298,13 @@ body.night .filter-popover { background: #363b44; box-shadow: 0 8px 40px rgba(0,
 }
 #help-modal h2 {
   font-size: 22px;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--text-primary);
   margin-bottom: 16px;
 }
 #help-modal p {
   font-size: 16px;
-  font-weight: 400;
+  font-weight: 300;
   color: var(--text-primary);
   line-height: 1.6;
   margin-bottom: 12px;
@@ -1698,7 +1699,7 @@ body.night .filter-popover { background: #363b44; box-shadow: 0 8px 40px rgba(0,
 }
 
 .ac-item .ac-count {
-  font-size: 10px;
+  font-size: 12px;
   color: var(--text-tertiary);
   flex-shrink: 0;
   margin-left: 8px;
@@ -1709,6 +1710,7 @@ body.night .filter-popover { background: #363b44; box-shadow: 0 8px 40px rgba(0,
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.ac-item .ac-parent { font-weight: 500; }
 
 /* Active artist filter indicator */
 #artist-search.filtered {

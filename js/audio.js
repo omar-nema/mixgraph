@@ -247,7 +247,10 @@ function prepareCardForPlayback(nodeId, source) {
   return { card, btn };
 }
 
-const SC_LOAD_OPTS = { auto_play: true, show_artwork: false, visual: false, show_teaser: false, sharing: false, buying: false, show_user: true, color: '3C3CFA' };
+function getScLoadOpts() {
+  const accent = getComputedStyle(document.body).getPropertyValue('--accent').trim().replace('#', '');
+  return { auto_play: true, show_artwork: false, visual: false, show_teaser: false, sharing: false, buying: false, show_user: true, color: accent || '3C3CFA' };
+}
 
 function setupScWidget(nodeId, card, offsetSec, onError) {
   scWidgetReady = false;
@@ -295,7 +298,7 @@ function playSC(nodeId, trackUrl) {
   showScPlayer();
   // Safari: call play() synchronously in user gesture to unlock iframe audio
   try { scWidget.play(); } catch (e) {}
-  scWidget.load(trackUrl, SC_LOAD_OPTS);
+  scWidget.load(trackUrl, getScLoadOpts());
   startPlayTimeout(nodeId, true);
 }
 
@@ -312,7 +315,7 @@ function playSCSet(nodeId, setUrl, offsetSec) {
   showScPlayer();
   // Safari: call play() synchronously in user gesture to unlock iframe audio
   try { scWidget.play(); } catch (e) {}
-  scWidget.load(setUrl, SC_LOAD_OPTS);
+  scWidget.load(setUrl, getScLoadOpts());
   startPlayTimeout(nodeId, false);
 }
 

@@ -549,6 +549,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       // Click → fly-out transition to Tracks view
       el.addEventListener('click', () => {
+        // Force mouseleave so hover state resets (it won't fire naturally during transition)
+        el.dispatchEvent(new MouseEvent('mouseleave'));
         transitionToTracks(item.seedKey, el);
       });
 
@@ -1160,6 +1162,84 @@ document.addEventListener('DOMContentLoaded', async () => {
       else valSpan.textContent = input.value;
       updateGradientFilter();
     });
+  });
+
+  // ── Accent color picker ──
+  const accentPicker = document.getElementById('accent-picker');
+  const accentHex = document.getElementById('accent-hex');
+  const accentPresets = document.getElementById('accent-presets');
+  const presetColors = [
+    '#3c3cfa', '#4a95f8', '#e05252', '#e0529b',
+    '#8b5cf6', '#06b6d4', '#10b981', '#f59e0b',
+    '#6366f1', '#ec4899', '#14b8a6', '#f97316',
+  ];
+
+  // Get hue (0-360) from a hex color
+  function hexToHue(hex) {
+    const r = parseInt(hex.slice(1, 3), 16) / 255;
+    const g = parseInt(hex.slice(3, 5), 16) / 255;
+    const b = parseInt(hex.slice(5, 7), 16) / 255;
+    const max = Math.max(r, g, b), min = Math.min(r, g, b);
+    if (max === min) return 0;
+    let h;
+    const d = max - min;
+    if (max === r) h = ((g - b) / d + (g < b ? 6 : 0)) / 6;
+    else if (max === g) h = ((b - r) / d + 2) / 6;
+    else h = ((r - g) / d + 4) / 6;
+    return h * 360;
+  }
+
+  function applyAccent(hex) {
+    document.documentElement.style.setProperty('--accent', hex);
+    document.body.style.setProperty('--accent', hex);
+    // Re-derive all color-mix tokens (needed because they were computed with old accent)
+    const bg = getComputedStyle(document.body).getPropertyValue('--bg').trim();
+    const border = getComputedStyle(document.body).getPropertyValue('--card-border').trim();
+    const mixes = {
+      '--accent-wash': `color-mix(in oklch, ${hex} 10%, ${bg})`,
+      '--accent-wash-hover': `color-mix(in oklch, ${hex} 16%, ${bg})`,
+      '--accent-wash-active': `color-mix(in oklch, ${hex} 22%, ${bg})`,
+      '--accent-wash-border': `color-mix(in oklch, ${hex} 20%, ${border})`,
+      '--accent-bold': `color-mix(in oklch, ${hex} 80%, black)`,
+      '--accent-border': `color-mix(in oklch, ${hex} 45%, transparent)`,
+      '--accent-fill-soft': `color-mix(in oklch, ${hex} ${document.body.classList.contains('night') ? 40 : 30}%, white)`,
+    };
+    for (const [k, v] of Object.entries(mixes)) {
+      document.body.style.setProperty(k, v);
+    }
+
+    // Update mobile SC widget hue-rotate to match new accent
+    // SC player default is orange (#f50, hue ~14deg)
+    const scWidget = document.getElementById('sc-widget');
+    if (scWidget) {
+      const accentHueVal = hexToHue(hex);
+      const SC_DEFAULT_HUE = 14;
+      const rotation = ((accentHueVal - SC_DEFAULT_HUE) + 360) % 360;
+      if (document.body.classList.contains('night')) {
+        scWidget.style.filter = `invert(0.88) hue-rotate(${rotation}deg) saturate(3)`;
+      } else {
+        scWidget.style.filter = `hue-rotate(${rotation}deg)`;
+      }
+    }
+
+    accentPicker.value = hex;
+    accentHex.textContent = hex;
+  }
+
+  // Sync picker on open with current accent
+  const isNight = document.body.classList.contains('night');
+  accentPicker.value = isNight ? '#4a95f8' : '#3c3cfa';
+  accentHex.textContent = accentPicker.value;
+
+  accentPicker.addEventListener('input', (e) => applyAccent(e.target.value));
+
+  // Build preset swatches
+  presetColors.forEach(c => {
+    const swatch = document.createElement('button');
+    swatch.style.cssText = `width:22px;height:22px;border-radius:50%;border:2px solid var(--card-border);background:${c};cursor:pointer;padding:0;`;
+    swatch.title = c;
+    swatch.addEventListener('click', () => applyAccent(c));
+    accentPresets.appendChild(swatch);
   });
 
 });

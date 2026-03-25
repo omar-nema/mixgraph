@@ -73,6 +73,7 @@ function showClusterMobile(cluster) {
   popoverBackdrop.addEventListener('click', () => closePopovers(true));
   document.getElementById('mobile-pill-genre').addEventListener('click', function() {
     openPopover('genre', this);
+    setTimeout(() => document.getElementById('genre-search').focus(), 100);
   });
   document.getElementById('mobile-pill-artist').addEventListener('click', function() {
     openPopover('artist', this);

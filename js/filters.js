@@ -20,6 +20,52 @@ function splitArtists(raw) {
   return names.length ? names : [raw];
 }
 
+// Genre taxonomy: parent → children mapping (from NTS classification)
+const GENRE_TAXONOMY = {
+  "Ambient / New Age": ["Ambient", "Fourth World", "Kosmische", "New Age", "Vaporwave"],
+  "Electronica / Downtempo": ["Beats", "Electronica", "Glitch", "Trip Hop", "Witch House"],
+  "Hip-Hop / R&B": ["Chopped N Screwed", "Classic Hip Hop", "Cloud Rap", "Dirty South", "Drill", "Emo Rap", "Experimental Hip Hop", "G-Funk", "Gangsta Rap", "Hip Hop", "Memphis", "New Jack Swing", "RNB", "Rap", "Trap"],
+  "New Club": ["Afro House", "Afrobeats", "Amapiano", "Baile Funk", "Ballroom", "Baltimore Club", "Bass", "Batida", "Brega", "Club", "Coupé-Décalé", "Footwork", "Forró Piseiro", "Gengetone", "Gqom", "Hyperpop", "Jersey Club", "Kuduro", "Kwaito", "Reggaeton", "Raptor House", "Singeli"],
+  "UK Dance / Grime": ["Bassline", "Breakbeat Hardcore", "Breakcore", "Donk", "Drum & Bass", "Dubstep", "Garage", "Grime", "Jungle", "Speed Garage", "UK Funky"],
+  "House / Techno": ["Acid", "Ambient Techno", "Balearic House", "Breaks", "Broken Beat", "Chicago House", "Deep House", "Detroit House", "Detroit Techno", "Dub Techno", "Electro", "Euro House", "Gabber", "Ghetto House", "Ghettotech", "Happy Hardcore", "Hardstyle", "Hip-House", "House", "Leftfield House", "Leftfield Techno", "Minimal", "Tech House", "Techno", "Trance"],
+  "Post Punk / New Wave": ["EBM", "Electroclash", "Goth Rock", "Industrial", "Minimal Synth", "New Beat", "New Wave", "No Wave", "Post Punk", "Synth Pop"],
+  "Alt Rock / Punk": ["Art Rock", "Dream Pop", "Emo", "Garage Rock", "Grunge", "Hardcore Punk", "Indie Rock", "Math Rock", "Noise Rock", "Post Hardcore", "Post Rock", "Punk", "Shoegaze", "Space Rock"],
+  "Rock": ["American Primitivism", "Bluegrass", "Classic Rock", "Country", "Folk", "Hard Rock", "Krautrock", "Power Pop", "Prog Rock", "Psychedelic Folk", "Psychedelic Rock", "Rock N Roll", "Rockabilly", "Soft Rock", "Surf", "Yacht Rock"],
+  "Metal": ["Black Metal", "Death Metal", "Doom", "Grindcore", "Heavy Metal", "Metalcore", "Nu Metal", "Sludge", "Thrash"],
+  "Avant Garde": ["Dark Ambient", "Drone", "Experimental", "Freak Folk", "Musique Concrete", "Noise"],
+  "Caribbean": ["Bashment", "Beguine", "Bouyon", "Bubbling", "Calypso", "Chutney", "Dancehall", "Dembow", "Dennery Segment", "Digi Dub", "Dub", "Kaseko", "Lovers Rock", "Mento", "Reggae", "Rocksteady", "Shatta", "Ska", "Soca", "Zouk"],
+  "Latin / Brazilian": ["Bachata", "Bolero", "Bossa Nova", "Champeta", "Chicha", "Corrido", "Cumbia", "Flamenco", "Forró", "Freestyle", "Guaracha", "Joropo", "Latin Jazz", "Latin Soul", "Merengue", "Norteño", "Rancheras", "Salsa", "Samba", "Tango", "Vallenato"],
+  "Jazz": ["Afro Cuban Jazz", "Ambient Jazz", "Bebop", "Contemporary Jazz", "Free Jazz", "Hard Bop", "Jazz Fusion", "Jazz Rock", "Modal", "Post Bop", "Soul Jazz", "Spiritual Jazz", "Straight Jazz", "Swing"],
+  "Soul / R&B": ["Blues", "Doo Wop", "Funk", "Gospel", "P Funk", "Psychedelic Soul", "Rare Groove", "Rhythm & Blues", "Slow Jams", "Soul", "Street Soul", "Sweet Soul"],
+  "Disco / Boogie": ["Boogie", "Bubblegum", "Classic Disco", "Cosmic Disco", "Italo", "Leftfield Disco"],
+  "African / Middle Eastern": ["Afro Disco", "Afrobeat", "Anatolian Rock", "Arabic Pop", "Arabic Traditional", "Benga", "Chaabi", "Dabke", "Ethiopiques", "Funaná", "Gnawa", "Griot", "Highlife", "Juju", "Kizomba", "Mahraganat", "Makossa", "Maloya", "Mbalax", "Raï", "Rumba", "Sahara Blues", "Salegy", "Sega", "Soukous", "South African Jazz", "Taarab", "Turkish Disco", "Turkish Rock", "Zamrock"],
+  "Asia": ["Bengali Pop", "Bhangra", "Bollywood", "C-Pop", "Chinese Traditional", "City Pop", "Dangdut", "Gamelan", "Indian Classical", "J-Pop", "Japanese Traditional", "K-Pop", "Khmer Pop", "Korean Traditional", "Molam", "Tamil Film Music", "Thai Classical", "V-Pop"],
+  "Classical / Opera": ["Baroque", "Choral Music", "Classical", "Minimalism", "Modern Classical", "Opera"],
+  "Other": ["Celtic Folk", "Chanson", "Chip Tune", "Dungeon Synth", "Field Recordings", "Irish Traditional", "Leftfield Pop", "Library", "Nordic Folk", "Pop", "Soundtrack", "Spoken Word", "Video Game Music"]
+};
+
+// Build flat genre search index: [{display, parent, isParent}]
+const GENRE_SEARCH_INDEX = [];
+for (const [parent, children] of Object.entries(GENRE_TAXONOMY)) {
+  GENRE_SEARCH_INDEX.push({ display: parent, parent: parent, isParent: true });
+  for (const child of children) {
+    GENRE_SEARCH_INDEX.push({ display: child, parent: parent, isParent: false });
+  }
+}
+
+function searchGenresLocal(query, limit = 500) {
+  const q = query.trim().toLowerCase();
+  if (!q) return GENRE_SEARCH_INDEX;
+  // Prefix matches first, then substring matches
+  const prefix = [], substring = [];
+  for (const entry of GENRE_SEARCH_INDEX) {
+    const lower = entry.display.toLowerCase();
+    if (lower.startsWith(q)) prefix.push(entry);
+    else if (lower.includes(q)) substring.push(entry);
+  }
+  return [...prefix, ...substring].slice(0, limit);
+}
+
 async function initFilters() {
   // ── Load genres from API ──
   let displayGenres = [];
@@ -60,17 +106,67 @@ async function initFilters() {
     modifyFilter(djSearchFilters, a => a.splice(index, 1), renderDjChips);
   }
 
+  // Get the genre names to add to genreFilters for a search entry
+  function genreFilterNames(entry) {
+    if (entry.isParent) {
+      // Parent selected → add all children (the names nodes actually have)
+      return GENRE_TAXONOMY[entry.display] || [entry.display];
+    }
+    // Child selected → add just that name
+    return [entry.display];
+  }
+
+  function addGenreSearchFilter(entry) {
+    if (genreSearchFilters.some(f => f.display === entry.display)) return;
+    const names = genreFilterNames(entry);
+    genreSearchFilters.push({ display: entry.display, names });
+    for (const name of names) {
+      if (!genreFilters.includes(name)) genreFilters.push(name);
+    }
+    shuffleHistory.clear();
+    syncGenrePillHighlights();
+    renderGenreChips();
+    updateFilterUI();
+  }
+
+  function removeGenreSearchFilter(index) {
+    const removed = genreSearchFilters.splice(index, 1)[0];
+    if (removed) {
+      // Collect all names still referenced by remaining chips
+      const stillNeeded = new Set();
+      for (const f of genreSearchFilters) f.names.forEach(n => stillNeeded.add(n));
+      // Remove names that are no longer needed
+      for (const name of removed.names) {
+        if (!stillNeeded.has(name)) {
+          const gIdx = genreFilters.indexOf(name);
+          if (gIdx >= 0) genreFilters.splice(gIdx, 1);
+        }
+      }
+    }
+    shuffleHistory.clear();
+    syncGenrePillHighlights();
+    renderGenreChips();
+    updateFilterUI();
+  }
+
+  function syncGenrePillHighlights() {
+    document.querySelectorAll('.genre-pill').forEach(p => {
+      p.classList.toggle('selected', genreFilters.includes(p.dataset.genre));
+    });
+  }
+
   function toggleGenre(name) {
     const idx = genreFilters.indexOf(name);
     if (idx >= 0) {
       genreFilters.splice(idx, 1);
+      // Also remove any search chips whose names included this genre
+      genreSearchFilters = genreSearchFilters.filter(f => !f.names.includes(name));
+      renderGenreChips();
     } else {
       genreFilters.push(name);
     }
     shuffleHistory.clear();
-    document.querySelectorAll('.genre-pill').forEach(p => {
-      p.classList.toggle('selected', genreFilters.includes(p.dataset.genre));
-    });
+    syncGenrePillHighlights();
     updateFilterUI();
   }
 
@@ -80,6 +176,7 @@ async function initFilters() {
     clusterArtistFilters = [];
     clusterDjFilters = [];
     genreFilters = [];
+    genreSearchFilters = [];
     shuffleHistory.clear();
     document.querySelectorAll('.genre-pill.selected').forEach(p => p.classList.remove('selected'));
     renderAllChips();
@@ -173,7 +270,8 @@ async function initFilters() {
 
   function renderFindChips() { renderChips('find-chips-input', 'find-search', searchFilters, removeSearchFilter, 'Search artists'); }
   function renderDjChips() { renderChips('dj-chips-input', 'dj-search', djSearchFilters, removeDjFilter, 'Search DJs'); }
-  function renderAllChips() { renderFindChips(); renderDjChips(); }
+  function renderGenreChips() { renderChips('genre-chips-input', 'genre-search', genreSearchFilters, removeGenreSearchFilter, 'Search genres'); }
+  function renderAllChips() { renderFindChips(); renderDjChips(); renderGenreChips(); }
 
   // ── Filter row pill handlers ──
   const findSearchInput = document.getElementById('find-search');
@@ -182,6 +280,9 @@ async function initFilters() {
   const djSearchInput = document.getElementById('dj-search');
   const djChipsInput = document.getElementById('dj-chips-input');
   const djAc = document.getElementById('dj-ac');
+  const genreSearchInput = document.getElementById('genre-search');
+  const genreChipsInput = document.getElementById('genre-chips-input');
+  const genreAc = document.getElementById('genre-ac');
   const genrePopover = document.getElementById('genre-popover');
   const artistPopover = document.getElementById('artist-popover');
   const djPopover = document.getElementById('dj-popover');
@@ -214,6 +315,7 @@ async function initFilters() {
     document.querySelectorAll('.filter-pill.semi-open').forEach(p => p.classList.remove('semi-open'));
     closeFindAc();
     closeDjAc();
+    closeGenreAc();
   }
 
   // Genre popover
@@ -226,6 +328,7 @@ async function initFilters() {
       positionPopover(genrePopover, pillGenreEl);
       genrePopover.classList.add('open');
       pillGenreEl.classList.add('semi-open');
+      setTimeout(() => genreSearchInput.focus(), 50);
     }
     reshuffleIfFiltered();
   });
@@ -289,8 +392,10 @@ async function initFilters() {
   function clearGenreFilters(e) {
     e.stopPropagation();
     genreFilters = [];
+    genreSearchFilters = [];
     shuffleHistory.clear();
     document.querySelectorAll('.genre-pill.selected').forEach(p => p.classList.remove('selected'));
+    renderGenreChips();
     updateFilterUI();
   }
   function clearArtistFilters(e) {
@@ -320,14 +425,18 @@ async function initFilters() {
   // chips-input click-to-focus is handled by createAc()
 
   // ── Autocomplete (shared for artist + DJ, desktop + mobile) ──
-  function buildAcItems(container, results, onSelect, onHover) {
+  function buildAcItems(container, results, onSelect, onHover, labelFn) {
     container.innerHTML = '';
     results.forEach((entry, idx) => {
       const div = document.createElement('div');
       div.className = 'ac-item';
-      const cc = entry.clusterCount || 0;
-      const countLabel = `${cc} cluster${cc !== 1 ? 's' : ''}`;
-      div.innerHTML = `<span class="ac-name">${escHtml(entry.display)}</span><span class="ac-count">${countLabel}</span>`;
+      if (labelFn) {
+        div.innerHTML = labelFn(entry);
+      } else {
+        const cc = entry.clusterCount || 0;
+        const countLabel = `${cc} cluster${cc !== 1 ? 's' : ''}`;
+        div.innerHTML = `<span class="ac-name">${escHtml(entry.display)}</span><span class="ac-count">${countLabel}</span>`;
+      }
       div.addEventListener('click', (e) => { e.stopPropagation(); onSelect(entry); });
       if (onHover) div.addEventListener('mouseenter', () => onHover(idx));
       container.appendChild(div);
@@ -336,7 +445,7 @@ async function initFilters() {
   }
 
   // Autocomplete factory (keyboard nav + API search)
-  function createAc(acEl, searchInput, chipsId, searchFn, addFn, filters, removeFn) {
+  function createAc(acEl, searchInput, chipsId, searchFn, addFn, filters, removeFn, opts = {}) {
     let items = [], activeIdx = -1;
     let debounceTimer = null;
 
@@ -349,7 +458,7 @@ async function initFilters() {
 
     async function show(query) {
       const q = query.trim();
-      if (!q) { close(); return; }
+      if (!q && !opts.showAllOnFocus) { close(); return; }
       try {
         const results = await searchFn(q, 15);
         if (results.length === 0) { close(); return; }
@@ -364,7 +473,7 @@ async function initFilters() {
           items.forEach(el => el.classList.remove('active'));
           acEl.children[idx]?.classList.add('active');
           activeIdx = idx;
-        });
+        }, opts.labelFn);
         items = [...acEl.children];
       } catch (e) { console.warn('Autocomplete error:', e.message); }
     }
@@ -373,6 +482,8 @@ async function initFilters() {
       clearTimeout(debounceTimer);
       if (searchInput.value.trim()) {
         debounceTimer = setTimeout(() => show(searchInput.value), 150);
+      } else if (opts.showAllOnFocus) {
+        debounceTimer = setTimeout(() => show(''), 150);
       } else {
         close();
       }
@@ -380,6 +491,20 @@ async function initFilters() {
     searchInput.addEventListener('focus', () => {
       if (searchInput.value.trim()) show(searchInput.value);
     });
+    if (opts.showAllOnFocus) {
+      searchInput.addEventListener('mousedown', (e) => {
+        // Show on next tick so any pending close from document click resolves first
+        setTimeout(() => {
+          if (!acEl.classList.contains('open')) show(searchInput.value);
+        }, 0);
+      });
+      document.addEventListener('mousedown', (e) => {
+        const wrap = searchInput.closest('.popover-search-wrap');
+        if (wrap && !wrap.contains(e.target)) {
+          if (acEl.classList.contains('open') && !searchInput.value.trim()) close();
+        }
+      });
+    }
     searchInput.addEventListener('keydown', (e) => {
       if (e.key === 'Backspace' && searchInput.value === '' && filters.length > 0) {
         removeFn(filters.length - 1);
@@ -412,6 +537,16 @@ async function initFilters() {
   const closeFindAc = findAcCtrl.close;
   const djAcCtrl = createAc(djAc, djSearchInput, 'dj-chips-input', apiSearchDjs, addDjFilter, djSearchFilters, removeDjFilter);
   const closeDjAc = djAcCtrl.close;
+  const genreAcCtrl = createAc(genreAc, genreSearchInput, 'genre-chips-input',
+    (q) => searchGenresLocal(q), addGenreSearchFilter, genreSearchFilters, removeGenreSearchFilter,
+    { showAllOnFocus: true, labelFn: (entry) => {
+      const cls = entry.isParent ? 'ac-name ac-parent' : 'ac-name';
+      const name = `<span class="${cls}">${escHtml(entry.display)}</span>`;
+      const label = entry.isParent ? '' : `<span class="ac-count">${escHtml(entry.parent)}</span>`;
+      return name + label;
+    }}
+  );
+  const closeGenreAc = genreAcCtrl.close;
 
   // ── Cluster context pills ──
   function toggleClusterFilter(filtersArr, entry) {
@@ -480,5 +615,5 @@ async function initFilters() {
   // Populate cluster pills now that indexes are built
   updateClusterPills();
 
-  return { updateClusterPills, updateFilterUI, closeFindAc, closeDjAc, clearAllFilters };
+  return { updateClusterPills, updateFilterUI, closeFindAc, closeDjAc, closeGenreAc, clearAllFilters };
 }
