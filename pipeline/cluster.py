@@ -422,9 +422,12 @@ def search_soundcloud(
         for item in data.get("collection", []):
             item_title = _normalize(item.get("title", ""))
             item_user = _normalize(item.get("user", {}).get("username", ""))
-            # Check that both artist and title appear somewhere in the result
+            # Check that all words of artist and title appear in the result
             combined = f"{item_user} {item_title}"
-            if norm_artist.split()[0] in combined and norm_title.split()[0] in combined:
+            artist_words = norm_artist.split()
+            title_words = norm_title.split()
+            if (all(w in combined for w in artist_words) and
+                    all(w in combined for w in title_words)):
                 artwork = item.get("artwork_url") or ""
                 # Upgrade to 500x500
                 if artwork:
