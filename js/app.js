@@ -477,8 +477,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     cratesInitialized = true;
 
     const cap = s => s.replace(/\b\w/g, c => c.toUpperCase());
-    const gap = 25, pad = 0, STEP = 3;
-    const CLUSTERS_PER_PAGE = isMobileView() ? 6 : 20;
+    const gap = isMobileView() ? 19 : 25, pad = 0, STEP = 3;
+    const CLUSTERS_PER_PAGE = isMobileView() ? 4 : 20;
 
     // Local RNG for placeholder colors
     let localSeed = Date.now() % 2147483647 || 1;
@@ -654,6 +654,14 @@ document.addEventListener('DOMContentLoaded', async () => {
             return { seedKey: c.id, artist: artist || '', title: title || '',
               artworks: c.artworks || [], neighborIds: c.n || [], artKeys: [], count: c.count, weight: c.weight };
           });
+          if (isMobileView()) {
+            items.forEach(it => { it.weight = Math.pow(it.weight, 2.2); });
+            // Boost the largest cluster to ensure a hero crate
+            if (items.length > 1) {
+              const sorted = [...items].sort((a, b) => b.weight - a.weight);
+              sorted[0].weight *= 1.6;
+            }
+          }
           cratesTreemap(items, pad, pad, vw - pad * 2, vh - pad * 2);
           receivePage(col, row, items);
         } else {
@@ -680,7 +688,20 @@ document.addEventListener('DOMContentLoaded', async () => {
       const left = sorted.slice(0, splitIdx);
       const right = sorted.slice(splitIdx);
       const ratio = left.reduce((s, it) => s + it.weight, 0) / total;
-      if (w >= h) {
+      const mobile = isMobileView();
+      let splitH = mobile ? (crateRand() > 0.5) : (w >= h);
+      // On mobile, prevent splits that create children with extreme aspect ratios
+      if (mobile) {
+        const maxRatio = 2.5;
+        if (splitH) {
+          const minW = Math.min(w * ratio, w * (1 - ratio));
+          if (h / minW > maxRatio) splitH = false;
+        } else {
+          const minH = Math.min(h * ratio, h * (1 - ratio));
+          if (w / minH > maxRatio) splitH = true;
+        }
+      }
+      if (splitH) {
         const sw = w * ratio;
         cratesTreemap(left, x, y, sw, h);
         cratesTreemap(right, x + sw, y, w - sw, h);
