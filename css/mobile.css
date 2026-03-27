@@ -407,6 +407,7 @@
     width: 70vw;
   }
   .mobile-carousel-card {
+    position: relative;
     background: var(--card-bg);
     border: 2px solid var(--card-border);
     border-radius: var(--card-radius);
@@ -417,7 +418,7 @@
     overflow: hidden;
     touch-action: manipulation;
   }
-  .mobile-carousel-card:active { box-shadow: var(--card-hover-shadow); }
+  .mobile-carousel-card:active:not(.selected):not(:has(.card-dots:active)) { box-shadow: var(--card-hover-shadow); }
   .mc-context {
     font-size: 11px; font-weight: 400; color: var(--text-tertiary);
     text-align: center; margin-bottom: 11px;
@@ -482,17 +483,32 @@
     white-space: nowrap;
   }
   .mobile-source-row::-webkit-scrollbar { display: none; }
-  .mobile-source-text {
-
+  .mobile-source-label {
     font-size: 13px;
-    font-weight: 400;
-    color: var(--text-secondary);
+    font-weight: 300;
+    color: var(--text-tertiary);
+    margin-right: 5px;
     white-space: nowrap;
   }
-  .mobile-source-text a {
-    color: var(--text-secondary);
-    text-decoration: underline;
-    text-underline-offset: 2px;
+  .mobile-source-pills, .mobile-genre-pills {
+    display: inline-flex;
+    gap: 5px;
+    flex-shrink: 0;
+  }
+  .mobile-source-pill, .mobile-genre-pill {
+    font-size: 13px;
+    font-weight: 300;
+    padding: 1px 7px;
+    border-radius: 9px;
+    background: color-mix(in srgb, var(--text-tertiary) 12%, transparent);
+    color: var(--text-tertiary);
+    white-space: nowrap;
+    text-decoration: none;
+  }
+  .mobile-source-sep {
+    color: var(--text-tertiary);
+    margin: 0 6px;
+    font-size: 13px;
   }
 
   /* Mobile fade-in animation */
@@ -534,13 +550,29 @@
     min-width: unset;
     width: calc(100% - 32px);
     left: 16px !important;
-    bottom: 16px !important;
-    top: auto !important;
     border-radius: 14px;
     padding: 6px;
   }
   .ctx-item {
-    padding: 12px 14px;
-    font-size: 15px;
+    padding: 9px 11px;
+    font-size: 14px;
   }
+
+  /* Triple-dot menu trigger on cards */
+  .card-dots {
+    display: flex;
+    position: absolute;
+    bottom: 10px;
+    right: 4px;
+    background: none;
+    border: none;
+    color: var(--text-primary);
+    padding: 6px;
+    cursor: pointer;
+  }
+  .card-dots svg { width: 20px; height: 20px; }
+  .card-dots .dot { transition: opacity 0.2s ease; }
+  .card-dots .x-line { opacity: 0; transition: opacity 0.2s ease; }
+  .card-dots.dots-open .dot { opacity: 0; }
+  .card-dots.dots-open .x-line { opacity: 1; }
 }

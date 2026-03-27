@@ -1247,25 +1247,32 @@ document.addEventListener('DOMContentLoaded', async () => {
   // ── Card context menu (DJ name click) ──
   const ctxMenu = document.getElementById('card-context-menu');
   const ctxItems = {
+    viewTrack: ctxMenu.querySelector('[data-action="view-track"]'),
     dj: ctxMenu.querySelector('[data-action="filter-dj"]'),
-    set: ctxMenu.querySelector('[data-action="filter-set"]'),
     artist: ctxMenu.querySelector('[data-action="filter-artist"]'),
     sep: ctxMenu.querySelector('.ctx-separator'),
-    view: ctxMenu.querySelector('[data-action="view-set"]'),
+    viewSet: ctxMenu.querySelector('[data-action="view-set"]'),
   };
   let ctxData = {};
   let ctxHideTimer = null;
+  let ctxActiveDots = null;
 
-  const CTX_SELECTOR = '.dj-line a[data-dj], .dj-line .dj-ctx-trigger, .artist-name[data-artist]';
+  const CTX_SELECTOR = '.dj-line a[data-dj], .dj-line .dj-ctx-trigger, .artist-ctx-trigger[data-artist], .track-ctx-trigger[data-artist], .card-dots[data-artist]';
+
+  const allCtxEls = Object.values(ctxItems);
 
   function reorderCtxMenu(source) {
-    // Reorder: put the triggered type first
+    allCtxEls.forEach(el => el.style.display = 'none');
     const frag = document.createDocumentFragment();
-    if (source === 'artist') {
-      frag.append(ctxItems.artist, ctxItems.dj, ctxItems.set, ctxItems.sep, ctxItems.view);
+    let visible;
+    if (source === 'track') {
+      visible = [ctxItems.viewTrack, ctxItems.sep, ctxItems.artist, ctxItems.dj, ctxItems.viewSet];
+    } else if (source === 'artist') {
+      visible = [ctxItems.artist, ctxItems.dj, ctxItems.sep, ctxItems.viewSet];
     } else {
-      frag.append(ctxItems.dj, ctxItems.set, ctxItems.artist, ctxItems.sep, ctxItems.view);
+      visible = [ctxItems.dj, ctxItems.artist, ctxItems.sep, ctxItems.viewSet];
     }
+    visible.forEach(el => { el.style.display = ''; frag.append(el); });
     ctxMenu.append(frag);
   }
 
@@ -1282,16 +1289,46 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
+  function getSource(trigger) {
+    if (trigger.classList.contains('track-ctx-trigger')) return 'track';
+    if (trigger.classList.contains('artist-ctx-trigger') || trigger.classList.contains('card-dots')) return 'artist';
+    return 'dj';
+  }
+
   function openCtxMenu(e, trigger, source) {
     e.preventDefault();
     e.stopPropagation();
     clearTimeout(ctxHideTimer);
-    ctxData = { dj: trigger.dataset.dj, artist: trigger.dataset.artist, set: trigger.dataset.setUrl || '' };
+    // If clicking the same dots that's already open, close instead
+    if (trigger.classList.contains('card-dots') && ctxActiveDots === trigger) {
+      closeCtxMenu();
+      return;
+    }
+    if (ctxActiveDots) ctxActiveDots.classList.remove('dots-open');
+    ctxData = { dj: trigger.dataset.dj, artist: trigger.dataset.artist, set: trigger.dataset.setUrl || '', track: trigger.dataset.trackUrl || '' };
     reorderCtxMenu(source);
-    positionCtxMenu(e.clientX, e.clientY);
+    if (trigger.classList.contains('card-dots')) {
+      trigger.classList.add('dots-open');
+      ctxActiveDots = trigger;
+    }
+    // Position below the card on mobile, at click point otherwise
+    if (isMobileView() && trigger.classList.contains('card-dots')) {
+      const card = trigger.closest('.mobile-carousel-card');
+      if (card) {
+        const rect = card.getBoundingClientRect();
+        positionCtxMenu(16, rect.bottom + 6);
+      } else {
+        positionCtxMenu(e.clientX, e.clientY);
+      }
+    } else {
+      positionCtxMenu(e.clientX, e.clientY);
+    }
   }
 
-  function closeCtxMenu() { ctxMenu.classList.remove('open'); }
+  function closeCtxMenu() {
+    ctxMenu.classList.remove('open');
+    if (ctxActiveDots) { ctxActiveDots.classList.remove('dots-open'); ctxActiveDots = null; }
+  }
   function scheduleClose() { ctxHideTimer = setTimeout(closeCtxMenu, 200); }
 
   // Desktop: hover to open
@@ -1300,8 +1337,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     const trigger = e.target.closest(CTX_SELECTOR);
     if (!trigger) return;
     clearTimeout(ctxHideTimer);
-    const source = trigger.classList.contains('artist-name') ? 'artist' : 'dj';
-    ctxData = { dj: trigger.dataset.dj, artist: trigger.dataset.artist, set: trigger.dataset.setUrl || '' };
+    const source = getSource(trigger);
+    ctxData = { dj: trigger.dataset.dj, artist: trigger.dataset.artist, set: trigger.dataset.setUrl || '', track: trigger.dataset.trackUrl || '' };
     reorderCtxMenu(source);
     const rect = trigger.getBoundingClientRect();
     positionCtxMenu(rect.left, rect.bottom + 4);
@@ -1318,14 +1355,18 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Click handling
   document.addEventListener('click', (e) => {
     const trigger = e.target.closest(CTX_SELECTOR);
+    // Dots button always opens on click (desktop & mobile)
+    if (trigger && trigger.classList.contains('card-dots')) {
+      openCtxMenu(e, trigger, getSource(trigger));
+      return;
+    }
     if (trigger && !isMobileView()) {
       e.preventDefault();
       e.stopPropagation();
       return;
     }
     if (trigger && isMobileView()) {
-      const source = trigger.classList.contains('artist-name') ? 'artist' : 'dj';
-      openCtxMenu(e, trigger, source);
+      openCtxMenu(e, trigger, getSource(trigger));
       return;
     }
     if (!ctxMenu.contains(e.target)) closeCtxMenu();
@@ -1335,11 +1376,26 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (e.key === 'Escape') closeCtxMenu();
   });
 
-  // Context menu item clicks (no-op for now)
+  // Context menu actions
   ctxMenu.addEventListener('click', (e) => {
     const item = e.target.closest('.ctx-item');
     if (!item) return;
-    console.log('Context menu:', item.dataset.action, ctxData);
+    const action = item.dataset.action;
+
+    if (action === 'view-track' && ctxData.track) {
+      window.open(ctxData.track, '_blank', 'noopener');
+    } else if (action === 'view-set' && ctxData.set) {
+      window.open(ctxData.set, '_blank', 'noopener');
+    } else if (action === 'filter-dj' && ctxData.dj) {
+      filterCtrl.addDjFilter({ display: ctxData.dj });
+      filtersDirty = false;
+      shuffle();
+    } else if (action === 'filter-artist' && ctxData.artist) {
+      filterCtrl.addSearchFilter({ display: ctxData.artist });
+      filtersDirty = false;
+      shuffle();
+    }
+
     closeCtxMenu();
   });
 

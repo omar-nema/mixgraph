@@ -11,6 +11,7 @@ let clusterArtistFilters = []; // [{ display }] — artist filters (from cluster
 let clusterDjFilters = [];     // [{ display }] — DJ filters (from cluster pills)
 let genreFilters = [];   // ['Soul', 'Jazz', ...]
 let genreSearchFilters = []; // [{display, parent}] — genre search chips
+let filtersDirty = false; // true when filters changed inside an open popover
 let shuffleHistory = new Set();  // track seen root IDs to avoid repeats
 let lastPoolSize = 0;    // pool size from last shuffle response
 let nodes = [];

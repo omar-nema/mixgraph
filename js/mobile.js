@@ -48,9 +48,9 @@ function showClusterMobile(cluster) {
     Object.values(popovers).forEach(p => { if (p) p.classList.remove('open'); });
     popoverBackdrop.classList.remove('open');
     document.querySelectorAll('.mobile-filter-pill').forEach(p => p.classList.remove('semi-open'));
-    if (andReshuffle && anyOpen) {
-      const hasFilters = genreFilters.length > 0 || searchFilters.length > 0 || djSearchFilters.length > 0 || clusterArtistFilters.length > 0 || clusterDjFilters.length > 0;
-      if (hasFilters) shuffle();
+    if (andReshuffle && anyOpen && filtersDirty) {
+      filtersDirty = false;
+      shuffle();
     }
   }
   function openPopover(name, pillEl) {
@@ -59,8 +59,7 @@ function showClusterMobile(cluster) {
     const already = popover.classList.contains('open');
     closePopovers(false);
     if (already) {
-      const hasFilters = genreFilters.length > 0 || searchFilters.length > 0 || djSearchFilters.length > 0 || clusterArtistFilters.length > 0 || clusterDjFilters.length > 0;
-      if (hasFilters) shuffle();
+      if (filtersDirty) { filtersDirty = false; shuffle(); }
       return;
     }
     // Position popover below the pill row
@@ -145,13 +144,46 @@ function updateMobileSources(graphId) {
     const row = document.createElement('div');
     row.className = 'mobile-source-row';
     const srcArray = [...sources.values()];
-    const textSpan = document.createElement('span');
-    textSpan.className = 'mobile-source-text';
-    textSpan.innerHTML = 'Mixed by ' + srcArray.map(src =>
-      `<a href="${src.url}" target="_blank" rel="noopener" data-dj="${src.dj}" data-artist="${node.artist}" data-set-url="${src.url}">${src.dj}</a>`
-    ).join(', ');
-    textSpan.classList.add('dj-line');
-    row.appendChild(textSpan);
+    const djLabel = document.createElement('span');
+    djLabel.className = 'mobile-source-label';
+    djLabel.textContent = 'Mixed by';
+    row.appendChild(djLabel);
+    const djWrap = document.createElement('span');
+    djWrap.className = 'mobile-source-pills dj-line';
+    for (const src of srcArray) {
+      const pill = document.createElement('a');
+      pill.className = 'mobile-source-pill';
+      pill.href = src.url;
+      pill.target = '_blank';
+      pill.rel = 'noopener';
+      pill.dataset.dj = src.dj;
+      pill.dataset.artist = node.artist;
+      pill.dataset.setUrl = src.url;
+      pill.textContent = src.dj;
+      djWrap.appendChild(pill);
+    }
+    row.appendChild(djWrap);
+    // Genre pills
+    const genres = node.genres || [];
+    if (genres.length > 0) {
+      const sep = document.createElement('span');
+      sep.className = 'mobile-source-sep';
+      sep.textContent = '•';
+      row.appendChild(sep);
+      const genreLabel = document.createElement('span');
+      genreLabel.className = 'mobile-source-label';
+      genreLabel.textContent = 'Genres';
+      row.appendChild(genreLabel);
+      const genreWrap = document.createElement('span');
+      genreWrap.className = 'mobile-genre-pills';
+      for (const g of genres) {
+        const pill = document.createElement('span');
+        pill.className = 'mobile-genre-pill';
+        pill.textContent = g;
+        genreWrap.appendChild(pill);
+      }
+      row.appendChild(genreWrap);
+    }
     sourcesEl.appendChild(row);
   }
 }
@@ -224,9 +256,11 @@ function makeCarouselCard(node) {
       ${mobileArtHtml(node)}
     </div>
     <div class="mc-title">${node.title}</div>
-    <div class="mc-artist">${node.artist}</div>`;
+    <div class="mc-artist">${node.artist}</div>
+    <button class="card-dots" aria-label="More options" data-artist="${node.artist}" data-dj="${(node.djs && node.djs.length) ? node.djs[0].name : ''}" data-set-url="${node.setUrl || (node.djs && node.djs.length ? node.djs[0].episodeUrl || '' : '')}" data-track-url="${node.scTrackUrl || ''}"><svg viewBox="0 0 24 24" fill="currentColor"><circle class="dot dot-top" cx="12" cy="5" r="1.5"/><circle class="dot dot-mid" cx="12" cy="12" r="1.5"/><circle class="dot dot-bot" cx="12" cy="19" r="1.5"/><line class="x-line" x1="8" y1="8" x2="16" y2="16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line class="x-line" x1="16" y1="8" x2="8" y2="16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>`;
 
-  card.addEventListener('click', () => {
+  card.addEventListener('click', (e) => {
+    if (e.target.closest('.card-dots')) return;
     // Scroll item to center if not already centered
     const carousel = document.getElementById('mobile-carousel');
     const itemCenter = item.offsetLeft + item.offsetWidth / 2;
@@ -234,6 +268,7 @@ function makeCarouselCard(node) {
     if (Math.abs(itemCenter - viewCenter) > 20) {
       carousel.scrollTo({ left: item.offsetLeft - (carousel.clientWidth - item.offsetWidth) / 2, behavior: 'smooth' });
     }
+    if (card.classList.contains('selected')) return;
     if (hasAudio) selectMobileTrack(node.id);
     else updateMobileSources(node.graphId);
   });

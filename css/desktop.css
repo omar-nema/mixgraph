@@ -14,7 +14,7 @@ html { background: #f5f5f7; }
   --surface-elevated: color-mix(in srgb, white 30%, var(--bg));
 
   /* Text */
-  --text-primary: #22222a;
+  --text-primary: #000000;
   --text-secondary: #6b6b78;
   --text-tertiary: #9696a4;
 
@@ -244,6 +244,8 @@ body {
   stroke-linejoin: round;
 }
 
+.card-dots { display: none; }
+
 .card-footer {
   border-top: 1px solid var(--card-border);
   border-radius: 0 0 var(--card-radius) var(--card-radius);
@@ -309,7 +311,7 @@ body.night .card-footer button:active { background: rgba(255,255,255,0.1); }
 body.night .mode-tab:not(.active):hover { background: none; }
 .mode-tab.active {
   color: var(--connection-highlight);
-  font-weight: 300;
+  font-weight: 400;
   border-bottom: 2px solid transparent;
   background: none;
   box-shadow: none;
@@ -1050,20 +1052,48 @@ body.crates-mode { overflow: hidden; }
   border-color: var(--accent-wash-border);
   color: var(--accent);
 }
+.pill-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 6px;
+  opacity: 0.45;
+  position: relative;
+  width: 14px;
+  height: 14px;
+}
+.pill-icon svg { position: absolute; transition: opacity 0.2s ease, transform 0.2s ease; }
+.pill-icon .icon-caret { opacity: 1; transform: scale(1); }
+.pill-icon .icon-x { opacity: 0; transform: scale(0.5); }
+.filter-pill.active .pill-icon { opacity: 0.7; }
+.filter-pill.active .pill-icon .icon-caret { opacity: 0; transform: scale(0.5); }
+.filter-pill.active .pill-icon .icon-x { opacity: 1; transform: scale(1); }
+.filter-pill.active .pill-icon:hover { opacity: 1; }
 .filter-dot {
   color: var(--text-tertiary);
   font-size: 18px;
   padding: 0 4px;
   user-select: none;
 }
-.filter-shuffle {
+.filter-shuffle,
+.filter-shuffle:hover,
+.filter-shuffle:active,
+.filter-shuffle.active {
   background: var(--accent);
   border-color: var(--accent);
   color: #fff;
+  padding: 6px 16px;
 }
 .filter-shuffle:hover {
-  background: var(--accent-bold);
-  border-color: var(--accent-bold);
+  background: color-mix(in oklch, var(--accent) 85%, white);
+}
+.filter-shuffle.squish {
+  animation: squish 0.15s ease;
+}
+@keyframes squish {
+  0% { transform: scale(1); }
+  40% { transform: scale(0.92, 0.96); }
+  100% { transform: scale(1); }
 }
 .filter-shuffle svg {
   flex-shrink: 0;
@@ -1127,7 +1157,7 @@ body.night .filter-popover { background: var(--surface-elevated); box-shadow: 0 
   opacity: 0.6;
 }
 .filter-popover { flex-direction: column; }
-.filter-popover.open { display: flex; }
+.filter-popover.open { display: flex; animation: ctx-fade-in 0.12s ease-out; }
 
 /* Search input inside popovers */
 #find-chips-input, #dj-chips-input, #genre-chips-input {

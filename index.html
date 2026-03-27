@@ -115,13 +115,13 @@
     <div id="filter-row">
       <div id="filter-row-left">
         <div id="genre-pill-anchor">
-          <button class="filter-pill" id="pill-genre">Genre</button>
+          <button class="filter-pill" id="pill-genre">Genre<span class="pill-icon" data-filter="genre"><svg class="icon-caret" viewBox="0 0 12 12" width="14" height="14"><path d="M2 4.5L6 8.5L10 4.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg><svg class="icon-x" viewBox="0 0 12 12" width="14" height="14"><path d="M3 3L9 9M9 3L3 9" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></span></button>
         </div>
         <div id="artist-pill-anchor">
-          <button class="filter-pill" id="pill-artist">Artist</button>
+          <button class="filter-pill" id="pill-artist">Artist<span class="pill-icon" data-filter="artist"><svg class="icon-caret" viewBox="0 0 12 12" width="14" height="14"><path d="M2 4.5L6 8.5L10 4.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg><svg class="icon-x" viewBox="0 0 12 12" width="14" height="14"><path d="M3 3L9 9M9 3L3 9" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></span></button>
         </div>
         <div id="dj-pill-anchor">
-          <button class="filter-pill" id="pill-dj">DJ</button>
+          <button class="filter-pill" id="pill-dj">DJ<span class="pill-icon" data-filter="dj"><svg class="icon-caret" viewBox="0 0 12 12" width="14" height="14"><path d="M2 4.5L6 8.5L10 4.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg><svg class="icon-x" viewBox="0 0 12 12" width="14" height="14"><path d="M3 3L9 9M9 3L3 9" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></span></button>
         </div>
         <span class="filter-dot">•</span>
         <button class="filter-pill filter-shuffle" id="filter-shuffle-btn"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/><line x1="4" y1="4" x2="9" y2="9"/></svg> Shuffle</button>
@@ -289,15 +289,15 @@
     <div id="artist-autocomplete"></div>
   </div>
 
-  <!-- Context menu for DJ/artist names -->
+  <!-- Context menu for DJ/artist/track names -->
   <div id="card-context-menu">
+    <button class="ctx-item" data-action="view-track">
+      <svg viewBox="0 0 16 16" width="14" height="14"><path d="M9 2h5v5" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M14 2L7.5 8.5" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/><path d="M12 9v3a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h3" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      View track
+    </button>
     <button class="ctx-item" data-action="filter-dj">
       <svg viewBox="0 0 16 16" width="14" height="14"><circle cx="8" cy="5" r="3" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M2 14c0-3.3 2.7-6 6-6s6 2.7 6 6" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
       Filter for DJ
-    </button>
-    <button class="ctx-item" data-action="filter-set">
-      <svg viewBox="0 0 16 16" width="14" height="14"><rect x="2" y="2" width="12" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M6.5 5v6l5-3z" fill="currentColor"/></svg>
-      Filter for tracks from this set
     </button>
     <button class="ctx-item" data-action="filter-artist">
       <svg viewBox="0 0 16 16" width="14" height="14"><path d="M8 2v8" stroke="currentColor" stroke-width="1.5" fill="none"/><circle cx="5.5" cy="10" r="2.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M10.5 2h2v3" stroke="currentColor" stroke-width="1.5" fill="none"/></svg>

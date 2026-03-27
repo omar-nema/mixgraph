@@ -82,6 +82,7 @@ async function initFilters() {
   // ── Filter state management ──
   function modifyFilter(arr, action, renderFn) {
     action(arr);
+    filtersDirty = true;
     shuffleHistory.clear();
     renderFn();
     updateFilterUI();
@@ -123,6 +124,7 @@ async function initFilters() {
     for (const name of names) {
       if (!genreFilters.includes(name)) genreFilters.push(name);
     }
+    filtersDirty = true;
     shuffleHistory.clear();
     syncGenrePillHighlights();
     renderGenreChips();
@@ -143,6 +145,7 @@ async function initFilters() {
         }
       }
     }
+    filtersDirty = true;
     shuffleHistory.clear();
     syncGenrePillHighlights();
     renderGenreChips();
@@ -165,6 +168,7 @@ async function initFilters() {
     } else {
       genreFilters.push(name);
     }
+    filtersDirty = true;
     shuffleHistory.clear();
     syncGenrePillHighlights();
     updateFilterUI();
@@ -177,6 +181,7 @@ async function initFilters() {
     clusterDjFilters = [];
     genreFilters = [];
     genreSearchFilters = [];
+    filtersDirty = true;
     shuffleHistory.clear();
     document.querySelectorAll('.genre-pill.selected').forEach(p => p.classList.remove('selected'));
     renderAllChips();
@@ -288,7 +293,14 @@ async function initFilters() {
   const djPopover = document.getElementById('dj-popover');
 
   // Filter row shuffle button
-  document.getElementById('filter-shuffle-btn').addEventListener('click', shuffle);
+  const filterShuffleBtn = document.getElementById('filter-shuffle-btn');
+  filterShuffleBtn.addEventListener('click', () => {
+    filterShuffleBtn.classList.remove('squish');
+    void filterShuffleBtn.offsetWidth; // reflow to restart animation
+    filterShuffleBtn.classList.add('squish');
+    shuffle();
+  });
+  filterShuffleBtn.addEventListener('animationend', () => filterShuffleBtn.classList.remove('squish'));
 
   // Filter row share button
   const filterShareBtn = document.getElementById('filter-share-btn');
@@ -329,8 +341,9 @@ async function initFilters() {
       genrePopover.classList.add('open');
       pillGenreEl.classList.add('semi-open');
       setTimeout(() => genreSearchInput.focus(), 50);
+    } else {
+      reshuffleIfFiltered();
     }
-    reshuffleIfFiltered();
   });
 
   // Artist popover
@@ -344,8 +357,9 @@ async function initFilters() {
       artistPopover.classList.add('open');
       pillArtistEl.classList.add('semi-open');
       setTimeout(() => findSearchInput.focus(), 50);
+    } else {
+      reshuffleIfFiltered();
     }
-    reshuffleIfFiltered();
   });
 
   // DJ popover
@@ -359,15 +373,46 @@ async function initFilters() {
       djPopover.classList.add('open');
       pillDjEl.classList.add('semi-open');
       setTimeout(() => djSearchInput.focus(), 50);
+    } else {
+      reshuffleIfFiltered();
     }
-    reshuffleIfFiltered();
   });
 
   // Re-shuffle when any popover closes (filters apply on close)
   function reshuffleIfFiltered() {
-    const hasFilters = genreFilters.length > 0 || searchFilters.length > 0 || djSearchFilters.length > 0 || clusterArtistFilters.length > 0 || clusterDjFilters.length > 0;
-    if (hasFilters) shuffle();
+    if (!filtersDirty) return;
+    filtersDirty = false;
+    shuffle();
   }
+
+  // Desktop hover-to-open for filter pills
+  let _hoverCloseTimer = null;
+  function setupPillHover(pillEl, popover, searchInput) {
+    function openThis() {
+      clearTimeout(_hoverCloseTimer);
+      const wasOpen = popover.classList.contains('open');
+      closeAllPopovers();
+      positionPopover(popover, pillEl);
+      popover.classList.add('open');
+      pillEl.classList.add('semi-open');
+      if (!wasOpen) setTimeout(() => searchInput.focus(), 50);
+    }
+    function scheduleClose() {
+      _hoverCloseTimer = setTimeout(() => {
+        closeAllPopovers();
+        reshuffleIfFiltered();
+      }, 200);
+    }
+    function cancelClose() { clearTimeout(_hoverCloseTimer); }
+
+    pillEl.addEventListener('mouseenter', () => { if (!isMobileView()) openThis(); });
+    pillEl.addEventListener('mouseleave', () => { if (!isMobileView()) scheduleClose(); });
+    popover.addEventListener('mouseenter', () => { if (!isMobileView()) cancelClose(); });
+    popover.addEventListener('mouseleave', () => { if (!isMobileView()) scheduleClose(); });
+  }
+  setupPillHover(pillGenreEl, genrePopover, genreSearchInput);
+  setupPillHover(pillArtistEl, artistPopover, findSearchInput);
+  setupPillHover(pillDjEl, djPopover, djSearchInput);
 
   // Close popovers on outside click (desktop only — mobile uses backdrop)
   document.addEventListener('click', (e) => {
@@ -393,6 +438,7 @@ async function initFilters() {
     e.stopPropagation();
     genreFilters = [];
     genreSearchFilters = [];
+    filtersDirty = true;
     shuffleHistory.clear();
     document.querySelectorAll('.genre-pill.selected').forEach(p => p.classList.remove('selected'));
     renderGenreChips();
@@ -402,6 +448,7 @@ async function initFilters() {
     e.stopPropagation();
     searchFilters = [];
     clusterArtistFilters = [];
+    filtersDirty = true;
     shuffleHistory.clear();
     renderFindChips();
     updateFilterUI();
@@ -411,6 +458,7 @@ async function initFilters() {
     e.stopPropagation();
     djSearchFilters = [];
     clusterDjFilters = [];
+    filtersDirty = true;
     shuffleHistory.clear();
     renderDjChips();
     updateFilterUI();
@@ -421,6 +469,23 @@ async function initFilters() {
   document.getElementById('genre-clear-btn')?.addEventListener('click', clearGenreFilters);
   document.getElementById('artist-clear-btn')?.addEventListener('click', clearArtistFilters);
   document.getElementById('dj-clear-btn')?.addEventListener('click', clearDjFilters);
+
+  // Pill icon X click — capture phase so it fires before the button's handler
+  document.addEventListener('click', (e) => {
+    const icon = e.target.closest('.pill-icon');
+    if (!icon) return;
+    const pill = icon.closest('.filter-pill');
+    if (!pill || !pill.classList.contains('active')) return;
+    e.stopImmediatePropagation();
+    e.preventDefault();
+    const type = icon.dataset.filter;
+    if (type === 'genre') clearGenreFilters(e);
+    else if (type === 'artist') clearArtistFilters(e);
+    else if (type === 'dj') clearDjFilters(e);
+    filtersDirty = false;
+    closeAllPopovers();
+    shuffle();
+  }, true);
 
   // chips-input click-to-focus is handled by createAc()
 
@@ -556,6 +621,7 @@ async function initFilters() {
     } else {
       filtersArr.push({ display: entry.display, trackIds: entry.trackIds });
     }
+    filtersDirty = true;
     shuffleHistory.clear();
     updateFilterUI();
     updateClusterPills();
@@ -615,5 +681,5 @@ async function initFilters() {
   // Populate cluster pills now that indexes are built
   updateClusterPills();
 
-  return { updateClusterPills, updateFilterUI, closeFindAc, closeDjAc, closeGenreAc, clearAllFilters };
+  return { updateClusterPills, updateFilterUI, closeFindAc, closeDjAc, closeGenreAc, clearAllFilters, addDjFilter, addSearchFilter };
 }

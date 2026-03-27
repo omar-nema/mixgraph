@@ -101,6 +101,7 @@ function enrichNodeFromKV(kvNode, graphId, djNameMap = {}) {
     setSource: kvNode.setSource || null,
     setOffsetSec: kvNode.setOffsetSec || null,
     setDj: kvNode.setDj || null,
+    genres: kvNode.genres || [],
   };
   return n;
 }
@@ -197,6 +198,13 @@ async function selectClusterFromKV(kv, rootId, r1Limit = 4, r2Limit = 1) {
   };
 }
 
+function clusterMeetsMinimum(cluster) {
+  if (!cluster) return false;
+  const r1Count = cluster.nodes.filter(n => n.rank === '1').length;
+  const r2Count = cluster.nodes.filter(n => n.rank === '2').length;
+  return r1Count >= 2 && r2Count >= 2;
+}
+
 // ── Worker entrypoint ──
 
 export default {
@@ -284,11 +292,39 @@ export default {
 
         const r1 = parseInt(q.get('r1')) || 4;
         const r2 = parseInt(q.get('r2')) || 1;
-        const cluster = await selectClusterFromKV(env.GRAPH_KV, picked.id, r1, r2);
+
+        // Re-roll up to 5 times if cluster is too thin (< 2 R1 or < 2 R2)
+        const maxAttempts = 5;
+        const tried = new Set();
+        let cluster = null;
+        for (let attempt = 0; attempt < maxAttempts; attempt++) {
+          if (attempt > 0) {
+            // Pick a new candidate, excluding already-tried roots
+            const retry = unseen.filter(c => !tried.has(c.id));
+            if (retry.length === 0) break;
+            if (hasArtistDjFilter) {
+              picked = retry[Math.floor(Math.random() * retry.length)];
+            } else {
+              let totalW = 0;
+              for (const c of retry) totalW += c.w;
+              let r = Math.random() * totalW;
+              picked = retry[retry.length - 1];
+              for (const c of retry) {
+                r -= c.w;
+                if (r <= 0) { picked = c; break; }
+              }
+            }
+          }
+          tried.add(picked.id);
+          cluster = await selectClusterFromKV(env.GRAPH_KV, picked.id, r1, r2);
+          if (clusterMeetsMinimum(cluster)) break;
+        }
+
         if (!cluster) {
           return jsonResponse({ error: 'Failed to build cluster' }, 500);
         }
         cluster.meta.poolSize = pool.length;
+        cluster.meta.attempts = tried.size;
         return jsonResponse(cluster);
       }
 

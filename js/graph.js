@@ -137,9 +137,10 @@ function renderCards() {
       const s = node.setOffsetSec % 60;
       trackLink += `#t=${m}m${s}s`;
     }
+    const titleData = `data-artist="${node.artist}" data-dj="${allDjs.length ? allDjs[0].name : ''}" data-set-url="${allDjs.length ? (allDjs[0].episodeUrl || '') : ''}" data-track-url="${trackLink || ''}"`;
     const titleTag = trackLink
-      ? `<a href="${trackLink}" class="track-title" target="_blank" rel="noopener">${node.title}</a>`
-      : `<span class="track-title">${node.title}</span>`;
+      ? `<a href="${trackLink}" class="track-title track-ctx-trigger" target="_blank" rel="noopener" ${titleData}>${node.title}</a>`
+      : `<span class="track-title track-ctx-trigger" ${titleData}>${node.title}</span>`;
 
     const cardToolbar = node.rank === 'root' ? `
       <div class="card-toolbar">
@@ -170,7 +171,8 @@ function renderCards() {
         <div class="progress-bar"><div class="bar-track"><div class="bar-fill"></div></div></div>
       </div>
       ${titleTag}
-      <span class="artist-name" data-artist="${node.artist}" data-dj="${allDjs.length ? allDjs[0].name : ''}" data-set-url="${allDjs.length ? (allDjs[0].episodeUrl || '') : ''}">${node.artist}</span>
+      <span class="artist-name"><span class="artist-ctx-trigger" data-artist="${node.artist}" data-dj="${allDjs.length ? allDjs[0].name : ''}" data-set-url="${allDjs.length ? (allDjs[0].episodeUrl || '') : ''}">${node.artist}</span></span>
+      <button class="card-dots" aria-label="More options" data-artist="${node.artist}" data-dj="${allDjs.length ? allDjs[0].name : ''}" data-set-url="${allDjs.length ? (allDjs[0].episodeUrl || '') : ''}" data-track-url="${trackLink || ''}"><svg viewBox="0 0 24 24" fill="currentColor"><circle class="dot dot-top" cx="12" cy="5" r="1.5"/><circle class="dot dot-mid" cx="12" cy="12" r="1.5"/><circle class="dot dot-bot" cx="12" cy="19" r="1.5"/><line class="x-line" x1="8" y1="8" x2="16" y2="16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line class="x-line" x1="16" y1="8" x2="8" y2="16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
       ${djLine}
       ${showMoreFooter}
     `;
