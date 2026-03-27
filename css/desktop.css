@@ -26,6 +26,7 @@ html { background: #f5f5f7; }
   --accent-wash: color-mix(in oklch, var(--accent) 10%, var(--bg));
   --accent-wash-hover: color-mix(in oklch, var(--accent) 16%, var(--bg));
   --accent-wash-active: color-mix(in oklch, var(--accent) 22%, var(--bg));
+  --accent-wash-selected: color-mix(in oklch, var(--accent) 30%, var(--bg));
   --accent-wash-border: color-mix(in oklch, var(--accent) 20%, var(--card-border));
   --accent-bold: color-mix(in oklch, var(--accent) 80%, black);
   --accent-border: color-mix(in oklch, var(--accent) 45%, transparent);
@@ -84,6 +85,7 @@ body.night {
   --accent-wash: color-mix(in oklch, var(--accent) 10%, var(--bg));
   --accent-wash-hover: color-mix(in oklch, var(--accent) 16%, var(--bg));
   --accent-wash-active: color-mix(in oklch, var(--accent) 22%, var(--bg));
+  --accent-wash-selected: color-mix(in oklch, var(--accent) 30%, var(--bg));
   --accent-wash-border: color-mix(in oklch, var(--accent) 20%, var(--card-border));
   --accent-bold: color-mix(in oklch, var(--accent) 80%, black);
   --accent-border: color-mix(in oklch, var(--accent) 45%, transparent);
@@ -107,6 +109,7 @@ body.night .find-chip { background: rgba(255, 255, 255, 0.1); }
 body.night .genre-pill, body.night .cluster-pill { background: rgba(255, 255, 255, 0.12); }
 body.night #find-chips-input, body.night #dj-chips-input, body.night #genre-chips-input, body.night #artist-search { background: var(--bg); }
 body.night .genre-pill.selected, body.night .cluster-pill.added { background: var(--accent); border-color: var(--accent); }
+body.night .filter-pill.active { background: var(--accent-wash-selected); border-color: var(--accent-border); }
 body.night .mode-tab.active { background: none; color: var(--connection-highlight); box-shadow: none; }
 body.night #mode-tabs { background: none; }
 body.night #mobile-mode-tabs { background: var(--toolbar-btn-bg); }
@@ -608,6 +611,15 @@ body.night .mode-tab.active { color: var(--connection-highlight); background: no
   color: var(--text-secondary);
   line-height: 1.3;
   margin-bottom: 6px;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  text-decoration-color: var(--card-border);
+  cursor: pointer;
+  transition: color 0.15s ease, text-decoration-color 0.15s ease;
+}
+.node-card .artist-name:hover {
+  color: var(--text-primary);
+  text-decoration-color: var(--text-secondary);
 }
 
 .node-card[data-rank="root"] .track-title { font-size: 22px; }
@@ -1196,6 +1208,79 @@ body.night .filter-popover { background: var(--surface-elevated); box-shadow: 0 
   letter-spacing: 0.06em;
   color: var(--text-tertiary);
   padding: 8px 14px 4px;
+}
+
+/* ═══════════════════════════════════════════
+   Card Context Menu
+   ═══════════════════════════════════════════ */
+#card-context-menu {
+  display: none;
+  position: fixed;
+  z-index: 400;
+  min-width: 200px;
+  padding: 4px;
+  background: color-mix(in srgb, var(--bg) 80%, transparent);
+  -webkit-backdrop-filter: blur(40px) saturate(1.6);
+  backdrop-filter: blur(40px) saturate(1.6);
+  border: 1px solid color-mix(in srgb, var(--card-border) 60%, transparent);
+  border-radius: 10px;
+  box-shadow:
+    0 0 0 0.5px rgba(0,0,0,0.06),
+    0 8px 40px rgba(42, 37, 32, 0.18),
+    0 2px 8px rgba(42, 37, 32, 0.08);
+  flex-direction: column;
+  font-family: var(--font);
+  animation: ctx-fade-in 0.12s ease-out;
+}
+#card-context-menu.open { display: flex; }
+
+body.night #card-context-menu {
+  background: color-mix(in srgb, var(--bg) 72%, transparent);
+  border-color: color-mix(in srgb, var(--card-border) 50%, transparent);
+  box-shadow:
+    0 0 0 0.5px rgba(255,255,255,0.06),
+    0 8px 40px rgba(0, 0, 0, 0.45),
+    0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.ctx-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 12px;
+  font-size: 13px;
+  font-weight: 400;
+  font-family: var(--font);
+  color: var(--text-primary);
+  background: none;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.08s ease;
+}
+.ctx-item:hover {
+  background: color-mix(in srgb, var(--connection-highlight) 14%, transparent);
+}
+.ctx-item:active {
+  background: color-mix(in srgb, var(--connection-highlight) 22%, transparent);
+}
+.ctx-item svg {
+  flex-shrink: 0;
+  opacity: 0.65;
+}
+
+.ctx-separator {
+  height: 1px;
+  margin: 3px 8px;
+  background: var(--card-border);
+  opacity: 0.5;
+}
+
+@keyframes ctx-fade-in {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
 }
 
 /* Genre pills */

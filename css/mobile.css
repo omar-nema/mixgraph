@@ -6,6 +6,7 @@
     z-index: 99;
     background: var(--bg);
     border-top: 1px solid var(--card-border);
+    transition: transform 0.3s ease;
   }
   #sc-widget {
     position: static;
@@ -15,11 +16,9 @@
     z-index: 99;
     filter: hue-rotate(215deg);
   }
-  /* Hide player in crates mode unless a track is loaded */
-  body.crates-mode #sc-player-area { transform: translateY(100%); transition: transform 0.25s ease; }
-  body.crates-mode #sc-player-area:has(.sc-active) { transform: translateY(0); }
+  /* Hide player in crates mode */
+  body.crates-mode #sc-player-area { transform: translateY(100%); }
   body.crates-mode { padding-bottom: 0 !important; }
-  body.crates-mode:has(.sc-active) { padding-bottom: 84px !important; }
   #filter-row { display: none; }
   #sc-placeholder { display: none; }
   body.night #sc-player-area { background: var(--bg); border-top-color: var(--card-border); }
@@ -146,6 +145,10 @@
   body.night .mobile-filter-pill {
     background: var(--accent-wash);
     border-color: var(--accent-wash);
+  }
+  body.night .mobile-filter-pill.active {
+    background: var(--accent-wash-selected);
+    border-color: var(--accent-border);
   }
 
   #mobile-shuffle-area .mobile-shuffle {
@@ -524,5 +527,20 @@
   /* Theme toggle: hidden on mobile */
   #theme-toggle {
     display: none;
+  }
+
+  /* Context menu: full-width bottom sheet on mobile */
+  #card-context-menu {
+    min-width: unset;
+    width: calc(100% - 32px);
+    left: 16px !important;
+    bottom: 16px !important;
+    top: auto !important;
+    border-radius: 14px;
+    padding: 6px;
+  }
+  .ctx-item {
+    padding: 12px 14px;
+    font-size: 15px;
   }
 }

@@ -65,6 +65,18 @@ function apiGetCratesIndex() {
   return apiFetch('/api/crates-index', { v: 3 });
 }
 
+// ── Telemetry ──
+
+function getAnonId() {
+  let id = localStorage.getItem('_aid');
+  if (!id) { id = crypto.randomUUID(); localStorage.setItem('_aid', id); }
+  return id;
+}
+
+function trackEvent(event) {
+  navigator.sendBeacon(API_BASE + '/api/event', JSON.stringify({ event, uid: getAnonId() }));
+}
+
 function apiGetCratesPage(opts = {}) {
   const params = { seed: opts.seed, page: opts.page, count: opts.count };
   if (opts.genres && opts.genres.length) params.genres = opts.genres.join(',');

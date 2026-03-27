@@ -5,3 +5,6 @@ compatibility_date = "2024-12-01"
 [[kv_namespaces]]
 binding = "GRAPH_KV"
 id = "04f5b3defaf84e6ba843601156adc9d6"
+
+[[analytics_engine_datasets]]
+binding = "EVENTS"

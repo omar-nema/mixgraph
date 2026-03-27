@@ -148,8 +148,9 @@ function updateMobileSources(graphId) {
     const textSpan = document.createElement('span');
     textSpan.className = 'mobile-source-text';
     textSpan.innerHTML = 'Mixed by ' + srcArray.map(src =>
-      `<a href="${src.url}" target="_blank" rel="noopener">${src.dj}</a>`
+      `<a href="${src.url}" target="_blank" rel="noopener" data-dj="${src.dj}" data-artist="${node.artist}" data-set-url="${src.url}">${src.dj}</a>`
     ).join(', ');
+    textSpan.classList.add('dj-line');
     row.appendChild(textSpan);
     sourcesEl.appendChild(row);
   }
@@ -162,6 +163,8 @@ function selectMobileTrack(nodeId) {
   if (!node) return;
   const hasAudio = !!(node.scTrackUrl || node.setUrl);
   if (!hasAudio) return;
+
+  trackEvent('play');
 
   // Update source pills for this track
   updateMobileSources(node.graphId);

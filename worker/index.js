@@ -5,7 +5,7 @@
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, OPTIONS',
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type',
 };
 
@@ -445,6 +445,22 @@ export default {
             'Cache-Control': 'public, max-age=86400, stale-while-revalidate=604800',
           },
         });
+      }
+
+      // POST /api/event — telemetry via Analytics Engine
+      if (request.method === 'POST' && url.pathname === '/api/event') {
+        const { event, uid } = await request.json();
+        const validEvents = ['shuffle', 'play', 'crates'];
+        if (!validEvents.includes(event)) {
+          return jsonResponse({ error: 'Invalid event' }, 400);
+        }
+        const cf = request.cf || {};
+        env.EVENTS.writeDataPoint({
+          blobs: [event, cf.country || '', cf.city || '', uid || ''],
+          doubles: [Date.now()],
+          indexes: [event],
+        });
+        return new Response(null, { status: 204, headers: corsHeaders });
       }
 
       return jsonResponse({ error: 'Not found' }, 404);

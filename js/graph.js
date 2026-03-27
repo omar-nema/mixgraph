@@ -125,8 +125,8 @@ function renderCards() {
       const links = allDjs.map(d => {
         const href = setLink || d.episodeUrl;
         return href
-          ? `<a href="${href}" target="_blank" rel="noopener">${d.name}</a>`
-          : d.name;
+          ? `<a href="${href}" target="_blank" rel="noopener" data-dj="${d.name}" data-artist="${node.artist}" data-set-url="${d.episodeUrl || ''}">${d.name}</a>`
+          : `<span data-dj="${d.name}" data-artist="${node.artist}" class="dj-ctx-trigger">${d.name}</span>`;
       }).join(', ');
       djLine = `<span class="dj-line">Mixed by ${links}</span>`;
     }
@@ -170,7 +170,7 @@ function renderCards() {
         <div class="progress-bar"><div class="bar-track"><div class="bar-fill"></div></div></div>
       </div>
       ${titleTag}
-      <span class="artist-name">${node.artist}</span>
+      <span class="artist-name" data-artist="${node.artist}" data-dj="${allDjs.length ? allDjs[0].name : ''}" data-set-url="${allDjs.length ? (allDjs[0].episodeUrl || '') : ''}">${node.artist}</span>
       ${djLine}
       ${showMoreFooter}
     `;

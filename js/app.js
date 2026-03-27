@@ -159,6 +159,7 @@ function buildFilterParams() {
 
 async function shuffle() {
   if (frozen) return;
+  trackEvent('shuffle');
   showStatus('');
   try {
     const cluster = await apiShuffle(buildFilterParams());
@@ -1017,6 +1018,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       document.body.classList.toggle('crates-mode', mode === 'crates');
       // Lazy init crates — defer so tab switch is instant
       if (mode === 'crates') {
+        trackEvent('crates');
         // Show loading spinner if crates haven't initialized yet
         if (!cratesInitialized) {
           const cl = document.getElementById('crates-loading');
@@ -1240,6 +1242,105 @@ document.addEventListener('DOMContentLoaded', async () => {
     swatch.title = c;
     swatch.addEventListener('click', () => applyAccent(c));
     accentPresets.appendChild(swatch);
+  });
+
+  // ── Card context menu (DJ name click) ──
+  const ctxMenu = document.getElementById('card-context-menu');
+  const ctxItems = {
+    dj: ctxMenu.querySelector('[data-action="filter-dj"]'),
+    set: ctxMenu.querySelector('[data-action="filter-set"]'),
+    artist: ctxMenu.querySelector('[data-action="filter-artist"]'),
+    sep: ctxMenu.querySelector('.ctx-separator'),
+    view: ctxMenu.querySelector('[data-action="view-set"]'),
+  };
+  let ctxData = {};
+  let ctxHideTimer = null;
+
+  const CTX_SELECTOR = '.dj-line a[data-dj], .dj-line .dj-ctx-trigger, .artist-name[data-artist]';
+
+  function reorderCtxMenu(source) {
+    // Reorder: put the triggered type first
+    const frag = document.createDocumentFragment();
+    if (source === 'artist') {
+      frag.append(ctxItems.artist, ctxItems.dj, ctxItems.set, ctxItems.sep, ctxItems.view);
+    } else {
+      frag.append(ctxItems.dj, ctxItems.set, ctxItems.artist, ctxItems.sep, ctxItems.view);
+    }
+    ctxMenu.append(frag);
+  }
+
+  function positionCtxMenu(x, y) {
+    ctxMenu.style.left = x + 'px';
+    ctxMenu.style.top = y + 'px';
+    ctxMenu.classList.add('open');
+    requestAnimationFrame(() => {
+      const rect = ctxMenu.getBoundingClientRect();
+      if (rect.right > window.innerWidth - 8)
+        ctxMenu.style.left = (window.innerWidth - rect.width - 8) + 'px';
+      if (rect.bottom > window.innerHeight - 8)
+        ctxMenu.style.top = (window.innerHeight - rect.height - 8) + 'px';
+    });
+  }
+
+  function openCtxMenu(e, trigger, source) {
+    e.preventDefault();
+    e.stopPropagation();
+    clearTimeout(ctxHideTimer);
+    ctxData = { dj: trigger.dataset.dj, artist: trigger.dataset.artist, set: trigger.dataset.setUrl || '' };
+    reorderCtxMenu(source);
+    positionCtxMenu(e.clientX, e.clientY);
+  }
+
+  function closeCtxMenu() { ctxMenu.classList.remove('open'); }
+  function scheduleClose() { ctxHideTimer = setTimeout(closeCtxMenu, 200); }
+
+  // Desktop: hover to open
+  document.addEventListener('mouseover', (e) => {
+    if (isMobileView()) return;
+    const trigger = e.target.closest(CTX_SELECTOR);
+    if (!trigger) return;
+    clearTimeout(ctxHideTimer);
+    const source = trigger.classList.contains('artist-name') ? 'artist' : 'dj';
+    ctxData = { dj: trigger.dataset.dj, artist: trigger.dataset.artist, set: trigger.dataset.setUrl || '' };
+    reorderCtxMenu(source);
+    const rect = trigger.getBoundingClientRect();
+    positionCtxMenu(rect.left, rect.bottom + 4);
+  });
+
+  document.addEventListener('mouseout', (e) => {
+    if (isMobileView()) return;
+    if (e.target.closest(CTX_SELECTOR)) scheduleClose();
+  });
+
+  ctxMenu.addEventListener('mouseenter', () => clearTimeout(ctxHideTimer));
+  ctxMenu.addEventListener('mouseleave', scheduleClose);
+
+  // Click handling
+  document.addEventListener('click', (e) => {
+    const trigger = e.target.closest(CTX_SELECTOR);
+    if (trigger && !isMobileView()) {
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
+    if (trigger && isMobileView()) {
+      const source = trigger.classList.contains('artist-name') ? 'artist' : 'dj';
+      openCtxMenu(e, trigger, source);
+      return;
+    }
+    if (!ctxMenu.contains(e.target)) closeCtxMenu();
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeCtxMenu();
+  });
+
+  // Context menu item clicks (no-op for now)
+  ctxMenu.addEventListener('click', (e) => {
+    const item = e.target.closest('.ctx-item');
+    if (!item) return;
+    console.log('Context menu:', item.dataset.action, ctxData);
+    closeCtxMenu();
   });
 
 });

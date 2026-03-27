@@ -259,16 +259,25 @@ function setupScWidget(nodeId, card, offsetSec, onError) {
   scWidget.unbind(SC.Widget.Events.FINISH);
   scWidget.unbind(SC.Widget.Events.ERROR);
 
+  let pendingSeekMs = offsetSec ? offsetSec * 1000 : 0;
   scWidget.bind(SC.Widget.Events.READY, () => {
     scWidgetReady = true;
     try { scWidget.play(); } catch (e) {}
-    if (offsetSec) setTimeout(() => scWidget.seekTo(offsetSec * 1000), 800);
   });
   scWidget.bind(SC.Widget.Events.PLAY, () => {
     clearPlayTimeout();
     showScPlayer();
     if (card) { hideLoading(card); card.classList.add('playing'); applyGlow(card); }
     startProgressPolling();
+  });
+  // PLAY_PROGRESS fires once audio is actually streaming — safe to seek
+  scWidget.unbind(SC.Widget.Events.PLAY_PROGRESS);
+  scWidget.bind(SC.Widget.Events.PLAY_PROGRESS, () => {
+    if (!pendingSeekMs) return;
+    const target = pendingSeekMs;
+    pendingSeekMs = 0;
+    scWidget.unbind(SC.Widget.Events.PLAY_PROGRESS);
+    scWidget.seekTo(target);
   });
   scWidget.bind(SC.Widget.Events.FINISH, onPlaybackEnded);
   scWidget.bind(SC.Widget.Events.ERROR, onError);
@@ -335,8 +344,6 @@ function playMixcloud(nodeId, mixcloudUrl, offsetSec) {
   currentlyPlayingId = nodeId;
   currentBackend = 'mc';
   playingSetOffset = offsetSec ? offsetSec * 1000 : 0;
-  if (card) { card.classList.add('playing'); applyGlow(card); }
-
   // Mixcloud widget needs the path, not the full URL
   const mcPath = mixcloudUrl.replace(/^https?:\/\/(www\.)?mixcloud\.com/, '');
   const iframe = document.getElementById('mc-widget');
@@ -426,6 +433,7 @@ function togglePlay(nodeId) {
   }
 
   // Different track — stop current, start new
+  trackEvent('play');
   stopCurrentPlayback();
 
   if (node.scTrackUrl) {
