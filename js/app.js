@@ -604,7 +604,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       const cards = [...stack.querySelectorAll('.crate-card')];
       const numCards = cards.length;
       let activeIdx = numCards - 1, lastX = 0, lastY = 0, accum = 0, enterTime = 0;
-      const threshold = 30;
+      const threshold = 24;
       const deadZone = 150;
       function applyActive() {
         cards.forEach((card, i) => {
@@ -1387,8 +1387,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Click handling
   document.addEventListener('click', (e) => {
-    // Genre pill click → open genre context menu
-    const genrePill = e.target.closest('.mobile-genre-pill[data-genre]');
+    // Genre pill click → open genre context menu (mobile + desktop)
+    const genrePill = e.target.closest('.mobile-genre-pill[data-genre], .desktop-genre-pill[data-genre]');
     if (genrePill) {
       e.preventDefault();
       e.stopPropagation();
@@ -1396,14 +1396,18 @@ document.addEventListener('DOMContentLoaded', async () => {
       ctxData = { genre: genrePill.dataset.genre };
       ctxItems.genre.innerHTML = '<svg viewBox="0 0 16 16" width="14" height="14"><path d="M2 4h12M4 8h8M6 12h4" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg> Filter for ' + genrePill.dataset.genre;
       reorderCtxMenu('genre');
-      // Position below the selected card on mobile
-      const selCard = document.querySelector('.mobile-carousel-card.selected');
-      if (selCard) {
-        const rect = selCard.getBoundingClientRect();
-        positionCtxMenu(16, rect.bottom + 6);
+      if (isMobileView()) {
+        const selCard = document.querySelector('.mobile-carousel-card.selected');
+        if (selCard) {
+          const rect = selCard.getBoundingClientRect();
+          positionCtxMenu(16, rect.bottom + 6);
+        } else {
+          const rect = genrePill.getBoundingClientRect();
+          positionCtxMenu(rect.left, rect.bottom + 6);
+        }
       } else {
         const rect = genrePill.getBoundingClientRect();
-        positionCtxMenu(rect.left, rect.bottom + 6);
+        positionCtxMenu(rect.left, rect.top - 4);
       }
       return;
     }

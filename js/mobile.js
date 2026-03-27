@@ -150,7 +150,8 @@ function updateMobileSources(graphId) {
     row.appendChild(djLabel);
     const djWrap = document.createElement('span');
     djWrap.className = 'mobile-source-pills dj-line';
-    for (const src of srcArray) {
+    srcArray.forEach((src, i) => {
+      if (i > 0) djWrap.appendChild(document.createTextNode(', '));
       const pill = document.createElement('a');
       pill.className = 'mobile-source-pill';
       pill.href = src.url;
@@ -161,9 +162,9 @@ function updateMobileSources(graphId) {
       pill.dataset.setUrl = src.url;
       pill.textContent = src.dj;
       djWrap.appendChild(pill);
-    }
+    });
     row.appendChild(djWrap);
-    // Genre pills
+    // Genre names
     const genres = node.genres || [];
     if (genres.length > 0) {
       const sep = document.createElement('span');
@@ -176,13 +177,14 @@ function updateMobileSources(graphId) {
       row.appendChild(genreLabel);
       const genreWrap = document.createElement('span');
       genreWrap.className = 'mobile-genre-pills';
-      for (const g of genres) {
+      genres.forEach((g, i) => {
+        if (i > 0) genreWrap.appendChild(document.createTextNode(', '));
         const pill = document.createElement('span');
         pill.className = 'mobile-genre-pill';
         pill.dataset.genre = g;
         pill.textContent = g;
         genreWrap.appendChild(pill);
-      }
+      });
       row.appendChild(genreWrap);
     }
     sourcesEl.appendChild(row);
