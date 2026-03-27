@@ -46,6 +46,7 @@
 
   /* Hide desktop-only elements */
   #graph-viewport { display: none; }
+  #desktop-genres { display: none !important; }
   #dev-toggle { display: none; }
   #dev-panel { display: none; }
   #toolbar { display: none; }
@@ -142,7 +143,11 @@
   .mobile-filter-pill.semi-open {
     border-color: var(--accent-border);
   }
-  body.night .mobile-filter-pill {
+  body.night .mobile-filter-pill,
+  body.night #mobile-help-btn,
+  body.night #mobile-header-share,
+  body.night .mobile-source-pill,
+  body.night .mobile-genre-pill {
     background: var(--accent-wash);
     border-color: var(--accent-wash);
   }
@@ -338,7 +343,7 @@
     width: calc(100vw - 16px);
     max-height: calc(100vh - 64px - env(safe-area-inset-top, 0px));
     overflow-y: auto;
-    background: color-mix(in srgb, var(--card-bg) 92%, transparent);
+    background: color-mix(in srgb, var(--bg) 92%, transparent);
     -webkit-backdrop-filter: blur(20px) saturate(1.4);
     backdrop-filter: blur(20px) saturate(1.4);
     border: 1px solid var(--card-border);
@@ -350,6 +355,7 @@
     animation: mobile-help-in 0.2s ease;
   }
   #mobile-help-panel.visible { display: block; }
+  body.night #mobile-help-panel { background: var(--surface-elevated); box-shadow: 0 8px 30px rgba(0,0,0,0.5); }
   #mobile-help-panel h3 {
     font-size: 16px;
     font-weight: 600;
@@ -473,14 +479,16 @@
   /* ── Source pills ── */
   #mobile-sources {
     flex-shrink: 0;
-    padding: 8px 16px 0;
-    margin-top: 8px;
+    padding: 0 16px;
   }
   .mobile-source-row {
     overflow-x: auto;
     scrollbar-width: none;
-
     white-space: nowrap;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    padding: 10px 0;
   }
   .mobile-source-row::-webkit-scrollbar { display: none; }
   .mobile-source-label {
@@ -500,10 +508,11 @@
     font-weight: 300;
     padding: 1px 7px;
     border-radius: 9px;
-    background: color-mix(in srgb, var(--text-tertiary) 12%, transparent);
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
     color: var(--text-tertiary);
     white-space: nowrap;
-    text-decoration: none;
+    text-decoration: none !important;
   }
   .mobile-source-sep {
     color: var(--text-tertiary);
@@ -551,19 +560,42 @@
     width: calc(100% - 32px);
     left: 16px !important;
     border-radius: 14px;
-    padding: 6px;
+    padding: 0 6px 6px;
+  }
+  .ctx-close {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: calc(100% + 12px);
+    margin: 0 -6px 4px;
+    padding: 6px 0;
+    color: var(--text-secondary);
+    background: color-mix(in srgb, var(--card-bg) 85%, var(--text-primary));
+    border: none;
+    border-radius: 14px 14px 0 0;
+    cursor: pointer;
   }
   .ctx-item {
     padding: 9px 11px;
     font-size: 14px;
   }
 
+  /* Info row: text + dots button */
+  .mc-info-row {
+    display: flex;
+    align-items: flex-end;
+    gap: 4px;
+  }
+  .mc-info-text {
+    flex: 1;
+    min-width: 0;
+  }
+
   /* Triple-dot menu trigger on cards */
   .card-dots {
     display: flex;
-    position: absolute;
-    bottom: 10px;
-    right: 4px;
+    flex-shrink: 0;
+    position: static;
     background: none;
     border: none;
     color: var(--text-primary);

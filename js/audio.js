@@ -1,6 +1,9 @@
 // ═══════════════════════════════════════════
 // Playback state machine
 // ═══════════════════════════════════════════
+// ?noplay query param suppresses all audio playback (for automated testing)
+const AUDIO_SUPPRESSED = new URLSearchParams(window.location.search).has('noplay');
+
 let currentlyPlayingId = null;
 let currentBackend = null; // "sc" | "mc" | null
 let scWidget = null;
@@ -284,6 +287,7 @@ function setupScWidget(nodeId, card, offsetSec, onError) {
 }
 
 function playSC(nodeId, trackUrl) {
+  if (AUDIO_SUPPRESSED) return;
   if (!initSCWidget()) {
     const node = nodeMap[nodeId];
     if (node && node.setUrl) { playSet(nodeId); }
@@ -312,6 +316,7 @@ function playSC(nodeId, trackUrl) {
 }
 
 function playSCSet(nodeId, setUrl, offsetSec) {
+  if (AUDIO_SUPPRESSED) return;
   if (!initSCWidget()) return;
 
   const { card } = prepareCardForPlayback(nodeId, 'set');
@@ -340,6 +345,7 @@ function hideMcPlayer() {
 }
 
 function playMixcloud(nodeId, mixcloudUrl, offsetSec) {
+  if (AUDIO_SUPPRESSED) return;
   const { card, btn } = prepareCardForPlayback(nodeId, 'set');
   currentlyPlayingId = nodeId;
   currentBackend = 'mc';
@@ -384,6 +390,7 @@ function playMixcloud(nodeId, mixcloudUrl, offsetSec) {
 }
 
 function playSet(nodeId) {
+  if (AUDIO_SUPPRESSED) return false;
   const node = nodeMap[nodeId];
   if (!node || !node.setUrl) return false;
 

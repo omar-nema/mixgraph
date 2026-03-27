@@ -82,11 +82,11 @@ body.night {
   /* Accent */
   --accent: #4a95f8;
   --connection-highlight: var(--accent);
-  --accent-wash: color-mix(in oklch, var(--accent) 10%, var(--bg));
-  --accent-wash-hover: color-mix(in oklch, var(--accent) 16%, var(--bg));
-  --accent-wash-active: color-mix(in oklch, var(--accent) 22%, var(--bg));
-  --accent-wash-selected: color-mix(in oklch, var(--accent) 30%, var(--bg));
-  --accent-wash-border: color-mix(in oklch, var(--accent) 20%, var(--card-border));
+  --accent-wash: color-mix(in oklch, var(--accent) 14%, var(--bg));
+  --accent-wash-hover: color-mix(in oklch, var(--accent) 20%, var(--bg));
+  --accent-wash-active: color-mix(in oklch, var(--accent) 26%, var(--bg));
+  --accent-wash-selected: color-mix(in oklch, var(--accent) 34%, var(--bg));
+  --accent-wash-border: color-mix(in oklch, var(--accent) 24%, var(--card-border));
   --accent-bold: color-mix(in oklch, var(--accent) 80%, black);
   --accent-border: color-mix(in oklch, var(--accent) 45%, transparent);
   --accent-fill-soft: color-mix(in oklch, var(--accent) 40%, white);
@@ -103,7 +103,7 @@ body.night .progress-bar .bar-track { background: rgba(255,255,255,0.2); border-
 body.night .progress-bar .bar-fill { background: var(--accent-fill-soft); }
 body.night .node-card.loading::after { background: linear-gradient(90deg, transparent 25%, rgba(255,255,255,0.06) 50%, transparent 75%); background-size: 200% 100%; animation: card-shimmer 2.5s ease-in-out infinite; }
 body.night #help-overlay { background: rgba(0, 0, 0, 0.6); }
-body.night #help-modal { box-shadow: 0 8px 40px rgba(0, 0, 0, 0.5); }
+body.night #help-modal { background: var(--surface-elevated); box-shadow: 0 8px 40px rgba(0, 0, 0, 0.5); }
 body.night #find-popover { box-shadow: 0 8px 40px rgba(0, 0, 0, 0.5); }
 body.night .find-chip { background: rgba(255, 255, 255, 0.1); }
 body.night .genre-pill, body.night .cluster-pill { background: rgba(255, 255, 255, 0.12); }
@@ -245,6 +245,7 @@ body {
 }
 
 .card-dots { display: none; }
+.ctx-close { display: none; }
 
 .card-footer {
   border-top: 1px solid var(--card-border);
@@ -474,6 +475,36 @@ body.night .mode-tab.active { color: var(--connection-highlight); background: no
   max-width: 1750px;
   margin: 0 auto;
   width: 100%;
+}
+
+#desktop-genres {
+  display: none;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+  position: fixed;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  z-index: 10;
+}
+#desktop-genres.visible { display: flex; }
+#desktop-genres .desktop-genre-label {
+  font-size: 13px;
+  font-weight: 300;
+  color: var(--text-tertiary);
+  margin-right: 2px;
+}
+#desktop-genres .desktop-genre-pill {
+  font-size: 13px;
+  font-weight: 300;
+  padding: 1px 8px;
+  border-radius: 9px;
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  color: var(--text-tertiary);
+  cursor: pointer;
 }
 
 #graph-container {
@@ -1249,15 +1280,12 @@ body.night .filter-popover { background: var(--surface-elevated); box-shadow: 0 
   z-index: 400;
   min-width: 200px;
   padding: 4px;
-  background: color-mix(in srgb, var(--bg) 80%, transparent);
-  -webkit-backdrop-filter: blur(40px) saturate(1.6);
-  backdrop-filter: blur(40px) saturate(1.6);
-  border: 1px solid color-mix(in srgb, var(--card-border) 60%, transparent);
+  background: color-mix(in srgb, var(--bg) 92%, transparent);
+  -webkit-backdrop-filter: blur(20px) saturate(1.4);
+  backdrop-filter: blur(20px) saturate(1.4);
+  border: 1px solid var(--card-border);
   border-radius: 10px;
-  box-shadow:
-    0 0 0 0.5px rgba(0,0,0,0.06),
-    0 8px 40px rgba(42, 37, 32, 0.18),
-    0 2px 8px rgba(42, 37, 32, 0.08);
+  box-shadow: 0 8px 40px rgba(42, 37, 32, 0.15);
   flex-direction: column;
   font-family: var(--font);
   animation: ctx-fade-in 0.12s ease-out;
@@ -1265,12 +1293,8 @@ body.night .filter-popover { background: var(--surface-elevated); box-shadow: 0 
 #card-context-menu.open { display: flex; }
 
 body.night #card-context-menu {
-  background: color-mix(in srgb, var(--bg) 72%, transparent);
-  border-color: color-mix(in srgb, var(--card-border) 50%, transparent);
-  box-shadow:
-    0 0 0 0.5px rgba(255,255,255,0.06),
-    0 8px 40px rgba(0, 0, 0, 0.45),
-    0 2px 8px rgba(0, 0, 0, 0.2);
+  background: var(--surface-elevated);
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.5);
 }
 
 .ctx-item {
@@ -1406,7 +1430,9 @@ body.night #card-context-menu {
   pointer-events: auto;
 }
 #help-modal {
-  background: var(--card-bg);
+  background: color-mix(in srgb, var(--bg) 92%, transparent);
+  -webkit-backdrop-filter: blur(20px) saturate(1.4);
+  backdrop-filter: blur(20px) saturate(1.4);
   border: 1px solid var(--card-border);
   border-radius: 16px;
   box-shadow: 0 8px 40px rgba(42, 37, 32, 0.15);
@@ -1567,18 +1593,7 @@ body.night #card-context-menu {
    Dev Panel (bottom-right)
    ═══════════════════════════════════════════ */
 #dev-toggle {
-  position: fixed;
-  bottom: 12px;
-  right: 12px;
-  width: 36px; height: 36px;
-  border-radius: 50%;
-  border: 1px solid var(--card-border);
-  background: var(--card-bg);
-  cursor: pointer;
-  display: flex; align-items: center; justify-content: center;
-  z-index: 1000;
-  padding: 0;
-  transition: transform 0.2s ease;
+  display: none;
 }
 #dev-toggle:hover { transform: scale(1.1); }
 

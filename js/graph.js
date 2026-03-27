@@ -415,6 +415,8 @@ function clearGraph() {
   // Remove cards and connections
   document.getElementById('nodes-layer').innerHTML = '';
   document.getElementById('connections-layer').innerHTML = '';
+  const dg = document.getElementById('desktop-genres');
+  if (dg) { dg.innerHTML = ''; dg.classList.remove('visible'); }
 
   // Reset transform
   const container = document.getElementById('graph-container');

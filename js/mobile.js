@@ -179,6 +179,7 @@ function updateMobileSources(graphId) {
       for (const g of genres) {
         const pill = document.createElement('span');
         pill.className = 'mobile-genre-pill';
+        pill.dataset.genre = g;
         pill.textContent = g;
         genreWrap.appendChild(pill);
       }
@@ -255,9 +256,13 @@ function makeCarouselCard(node) {
     <div class="mc-art-wrap">
       ${mobileArtHtml(node)}
     </div>
-    <div class="mc-title">${node.title}</div>
-    <div class="mc-artist">${node.artist}</div>
-    <button class="card-dots" aria-label="More options" data-artist="${node.artist}" data-dj="${(node.djs && node.djs.length) ? node.djs[0].name : ''}" data-set-url="${node.setUrl || (node.djs && node.djs.length ? node.djs[0].episodeUrl || '' : '')}" data-track-url="${node.scTrackUrl || ''}"><svg viewBox="0 0 24 24" fill="currentColor"><circle class="dot dot-top" cx="12" cy="5" r="1.5"/><circle class="dot dot-mid" cx="12" cy="12" r="1.5"/><circle class="dot dot-bot" cx="12" cy="19" r="1.5"/><line class="x-line" x1="8" y1="8" x2="16" y2="16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line class="x-line" x1="16" y1="8" x2="8" y2="16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>`;
+    <div class="mc-info-row">
+      <div class="mc-info-text">
+        <div class="mc-title">${node.title}</div>
+        <div class="mc-artist">${node.artist}</div>
+      </div>
+      <button class="card-dots" aria-label="More options" data-artist="${node.artist}" data-dj="${(node.djs && node.djs.length) ? node.djs[0].name : ''}" data-set-url="${node.setUrl || (node.djs && node.djs.length ? node.djs[0].episodeUrl || '' : '')}" data-track-url="${node.scTrackUrl || ''}"><svg viewBox="0 0 24 24" fill="currentColor"><circle class="dot dot-top" cx="12" cy="5" r="1.5"/><circle class="dot dot-mid" cx="12" cy="12" r="1.5"/><circle class="dot dot-bot" cx="12" cy="19" r="1.5"/><line class="x-line" x1="8" y1="8" x2="16" y2="16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line class="x-line" x1="16" y1="8" x2="8" y2="16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
+    </div>`;
 
   card.addEventListener('click', (e) => {
     if (e.target.closest('.card-dots')) return;

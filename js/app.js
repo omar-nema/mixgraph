@@ -110,6 +110,38 @@ function showCluster(cluster) {
   const scaledH = contentH * scale;
   const topOffset = Math.max(0, (vpH - scaledH) / 2);
   container.style.marginTop = topOffset + 'px';
+
+  // Desktop genre pills — intersection of genres across all nodes
+  const desktopGenres = document.getElementById('desktop-genres');
+  const genreSets = nodes.map(n => new Set(n.genres || [])).filter(s => s.size > 0);
+  let commonGenres = [];
+  if (genreSets.length > 0) {
+    commonGenres = [...genreSets[0]].filter(g => genreSets.every(s => s.has(g)));
+    // If intersection is empty, fall back to union
+    if (commonGenres.length === 0) {
+      const all = new Set();
+      genreSets.forEach(s => s.forEach(g => all.add(g)));
+      commonGenres = [...all];
+    }
+  }
+  desktopGenres.innerHTML = '';
+  if (commonGenres.length > 0) {
+    const label = document.createElement('span');
+    label.className = 'desktop-genre-label';
+    label.textContent = 'Genres';
+    desktopGenres.appendChild(label);
+    commonGenres.forEach(g => {
+      const pill = document.createElement('span');
+      pill.className = 'desktop-genre-pill';
+      pill.dataset.genre = g;
+      pill.textContent = g;
+      desktopGenres.appendChild(pill);
+    });
+    desktopGenres.classList.add('visible');
+  } else {
+    desktopGenres.classList.remove('visible');
+  }
+
   if (onClusterShown) onClusterShown();
 }
 
@@ -269,7 +301,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   function applyTheme(isNight) {
     document.body.classList.toggle('night', isNight);
     document.documentElement.classList.toggle('night', isNight);
-    themeBtn.querySelector('.theme-label').textContent = isNight ? 'day' : 'night';
+    themeBtn.querySelector('.theme-label').textContent = isNight ? 'Day' : 'Night';
     themeBtn.querySelectorAll('.sun-icon').forEach(el => el.style.display = isNight ? 'none' : '');
     themeBtn.querySelector('.moon-icon').style.display = isNight ? '' : 'none';
   }
@@ -581,12 +613,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
       }
       stack.addEventListener('mouseenter', e => {
-        // Direction from last position outside any stack
-        const dx = e.clientX - lastOuterX;
-        const dy = e.clientY - lastOuterY;
-        // Moving right/down → entering from left/top → back of stack
-        const fromBack = (dx + dy) > 0;
-        activeIdx = fromBack ? 0 : numCards - 1;
+        // Map cursor X position within crate to a card index
+        const rect = stack.getBoundingClientRect();
+        const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+        activeIdx = Math.round(ratio * (numCards - 1));
         accum = 0; lastX = e.clientX; lastY = e.clientY;
         enterTime = Date.now();
         applyActive(); surface.classList.add('has-hover'); stack.classList.add('hovered');
@@ -1250,6 +1280,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     viewTrack: ctxMenu.querySelector('[data-action="view-track"]'),
     dj: ctxMenu.querySelector('[data-action="filter-dj"]'),
     artist: ctxMenu.querySelector('[data-action="filter-artist"]'),
+    genre: ctxMenu.querySelector('[data-action="filter-genre"]'),
     sep: ctxMenu.querySelector('.ctx-separator'),
     viewSet: ctxMenu.querySelector('[data-action="view-set"]'),
   };
@@ -1265,7 +1296,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     allCtxEls.forEach(el => el.style.display = 'none');
     const frag = document.createDocumentFragment();
     let visible;
-    if (source === 'track') {
+    if (source === 'genre') {
+      visible = [ctxItems.genre];
+    } else if (source === 'track') {
       visible = [ctxItems.viewTrack, ctxItems.sep, ctxItems.artist, ctxItems.dj, ctxItems.viewSet];
     } else if (source === 'artist') {
       visible = [ctxItems.artist, ctxItems.dj, ctxItems.sep, ctxItems.viewSet];
@@ -1354,6 +1387,26 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Click handling
   document.addEventListener('click', (e) => {
+    // Genre pill click → open genre context menu
+    const genrePill = e.target.closest('.mobile-genre-pill[data-genre]');
+    if (genrePill) {
+      e.preventDefault();
+      e.stopPropagation();
+      clearTimeout(ctxHideTimer);
+      ctxData = { genre: genrePill.dataset.genre };
+      ctxItems.genre.innerHTML = '<svg viewBox="0 0 16 16" width="14" height="14"><path d="M2 4h12M4 8h8M6 12h4" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg> Filter for ' + genrePill.dataset.genre;
+      reorderCtxMenu('genre');
+      // Position below the selected card on mobile
+      const selCard = document.querySelector('.mobile-carousel-card.selected');
+      if (selCard) {
+        const rect = selCard.getBoundingClientRect();
+        positionCtxMenu(16, rect.bottom + 6);
+      } else {
+        const rect = genrePill.getBoundingClientRect();
+        positionCtxMenu(rect.left, rect.bottom + 6);
+      }
+      return;
+    }
     const trigger = e.target.closest(CTX_SELECTOR);
     // Dots button always opens on click (desktop & mobile)
     if (trigger && trigger.classList.contains('card-dots')) {
@@ -1378,6 +1431,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Context menu actions
   ctxMenu.addEventListener('click', (e) => {
+    if (e.target.closest('.ctx-close')) { closeCtxMenu(); return; }
     const item = e.target.closest('.ctx-item');
     if (!item) return;
     const action = item.dataset.action;
@@ -1392,6 +1446,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       shuffle();
     } else if (action === 'filter-artist' && ctxData.artist) {
       filterCtrl.addSearchFilter({ display: ctxData.artist });
+      filtersDirty = false;
+      shuffle();
+    } else if (action === 'filter-genre' && ctxData.genre) {
+      filterCtrl.toggleGenre(ctxData.genre);
       filtersDirty = false;
       shuffle();
     }

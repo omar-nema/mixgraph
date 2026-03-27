@@ -83,6 +83,7 @@ python3 -m http.server 8000
 ## Testing frontend changes
 
 - **Verify every frontend-facing change in Playwright after editing.** Load the local dev server in Playwright, check for console errors, and confirm the page renders correctly before presenting results to the user. Don't just rely on the preview tool — use Playwright to catch runtime JS errors.
+- **Always load with `?noplay`** when testing in preview or Playwright (e.g. `http://localhost:8000/?noplay`). This suppresses audio playback so random tracks don't blast during automated testing. The flag is checked in `js/audio.js` via `AUDIO_SUPPRESSED`.
 
 ## Backend (Python scrapers)
 
@@ -114,6 +115,14 @@ python3 -m http.server 8000
 - Dark mode overrides live in the `body.night` block near the top of the CSS — keep them grouped there.
 - **Test both modes after any visual change.** Toggle with the night mode button in the bottom-left corner.
 - The accent color is `var(--connection-highlight)` — it already adapts between modes (`#B5705A` light, `#d4896e` dark).
+
+## Color system — systematic, not hardcoded
+
+- **All surface colors derive from `--bg` and `--accent` via `color-mix()`.** Never introduce new hardcoded hex values for backgrounds, borders, or washes. Instead, mix against the existing root tokens.
+- The token hierarchy: `--bg` → `--card-bg`, `--card-border`, `--toolbar-btn-bg` (via `color-mix` with black/white). `--accent` → `--accent-wash`, `--accent-wash-hover`, `--accent-wash-active`, `--accent-wash-selected`, `--accent-wash-border` (via `color-mix` in oklch at increasing percentages).
+- **When elements should share the same background, use the same token** — don't create parallel colors that happen to look similar. If pills, buttons, and badges should match, they should all reference e.g. `var(--accent-wash)`, not three different color-mixes.
+- To adjust contrast (e.g. lighten dark-mode surfaces), **change the mix percentage in the token definition**, not on individual elements. This keeps every consumer in sync.
+- Light and dark modes define their own percentages for the accent-wash scale. Dark mode uses slightly higher percentages (e.g. 14% vs 10%) to compensate for lower contrast on dark backgrounds.
 
 ## Dev panel
 

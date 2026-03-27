@@ -681,5 +681,5 @@ async function initFilters() {
   // Populate cluster pills now that indexes are built
   updateClusterPills();
 
-  return { updateClusterPills, updateFilterUI, closeFindAc, closeDjAc, closeGenreAc, clearAllFilters, addDjFilter, addSearchFilter };
+  return { updateClusterPills, updateFilterUI, closeFindAc, closeDjAc, closeGenreAc, clearAllFilters, addDjFilter, addSearchFilter, toggleGenre };
 }
