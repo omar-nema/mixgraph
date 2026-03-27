@@ -14,7 +14,7 @@
     height: 80px;
     pointer-events: auto;
     z-index: 99;
-    filter: brightness(0.96);
+    filter: hue-rotate(215deg);
   }
   /* Hide player in crates mode */
   body.crates-mode #sc-player-area { transform: translateY(100%); }
@@ -23,7 +23,7 @@
   #sc-placeholder { display: none; }
   body.night #sc-player-area { background: var(--bg); border-top-color: var(--card-border); }
   body.night #sc-widget {
-    filter: invert(0.88) sepia(0.15) saturate(2) hue-rotate(190deg);
+    filter: invert(0.88) hue-rotate(35deg) saturate(3);
   }
   html {
     height: 100%;

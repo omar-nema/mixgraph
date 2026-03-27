@@ -111,21 +111,13 @@ function showCluster(cluster) {
   const topOffset = Math.max(0, (vpH - scaledH) / 2);
   container.style.marginTop = topOffset + 'px';
 
-  // Desktop genre pills — intersection of genres across all nodes
+  // Desktop genre pills — from primary track only
   const desktopGenres = document.getElementById('desktop-genres');
-  const genreSets = nodes.map(n => new Set(n.genres || [])).filter(s => s.size > 0);
-  let commonGenres = [];
-  if (genreSets.length > 0) {
-    commonGenres = [...genreSets[0]].filter(g => genreSets.every(s => s.has(g)));
-    // If intersection is empty, fall back to union
-    if (commonGenres.length === 0) {
-      const all = new Set();
-      genreSets.forEach(s => s.forEach(g => all.add(g)));
-      commonGenres = [...all];
-    }
-  }
+  const primaryNode = nodes.find(n => n.primary) || nodes[0];
+  const commonGenres = primaryNode ? (primaryNode.genres || []) : [];
   desktopGenres.innerHTML = '';
-  if (commonGenres.length > 0) {
+  const showGenres = document.getElementById('show-genres')?.checked;
+  if (showGenres && commonGenres.length > 0) {
     const label = document.createElement('span');
     label.className = 'desktop-genre-label';
     label.textContent = 'Genres';
@@ -1070,6 +1062,13 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
       if (mode === 'crates') tracksHelperToast.classList.remove('visible');
     });
+  });
+
+  // Genre pills toggle
+  const showGenresCheckbox = document.getElementById('show-genres');
+  showGenresCheckbox.checked = false;
+  showGenresCheckbox.addEventListener('change', () => {
+    if (currentCluster) showCluster(currentCluster);
   });
 
   // Helper toast logic

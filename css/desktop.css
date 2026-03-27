@@ -1593,7 +1593,18 @@ body.night #card-context-menu {
    Dev Panel (bottom-right)
    ═══════════════════════════════════════════ */
 #dev-toggle {
-  display: none;
+  position: fixed;
+  bottom: 12px;
+  right: 12px;
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  border: 1px solid var(--card-border);
+  background: var(--card-bg);
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  z-index: 1000;
+  padding: 0;
+  transition: transform 0.2s ease;
 }
 #dev-toggle:hover { transform: scale(1.1); }
 
