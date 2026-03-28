@@ -91,6 +91,7 @@ async function initFilters() {
 
   function addSearchFilter(entry) {
     if (searchFilters.some(f => f.display === entry.display)) return;
+    trackEvent('filter_artist');
     modifyFilter(searchFilters, a => a.push({ display: entry.display }), renderFindChips);
   }
 
@@ -100,6 +101,7 @@ async function initFilters() {
 
   function addDjFilter(entry) {
     if (djSearchFilters.some(f => f.display === entry.display)) return;
+    trackEvent('filter_dj');
     modifyFilter(djSearchFilters, a => a.push({ display: entry.display }), renderDjChips);
   }
 
@@ -119,6 +121,7 @@ async function initFilters() {
 
   function addGenreSearchFilter(entry) {
     if (genreSearchFilters.some(f => f.display === entry.display)) return;
+    trackEvent('filter_genre');
     const names = genreFilterNames(entry);
     genreSearchFilters.push({ display: entry.display, names });
     for (const name of names) {
@@ -166,6 +169,7 @@ async function initFilters() {
       genreSearchFilters = genreSearchFilters.filter(f => !f.names.includes(name));
       renderGenreChips();
     } else {
+      trackEvent('filter_genre');
       genreFilters.push(name);
     }
     filtersDirty = true;
