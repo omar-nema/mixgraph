@@ -764,7 +764,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       });
       surface.appendChild(container);
 
-      const page = { clusters, el: container, stacks, artLoaded: false };
+      const page = { clusters, el: container, stacks, artLoaded: false, mounted: true };
       pages[key] = page;
       // Load art if page is near viewport
       updateVisibleForPage(key, page);
@@ -791,7 +791,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Load artwork images into a page's stacks
     function loadPageArt(page) {
-      if (page.artLoaded) return;
+      if (!page.el || page.artLoaded) return;
       page.artLoaded = true;
       page.stacks.forEach(({ el: stackEl, item }) => {
         const cards = stackEl.querySelectorAll('.crate-card');
@@ -826,7 +826,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Strip artwork images from a page to free memory
     function unloadPageArt(page) {
-      if (!page.artLoaded) return;
+      if (!page.el || !page.artLoaded) return;
       page.artLoaded = false;
       page.stacks.forEach(({ el: stackEl, item }) => {
         const cards = stackEl.querySelectorAll('.crate-card');
@@ -838,6 +838,22 @@ document.addEventListener('DOMContentLoaded', async () => {
           card.classList.add('placeholder');
         });
       });
+    }
+
+    function unmountPage(page) {
+      if (!page.mounted) return;
+      // Reset any stuck hover states before removing from DOM
+      page.el.querySelectorAll('.crate-stack.hovered').forEach(s => {
+        s.dispatchEvent(new MouseEvent('mouseleave'));
+      });
+      page.el.remove();
+      page.mounted = false;
+    }
+
+    function mountPage(page) {
+      if (page.mounted) return;
+      surface.appendChild(page.el);
+      page.mounted = true;
     }
 
     let visibleTimer = null;
@@ -878,9 +894,16 @@ document.addEventListener('DOMContentLoaded', async () => {
       for (const [key, page] of Object.entries(pages)) {
         const [c, r] = key.split(',').map(Number);
         const near = c >= colVis0 - 1 && c <= colVis1 + 1 && r >= rowVis0 - 1 && r <= rowVis1 + 1;
+        const artFar = c < colMin - 3 || c > colMax + 3 || r < rowMin - 3 || r > rowMax + 3;
+        const domFar = c < colMin - 5 || c > colMax + 5 || r < rowMin - 5 || r > rowMax + 5;
+        if (domFar) {
+          unmountPage(page);
+        } else if (!page.mounted) {
+          mountPage(page);
+        }
         if (near) {
           loadPageArt(page);
-        } else if (c < colMin - 3 || c > colMax + 3 || r < rowMin - 3 || r > rowMax + 3) {
+        } else if (artFar) {
           unloadPageArt(page);
         }
       }
@@ -889,6 +912,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Pan state
     let crateScale = isMobileView() ? 0.75 : 0.8;
     let panX = 0, panY = 0;
+    let targetPanX = 0, targetPanY = 0, targetScale = crateScale;
+    let rafPanId = null;
+    function requestPanFrame() {
+      if (rafPanId) return;
+      rafPanId = requestAnimationFrame(() => {
+        rafPanId = null;
+        if (cratesView.classList.contains('hidden')) return;
+        panX = targetPanX; panY = targetPanY; crateScale = targetScale;
+        applyTransform();
+        scheduleUpdateVisible();
+      });
+    }
     surface.style.transform = `scale3d(${crateScale},${crateScale},1) translate3d(${panX}px,${panY}px,0)`;
 
     // Drag-to-pan
@@ -907,9 +942,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         cratesView.classList.add('dragging');
       }
       if (didDrag) {
-        panX = panStartX + dx; panY = panStartY + dy;
-        applyTransform();
-        scheduleUpdateVisible();
+        targetPanX = panStartX + dx; targetPanY = panStartY + dy;
+        requestPanFrame();
       }
     };
     cratesView.onmouseup = () => {
@@ -920,9 +954,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (didDrag) { e.stopPropagation(); didDrag = false; }
     }, true);
     cratesView.addEventListener('wheel', e => {
-      panX -= e.deltaX; panY -= e.deltaY;
-      applyTransform();
-      scheduleUpdateVisible();
+      targetPanX -= e.deltaX; targetPanY -= e.deltaY;
+      requestPanFrame();
     }, { passive: true });
 
     // Touch pan + pinch-to-zoom (mobile)
@@ -967,9 +1000,8 @@ document.addEventListener('DOMContentLoaded', async () => {
           e.touches[1].clientX - e.touches[0].clientX,
           e.touches[1].clientY - e.touches[0].clientY
         );
-        crateScale = Math.max(0.2, Math.min(2, pinchStartScale * (dist / lastPinchDist)));
-        applyTransform();
-        scheduleUpdateVisible();
+        targetScale = Math.max(0.2, Math.min(2, pinchStartScale * (dist / lastPinchDist)));
+        requestPanFrame();
       } else if (e.touches.length === 1 && touchDragging) {
         const now = performance.now();
         const cx = e.touches[0].clientX, cy = e.touches[0].clientY;
@@ -985,10 +1017,9 @@ document.addEventListener('DOMContentLoaded', async () => {
           velX = (cx - lastTouchX) / dt * 16;
           velY = (cy - lastTouchY) / dt * 16;
           lastTouchX = cx; lastTouchY = cy; lastTouchTime = now;
-          panX = touchPanStartX + dx;
-          panY = touchPanStartY + dy;
-          applyTransform();
-          scheduleUpdateVisible();
+          targetPanX = touchPanStartX + dx;
+          targetPanY = touchPanStartY + dy;
+          requestPanFrame();
         }
       }
     }, { passive: false });
@@ -1003,6 +1034,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
       panX += velX;
       panY += velY;
+      targetPanX = panX; targetPanY = panY;
       applyTransform();
       scheduleUpdateVisible();
       momentumId = requestAnimationFrame(momentumStep);
