@@ -932,7 +932,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     cratesView.onmousedown = e => {
       isDragging = true; didDrag = false;
       dragStartX = e.clientX; dragStartY = e.clientY;
-      panStartX = panX; panStartY = panY;
+      // Use targetPan* not panX/panY — panX may lag behind targetPanX if a rAF is pending
+      panStartX = targetPanX; panStartY = targetPanY;
     };
     cratesView.onmousemove = e => {
       if (!isDragging) return;
@@ -971,7 +972,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (e.touches.length === 2) {
         pinchActive = true;
         touchDragging = false;
-        pinchStartScale = crateScale;
+        // Cancel any running momentum — it would keep updating panX/panY while we pinch
+        if (momentumId) { cancelAnimationFrame(momentumId); momentumId = null; }
+        // Reset drag state so touchend doesn't restart momentum after the pinch ends
+        touchDidDrag = false; velX = 0; velY = 0;
+        // Use targetScale not crateScale — crateScale may lag if a rAF is still pending
+        pinchStartScale = targetScale;
         lastPinchDist = Math.hypot(
           e.touches[1].clientX - e.touches[0].clientX,
           e.touches[1].clientY - e.touches[0].clientY
@@ -985,8 +991,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         lastTouchX = touchStartX;
         lastTouchY = touchStartY;
         lastTouchTime = performance.now();
-        touchPanStartX = panX;
-        touchPanStartY = panY;
+        // Use targetPan* not panX/panY — panX may lag behind targetPanX if a rAF is pending
+        touchPanStartX = targetPanX;
+        touchPanStartY = targetPanY;
       }
     }, { passive: true });
 
@@ -1025,6 +1032,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     }, { passive: false });
 
     function momentumStep() {
+      // Stop if crates view was hidden (e.g. user switched to Tracks mid-momentum)
+      if (cratesView.classList.contains('hidden')) { momentumId = null; return; }
       velX *= 0.92;
       velY *= 0.92;
       if (Math.abs(velX) < 0.5 && Math.abs(velY) < 0.5) {
