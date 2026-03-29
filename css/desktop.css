@@ -505,6 +505,13 @@ body.night .mode-tab.active { color: var(--connection-highlight); background: no
   border: 1px solid var(--card-border);
   color: var(--text-tertiary);
   cursor: pointer;
+  transition: background 0.15s ease;
+}
+#desktop-genres .desktop-genre-pill:hover {
+  background: color-mix(in oklch, var(--card-bg), black 8%);
+}
+body.night #desktop-genres .desktop-genre-pill:hover {
+  background: color-mix(in oklch, var(--card-bg), white 10%);
 }
 
 #graph-container {

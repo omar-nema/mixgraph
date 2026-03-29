@@ -1066,7 +1066,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Genre pills toggle
   const showGenresCheckbox = document.getElementById('show-genres');
-  showGenresCheckbox.checked = false;
+  showGenresCheckbox.checked = true;
   showGenresCheckbox.addEventListener('change', () => {
     if (currentCluster) showCluster(currentCluster);
   });

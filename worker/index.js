@@ -486,14 +486,14 @@ export default {
       // POST /api/event — telemetry via Analytics Engine
       if (request.method === 'POST' && url.pathname === '/api/event') {
         const { event, uid } = await request.json();
-        const validEvents = ['shuffle', 'play', 'crates'];
+        const validEvents = ['shuffle', 'play', 'crates', 'filter_genre', 'filter_artist', 'filter_dj'];
         if (!validEvents.includes(event)) {
           return jsonResponse({ error: 'Invalid event' }, 400);
         }
         const cf = request.cf || {};
         env.EVENTS.writeDataPoint({
           blobs: [event, cf.country || '', cf.city || '', uid || ''],
-          doubles: [Date.now()],
+          doubles: [parseFloat(cf.latitude) || 0, parseFloat(cf.longitude) || 0],
           indexes: [event],
         });
         return new Response(null, { status: 204, headers: corsHeaders });
