@@ -742,7 +742,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     function receivePage(col, row, clusters) {
       const key = `${col},${row}`;
       pendingPageKeys.delete(key);
-      if (pages[key] || clusters.length === 0) return;
+      if (pages[key]) return;
+      if (clusters.length === 0) {
+        pages[key] = { el: null, stacks: [], artLoaded: false, mounted: false, empty: true };
+        return;
+      }
       minCol = Math.min(minCol, col);
       maxCol = Math.max(maxCol, col);
       minRow = Math.min(minRow, row);
@@ -791,7 +795,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Load artwork images into a page's stacks
     function loadPageArt(page) {
-      if (!page.el || page.artLoaded) return;
+      if (!page.mounted || page.artLoaded) return;
       page.artLoaded = true;
       page.stacks.forEach(({ el: stackEl, item }) => {
         const cards = stackEl.querySelectorAll('.crate-card');
@@ -826,7 +830,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Strip artwork images from a page to free memory
     function unloadPageArt(page) {
-      if (!page.el || !page.artLoaded) return;
+      if (!page.mounted || !page.artLoaded) return;
       page.artLoaded = false;
       page.stacks.forEach(({ el: stackEl, item }) => {
         const cards = stackEl.querySelectorAll('.crate-card');
@@ -897,14 +901,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         const artFar = c < colMin - 3 || c > colMax + 3 || r < rowMin - 3 || r > rowMax + 3;
         const domFar = c < colMin - 5 || c > colMax + 5 || r < rowMin - 5 || r > rowMax + 5;
         if (domFar) {
+          unloadPageArt(page);  // strip art first (resets artLoaded), then detach
           unmountPage(page);
-        } else if (!page.mounted) {
-          mountPage(page);
-        }
-        if (near) {
-          loadPageArt(page);
-        } else if (artFar) {
-          unloadPageArt(page);
+        } else {
+          if (!page.mounted) mountPage(page);
+          if (near) loadPageArt(page);
+          else if (artFar) unloadPageArt(page);
         }
       }
     }
