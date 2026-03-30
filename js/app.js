@@ -862,7 +862,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       visibleTimer = setTimeout(() => {
         visibleTimer = null;
         updateVisible();
-      }, isMobileView() ? 250 : 150);
+      }, isMobileView() ? 350 : 150);
     }
 
     function updateVisible() {
@@ -1057,7 +1057,28 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (touchDidDrag && (Math.abs(velX) > 1 || Math.abs(velY) > 1)) {
           momentumId = requestAnimationFrame(momentumStep);
         }
+      } else if (e.touches.length === 1 && !touchDragging) {
+        // One finger stayed down after pinch — re-arm single-finger pan
+        touchDragging = true;
+        touchDidDrag = false;
+        velX = 0; velY = 0;
+        touchStartX = e.touches[0].clientX;
+        touchStartY = e.touches[0].clientY;
+        lastTouchX = touchStartX;
+        lastTouchY = touchStartY;
+        lastTouchTime = performance.now();
+        touchPanStartX = targetPanX;
+        touchPanStartY = targetPanY;
       }
+    });
+
+    cratesView.addEventListener('touchcancel', () => {
+      pinchActive = false;
+      touchDragging = false;
+      touchDidDrag = false;
+      velX = 0; velY = 0;
+      cratesView.classList.remove('dragging');
+      if (momentumId) { cancelAnimationFrame(momentumId); momentumId = null; }
     });
 
     // Suppress click after touch drag
