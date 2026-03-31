@@ -99,18 +99,33 @@ function cratesTreemap(items, x, y, w, h) {
 class TextureCache {
   constructor() {
     this._cache = new Map(); // url -> Texture | Promise<Texture>
+    this._refs  = new Map(); // url -> reference count
   }
 
   load(url) {
+    this._refs.set(url, (this._refs.get(url) || 0) + 1);
     if (this._cache.has(url)) {
       const v = this._cache.get(url);
       return v instanceof Promise ? v : Promise.resolve(v);
     }
     const p = PIXI.Texture.fromURL(url)
       .then(tex => { this._cache.set(url, tex); return tex; })
-      .catch(() => { this._cache.delete(url); return null; });
+      .catch(() => { this._cache.delete(url); this._refs.delete(url); return null; });
     this._cache.set(url, p);
     return p;
+  }
+
+  // Decrement ref count; destroy + evict GPU texture when no more references
+  release(url) {
+    const count = (this._refs.get(url) || 1) - 1;
+    if (count <= 0) {
+      const tex = this._cache.get(url);
+      if (tex instanceof PIXI.Texture) tex.destroy(true);
+      this._cache.delete(url);
+      this._refs.delete(url);
+    } else {
+      this._refs.set(url, count);
+    }
   }
 }
 
@@ -134,11 +149,10 @@ class CrateStack {
     this.valid = true;
 
     this.w = w;
-    this.h = h;
     this.numCards = Math.min(Math.max(item.artworks.length, 1), MAX_CARDS);
-    this.pileOffset = (this.numCards - 1) * STEP;
-    this.cardW = w - this.pileOffset;
-    this.cardH = h - this.pileOffset;
+    const pileOffset = (this.numCards - 1) * STEP;
+    this.cardW = w - pileOffset;
+    this.cardH = h - pileOffset;
 
     // Root container placed at stack position within the page
     this.container = new PIXI.Container();
@@ -153,7 +167,7 @@ class CrateStack {
     this._bgs = [];            // PIXI.Graphics placeholder bg per card
     this._sprites = [];        // PIXI.Sprite artwork per card
     this._infoOverlay = null;  // lazy — created on first hover
-    this._activeIdx = this.numCards - 1;
+    this._loadedUrls  = [];    // URLs currently loaded (for release on unload)
 
     this._buildCards();
     this._buildStackLabel();
@@ -223,7 +237,6 @@ class CrateStack {
     const title  = new PIXI.Text(capWords(this.item.title),  titleStyle);
     const artist = new PIXI.Text(capWords(this.item.artist), artistStyle);
 
-    // Clamp to one line each by trimming if wider than available space
     title.x  = pad;
     artist.x = pad;
 
@@ -287,23 +300,15 @@ class CrateStack {
   // ── Activate a card (bring to front, show/hide overlay) ──
 
   _setActive(idx, hovered) {
-    this._activeIdx = idx;
-
-    // Reset all z-indices
+    // Reset all z-indices, bring active card to front
     this._cardContainers.forEach((cc, i) => { cc.zIndex = i; });
-
-    const activeCC = this._cardContainers[idx];
-    activeCC.zIndex = this.numCards + 10;
+    this._cardContainers[idx].zIndex = this.numCards + 10;
 
     if (hovered) {
       this._ensureInfoOverlay();
-      // Move overlay to active card (remove from others first)
-      this._cardContainers.forEach(cc => {
-        if (this._infoOverlay && cc.children.includes(this._infoOverlay)) {
-          cc.removeChild(this._infoOverlay);
-        }
-      });
-      activeCC.addChild(this._infoOverlay);
+      // Move overlay to active card container
+      this._infoOverlay.parent?.removeChild(this._infoOverlay);
+      this._cardContainers[idx].addChild(this._infoOverlay);
       this._infoOverlay.visible = true;
     } else {
       if (this._infoOverlay) this._infoOverlay.visible = false;
@@ -370,18 +375,15 @@ class CrateStack {
       if (!rawUrl) return;
 
       // Prefer the tiny 120×120 thumb — lower bandwidth, still sharp enough
-      const url = rawUrl
-        .replace(/-t500x500/, '-t120x120')
-        .replace(/-t300x300/, '-t120x120');
+      const url = rawUrl.replace(/-t(500|300)x\1/, '-t120x120');
+      this._loadedUrls[i] = url;
 
       this.textureCache.load(url).then(tex => {
         if (!tex || !this._sprites[i]) return;
         const sprite = this._sprites[i];
         sprite.texture = tex;
         // Cover-fit: scale up so both axes fill the card, preserve aspect ratio
-        const scaleX = this.cardW / tex.width;
-        const scaleY = this.cardH / tex.height;
-        const s = Math.max(scaleX, scaleY);
+        const s = Math.max(this.cardW / tex.width, this.cardH / tex.height);
         sprite.width  = tex.width  * s;
         sprite.height = tex.height * s;
         // Center within card (excess gets clipped by the mask)
@@ -400,6 +402,10 @@ class CrateStack {
       s.visible  = false;
       s.texture  = PIXI.Texture.EMPTY;
       this._bgs[i].visible = true;
+      if (this._loadedUrls[i]) {
+        this.textureCache.release(this._loadedUrls[i]);
+        this._loadedUrls[i] = null;
+      }
     });
   }
 }
@@ -508,22 +514,27 @@ async function init() {
   const pending = new Set();        // page keys in-flight
   const pageNums = {};              // "col,row" -> stable page index
   let   pageCounter = 0;
-  let   cratesPool  = null;         // shuffled index (fetched once)
+  let   cratesPool        = null;   // resolved pool (set once, for status bar)
+  let   cratesPoolPromise = null;   // in-flight or resolved promise (cached to prevent stampede)
 
-  // Fetch and shuffle the crates index once
-  async function getPool() {
-    if (cratesPool) return cratesPool;
-    const index = await fetch(`${API_BASE}/api/crates-index?v=3`).then(r => r.json());
-    // LCG shuffle — same algorithm as app.js for consistency
-    let rng = (Date.now() % 2147483647) || 1;
-    const rand = () => { rng = (rng * 16807) % 2147483647; return (rng - 1) / 2147483646; };
-    const pool = [...index];
-    for (let i = pool.length - 1; i > 0; i--) {
-      const j = Math.floor(rand() * (i + 1));
-      [pool[i], pool[j]] = [pool[j], pool[i]];
-    }
-    cratesPool = pool;
-    return pool;
+  // Fetch and shuffle the crates index once. Caches the Promise so concurrent
+  // callers share a single fetch instead of each firing their own.
+  function getPool() {
+    if (!cratesPoolPromise) cratesPoolPromise = fetch(`${API_BASE}/api/crates-index?v=3`)
+      .then(r => r.json())
+      .then(index => {
+        // LCG shuffle — same algorithm as app.js for consistency
+        let rng = (Date.now() % 2147483647) || 1;
+        const rand = () => { rng = (rng * 16807) % 2147483647; return (rng - 1) / 2147483646; };
+        const pool = [...index];
+        for (let i = pool.length - 1; i > 0; i--) {
+          const j = Math.floor(rand() * (i + 1));
+          [pool[i], pool[j]] = [pool[j], pool[i]];
+        }
+        cratesPool = pool;
+        return pool;
+      });
+    return cratesPoolPromise;
   }
 
   function requestPage(col, row) {
@@ -562,14 +573,10 @@ async function init() {
       pages[key] = page;
       world.addChild(page.container);
 
-      // Art for pages already in view
-      checkArtForPage(key, page);
-
       // Hide loading spinner after first page
-      const loading = document.getElementById('loading');
-      if (!loading.classList.contains('hidden')) loading.classList.add('hidden');
+      document.getElementById('loading').classList.add('hidden');
 
-      updateStatus();
+      updateVisible(); // triggers art load + status update
     }).catch(err => {
       console.error('Page load failed:', err);
       pending.delete(key);
@@ -581,21 +588,11 @@ async function init() {
   function viewBounds() {
     // Viewport bounds in world coordinates
     const W = vw(), H = vh();
-    const vl = (0 - panX) / scale;
+    const vl = -panX / scale;
     const vt = (TOOLBAR_H - panY) / scale;
     const vr = (W - panX) / scale;
     const vb = (H + TOOLBAR_H - panY) / scale;
     return { vl, vt, vr, vb, W, H };
-  }
-
-  function checkArtForPage(key, page) {
-    const { vl, vt, vr, vb, W, H } = viewBounds();
-    const colV0 = Math.floor(vl / W), colV1 = Math.floor(vr / W);
-    const rowV0 = Math.floor(vt / H), rowV1 = Math.floor(vb / H);
-    const [c, r] = key.split(',').map(Number);
-    if (c >= colV0 - 1 && c <= colV1 + 1 && r >= rowV0 - 1 && r <= rowV1 + 1) {
-      page.loadArt();
-    }
   }
 
   let visTimer = null;
