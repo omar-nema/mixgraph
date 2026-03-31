@@ -6,7 +6,9 @@ web-app/output/*
 !web-app/output/audio_cache.json
 !web-app/output/combined_graph.json
 !web-app/output/dj_name_map.json
-sandbox/
+sandbox/*
+!sandbox/webgl-crates/
+!sandbox/webgl-crates/**
 
 # Python
 __pycache__/
