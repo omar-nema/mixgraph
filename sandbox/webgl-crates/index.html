@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Crates WebGL — Prototype</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: #f5f5f7;
+      overflow: hidden;
+      font-family: 'Space Grotesk', system-ui, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+    body.dark { background: #1e2228; }
+
+    /* ── Toolbar ── */
+    #toolbar {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      height: 48px;
+      display: flex;
+      align-items: center;
+      padding: 0 16px;
+      gap: 10px;
+      background: rgba(245, 245, 247, 0.88);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+      z-index: 100;
+    }
+    body.dark #toolbar {
+      background: rgba(30, 34, 40, 0.88);
+      border-bottom-color: rgba(255, 255, 255, 0.07);
+    }
+
+    #toolbar h1 {
+      font-size: 14px;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      color: #111;
+    }
+    body.dark #toolbar h1 { color: #e8e4e0; }
+
+    .badge {
+      font-size: 10px;
+      font-weight: 500;
+      padding: 2px 8px;
+      border-radius: 10px;
+      background: rgba(60, 60, 250, 0.1);
+      color: #3c3cfa;
+      letter-spacing: 0.01em;
+    }
+    body.dark .badge { background: rgba(74, 149, 248, 0.14); color: #4a95f8; }
+
+    #stack-count {
+      font-size: 11px;
+      color: #9696a4;
+      margin-left: 2px;
+    }
+    body.dark #stack-count { color: #7f7a75; }
+
+    #toolbar-right {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    #fps-display {
+      font-size: 11px;
+      color: #9696a4;
+      font-variant-numeric: tabular-nums;
+      min-width: 52px;
+      text-align: right;
+    }
+    body.dark #fps-display { color: #7f7a75; }
+
+    .toolbar-btn {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      border: 1px solid rgba(0, 0, 0, 0.09);
+      background: rgba(0, 0, 0, 0.04);
+      cursor: pointer;
+      font-size: 15px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #444;
+      transition: background 0.12s ease;
+    }
+    .toolbar-btn:hover { background: rgba(0, 0, 0, 0.08); }
+    body.dark .toolbar-btn {
+      border-color: rgba(255, 255, 255, 0.09);
+      background: rgba(255, 255, 255, 0.06);
+      color: #ccc;
+    }
+    body.dark .toolbar-btn:hover { background: rgba(255, 255, 255, 0.1); }
+
+    /* ── Canvas container ── */
+    #canvas-wrap {
+      position: fixed;
+      inset: 0;
+    }
+    #canvas-wrap canvas { display: block; cursor: grab; }
+    #canvas-wrap.dragging canvas { cursor: grabbing; }
+
+    /* ── Loading overlay ── */
+    #loading {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+      background: #f5f5f7;
+      z-index: 200;
+      transition: opacity 0.4s ease;
+    }
+    body.dark #loading { background: #1e2228; }
+    #loading.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .spinner {
+      width: 28px;
+      height: 28px;
+      border: 2px solid rgba(0, 0, 0, 0.1);
+      border-top-color: #3c3cfa;
+      border-radius: 50%;
+      animation: spin 0.75s linear infinite;
+    }
+    body.dark .spinner { border-color: rgba(255,255,255,0.1); border-top-color: #4a95f8; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .loading-label {
+      font-size: 13px;
+      color: #6b6b78;
+      font-weight: 400;
+    }
+    body.dark .loading-label { color: #9a9590; }
+
+    /* ── Bottom status bar ── */
+    #status-bar {
+      position: fixed;
+      bottom: 10px;
+      left: 14px;
+      font-size: 10.5px;
+      color: rgba(0, 0, 0, 0.25);
+      pointer-events: none;
+      line-height: 1;
+      font-variant-numeric: tabular-nums;
+    }
+    body.dark #status-bar { color: rgba(255, 255, 255, 0.18); }
+
+    /* ── Click toast ── */
+    #click-toast {
+      position: fixed;
+      bottom: 28px;
+      left: 50%;
+      transform: translateX(-50%) translateY(8px);
+      background: rgba(20, 20, 20, 0.85);
+      color: #fff;
+      font-size: 12px;
+      padding: 8px 16px;
+      border-radius: 20px;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.2s ease, transform 0.2s ease;
+      backdrop-filter: blur(8px);
+      max-width: 320px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    body.dark #click-toast { background: rgba(40, 44, 52, 0.9); }
+    #click-toast.visible {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    /* ── Hint ── */
+    #hint {
+      position: fixed;
+      bottom: 10px;
+      right: 14px;
+      font-size: 10.5px;
+      color: rgba(0, 0, 0, 0.2);
+      pointer-events: none;
+    }
+    body.dark #hint { color: rgba(255, 255, 255, 0.14); }
+  </style>
+</head>
+<body>
+  <div id="toolbar">
+    <h1>Crates</h1>
+    <span class="badge">WebGL</span>
+    <span id="stack-count"></span>
+
+    <div id="toolbar-right">
+      <span id="fps-display"></span>
+      <button class="toolbar-btn" id="theme-btn" title="Toggle dark mode">☀️</button>
+    </div>
+  </div>
+
+  <div id="canvas-wrap"></div>
+
+  <div id="loading">
+    <div class="spinner"></div>
+    <div class="loading-label">Loading crate index…</div>
+  </div>
+
+  <div id="status-bar"></div>
+  <div id="click-toast"></div>
+  <div id="hint">drag · scroll to zoom · hover crates</div>
+
+  <!-- PixiJS v7 from CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/7.4.2/pixi.min.js"
+          integrity="sha512-PaaQR_Kf0-ItZTMVjdgJRUcrktec2B3m6XM-TiflUXy5hAF7eVys9dETQO4UX3_A_0H6KJf-e3D2VMVMlywAdA=="
+          crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script src="main.js"></script>
+</body>
+</html>
