@@ -183,11 +183,11 @@ function buildFilterParams() {
 
 async function shuffle() {
   if (frozen) return;
-  // In crates mode, reset crates with new filters instead of fetching tracks
-  if (document.body.classList.contains('crates-mode')) {
-    if (window._cratesResetFn) window._cratesResetFn();
-    return;
-  }
+  // Crates filter reset — disabled for now, behind dev panel
+  // if (document.body.classList.contains('crates-mode')) {
+  //   if (window._cratesResetFn) window._cratesResetFn();
+  //   return;
+  // }
   trackEvent('shuffle');
   showStatus('');
   try {

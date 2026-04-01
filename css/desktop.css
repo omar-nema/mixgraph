@@ -1060,7 +1060,7 @@ a.track-title:hover { text-decoration-color: var(--text-secondary); }
   flex-shrink: 0;
 }
 body.crates-mode { overflow: hidden; }
-.crates-mode #filter-row .filter-share { display: none; }
+.crates-mode #filter-row { display: none; }
 
 .filter-pill {
   font-size: 16px;
