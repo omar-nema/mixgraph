@@ -183,11 +183,11 @@ function buildFilterParams() {
 
 async function shuffle() {
   if (frozen) return;
-  // Crates filter reset — disabled for now, behind dev panel
-  // if (document.body.classList.contains('crates-mode')) {
-  //   if (window._cratesResetFn) window._cratesResetFn();
-  //   return;
-  // }
+  // Crates filter reset — only when dev panel toggle is on
+  if (document.body.classList.contains('crates-mode') && document.getElementById('show-crates-filters')?.checked) {
+    if (window._cratesResetFn) window._cratesResetFn();
+    return;
+  }
   trackEvent('shuffle');
   showStatus('');
   try {
@@ -1168,6 +1168,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   showGenresCheckbox.checked = true;
   showGenresCheckbox.addEventListener('change', () => {
     if (currentCluster) showCluster(currentCluster);
+  });
+
+  // Crates filters toggle (dev panel)
+  const cratesFiltersCheckbox = document.getElementById('show-crates-filters');
+  cratesFiltersCheckbox.checked = false;
+  cratesFiltersCheckbox.addEventListener('change', () => {
+    const filterRow = document.getElementById('filter-row');
+    filterRow.classList.toggle('crates-filters-on', cratesFiltersCheckbox.checked);
   });
 
   // Helper toast logic

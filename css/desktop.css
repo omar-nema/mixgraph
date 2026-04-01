@@ -1061,6 +1061,7 @@ a.track-title:hover { text-decoration-color: var(--text-secondary); }
 }
 body.crates-mode { overflow: hidden; }
 .crates-mode #filter-row { display: none; }
+.crates-mode #filter-row.crates-filters-on { display: flex; }
 
 .filter-pill {
   font-size: 16px;
@@ -1118,7 +1119,7 @@ body.crates-mode { overflow: hidden; }
 .filter-shuffle.active {
   background: var(--accent);
   border-color: var(--accent);
-  color: #fff;
+  color: black;
   padding: 6px 16px;
 }
 .filter-shuffle:hover {
