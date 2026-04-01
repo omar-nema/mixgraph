@@ -1119,7 +1119,7 @@ body.crates-mode { overflow: hidden; }
 .filter-shuffle.active {
   background: var(--accent);
   border-color: var(--accent);
-  color: black;
+  color: white;
   padding: 6px 16px;
 }
 .filter-shuffle:hover {
