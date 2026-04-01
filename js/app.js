@@ -111,7 +111,7 @@ function showCluster(cluster) {
   const topOffset = Math.max(0, (vpH - scaledH) / 2);
   container.style.marginTop = topOffset + 'px';
 
-  // Desktop genre pills — from primary track only
+  // Desktop genre pills — primary track's genres, capped at 4
   const desktopGenres = document.getElementById('desktop-genres');
   const primaryNode = nodes.find(n => n.primary) || nodes[0];
   const commonGenres = primaryNode ? (primaryNode.genres || []) : [];
@@ -122,7 +122,7 @@ function showCluster(cluster) {
     label.className = 'desktop-genre-label';
     label.textContent = 'Genres';
     desktopGenres.appendChild(label);
-    commonGenres.forEach(g => {
+    commonGenres.slice(0, 4).forEach(g => {
       const pill = document.createElement('span');
       pill.className = 'desktop-genre-pill';
       pill.dataset.genre = g;
@@ -183,6 +183,11 @@ function buildFilterParams() {
 
 async function shuffle() {
   if (frozen) return;
+  // In crates mode, reset crates with new filters instead of fetching tracks
+  if (document.body.classList.contains('crates-mode')) {
+    if (window._cratesResetFn) window._cratesResetFn();
+    return;
+  }
   trackEvent('shuffle');
   showStatus('');
   try {
@@ -489,6 +494,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   // ── Crates view (infinite canvas) ──
   let cratesInitialized = false;
 
+  window._cratesResetFn = null;
+
   function initCrates() {
     if (cratesInitialized) return;
 
@@ -529,7 +536,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       const y = pageOffsetY + r.y + gap / 2;
       const w = r.w - gap, h = r.h - gap;
       if (w < 20 || h < 20) return null;
-      const numCards = Math.min(Math.max(item.artworks.length, 1), 8);
+      const numCards = Math.min(Math.max(item.artworks.length, 1), 6);
       const pileOffset = (numCards - 1) * STEP;
       const cardW = w - pileOffset, cardH = h - pileOffset;
 
@@ -628,35 +635,37 @@ document.addEventListener('DOMContentLoaded', async () => {
       });
     }
 
-    // Crates index — fetched once, shuffled once, pages sliced client-side
-    let cratesIndexPromise = null;
-    let cratesShuffledPool = null;
+    // Crates index — cached per filter key, shuffled once per fetch
+    let cratesPoolCache = {};  // filterKey -> shuffled array
+    let cratesPoolPromise = null;
+    let cratesFilterKey = '';
 
     function getCratesPool() {
-      if (!cratesIndexPromise) cratesIndexPromise = apiGetCratesIndex();
-      return cratesIndexPromise.then(index => {
-        if (!cratesShuffledPool) {
-          // LCG shuffle (same algorithm as worker) — deterministic for this session
+      const params = buildFilterParams();
+      const key = [params.genres || '', params.artists || '', params.djs || ''].join('|');
+      if (key !== cratesFilterKey) {
+        cratesFilterKey = key;
+        cratesPoolPromise = null;  // invalidate on filter change
+      }
+      if (cratesPoolCache[key]) return Promise.resolve(cratesPoolCache[key]);
+      if (!cratesPoolPromise) {
+        const q = { v: 3 };
+        if (params.genres) q.genres = params.genres.join(',');
+        if (params.artists) q.artists = params.artists.join(',');
+        if (params.djs) q.djs = params.djs.join(',');
+        cratesPoolPromise = apiFetch('/api/crates-index', q).then(index => {
           let rngState = crateSeed === 0 ? 1 : crateSeed;
           const rng = () => { rngState = (rngState * 16807) % 2147483647; return (rngState - 1) / 2147483646; };
-          cratesShuffledPool = [...index];
-          for (let i = cratesShuffledPool.length - 1; i > 0; i--) {
+          const pool = [...index];
+          for (let i = pool.length - 1; i > 0; i--) {
             const j = Math.floor(rng() * (i + 1));
-            [cratesShuffledPool[i], cratesShuffledPool[j]] = [cratesShuffledPool[j], cratesShuffledPool[i]];
+            [pool[i], pool[j]] = [pool[j], pool[i]];
           }
-        }
-        // Apply active filters
-        const gf = genreFilters;
-        const af = searchFilters.map(f => f.display.toLowerCase());
-        const df = djSearchFilters.map(f => f.display.toLowerCase());
-        if (!gf.length && !af.length && !df.length) return cratesShuffledPool;
-        return cratesShuffledPool.filter(c => {
-          if (gf.length && !gf.some(g => (c.g || []).includes(g))) return false;
-          if (af.length && !af.some(a => (c.a || '').includes(a))) return false;
-          if (df.length && !(c.d || []).some(d => df.includes(d))) return false;
-          return true;
+          cratesPoolCache[key] = pool;
+          return pool;
         });
-      });
+      }
+      return cratesPoolPromise;
     }
 
     // Request a page from the index (non-blocking, no worker call)
@@ -744,7 +753,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       pendingPageKeys.delete(key);
       if (pages[key]) return;
       if (clusters.length === 0) {
-        pages[key] = { el: null, stacks: [], artLoaded: false, mounted: false, empty: true };
+        pages[key] = { col, row, el: null, stacks: [], artLoaded: false, mounted: false, empty: true };
         return;
       }
       minCol = Math.min(minCol, col);
@@ -768,7 +777,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       });
       surface.appendChild(container);
 
-      const page = { clusters, el: container, stacks, artLoaded: false, mounted: true };
+      const page = { col, row, clusters, el: container, stacks, artLoaded: false, mounted: true };
       pages[key] = page;
       // Load art if page is near viewport
       updateVisibleForPage(key, page);
@@ -866,7 +875,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       visibleTimer = setTimeout(() => {
         visibleTimer = null;
         updateVisible();
-      }, isMobileView() ? 350 : 150);
+      }, isMobileView() ? 200 : 80);
     }
 
     function updateVisible() {
@@ -895,13 +904,14 @@ document.addEventListener('DOMContentLoaded', async () => {
       const rowVis0 = Math.floor(viewT / vh);
       const rowVis1 = Math.floor(viewB / vh);
 
-      for (const [key, page] of Object.entries(pages)) {
-        const [c, r] = key.split(',').map(Number);
+      for (const page of Object.values(pages)) {
+        if (page.empty) continue;
+        const c = page.col, r = page.row;
         const near = c >= colVis0 - 1 && c <= colVis1 + 1 && r >= rowVis0 - 1 && r <= rowVis1 + 1;
         const artFar = c < colMin - 3 || c > colMax + 3 || r < rowMin - 3 || r > rowMax + 3;
         const domFar = c < colMin - 5 || c > colMax + 5 || r < rowMin - 5 || r > rowMax + 5;
         if (domFar) {
-          unloadPageArt(page);  // strip art first (resets artLoaded), then detach
+          unloadPageArt(page);
           unmountPage(page);
         } else {
           if (!page.mounted) mountPage(page);
@@ -957,7 +967,11 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (didDrag) { e.stopPropagation(); didDrag = false; }
     }, true);
     cratesView.addEventListener('wheel', e => {
-      targetPanX -= e.deltaX; targetPanY -= e.deltaY;
+      // Dampen small deltas (macOS trackpad inertial tail)
+      const dx = Math.abs(e.deltaX) < 1 ? 0 : e.deltaX;
+      const dy = Math.abs(e.deltaY) < 1 ? 0 : e.deltaY;
+      if (dx === 0 && dy === 0) return;
+      targetPanX -= dx; targetPanY -= dy;
       requestPanFrame();
     }, { passive: true });
 
@@ -1036,8 +1050,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     function momentumStep() {
       // Stop if crates view was hidden (e.g. user switched to Tracks mid-momentum)
       if (cratesView.classList.contains('hidden')) { momentumId = null; return; }
-      velX *= 0.92;
-      velY *= 0.92;
+      velX *= 0.85;
+      velY *= 0.85;
       if (Math.abs(velX) < 0.5 && Math.abs(velY) < 0.5) {
         momentumId = null;
         updateVisible();
@@ -1087,6 +1101,27 @@ document.addEventListener('DOMContentLoaded', async () => {
     cratesView.addEventListener('click', e => {
       if (touchDidDrag) { e.stopPropagation(); touchDidDrag = false; }
     }, true);
+
+    // Expose reset for filter changes — clears pages & re-requests from filtered pool
+    window._cratesResetFn = function() {
+      // Cancel pending
+      pendingPageKeys.clear();
+      // Clear page numbering so filtered pool starts from page 0
+      for (const k in pageNums) delete pageNums[k];
+      pageIdCounter = 0;
+      // Unmount and clear all pages
+      for (const k in pages) {
+        if (pages[k].el) pages[k].el.remove();
+        delete pages[k];
+      }
+      minCol = 0; maxCol = 0; minRow = 0; maxRow = 0;
+      // Reset pan to origin
+      panX = 0; panY = 0; targetPanX = 0; targetPanY = 0;
+      crateScale = isMobileView() ? 0.75 : 0.8; targetScale = crateScale;
+      applyTransform();
+      // Re-request visible pages with new filters
+      updateVisible();
+    };
 
     // Initial render
     updateVisible();

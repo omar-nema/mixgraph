@@ -351,7 +351,6 @@ body.night .mode-tab.active { color: var(--connection-highlight); background: no
 .crate-stack {
   position: absolute;
   cursor: pointer;
-  transition: opacity 0.3s ease;
 }
 .crate-stack.fade-out { opacity: 0; transition: opacity 0.15s ease; }
 .crate-stack.crate-loading { animation: cratePulse 1s ease-in-out infinite; pointer-events: none; }
@@ -1061,7 +1060,7 @@ a.track-title:hover { text-decoration-color: var(--text-secondary); }
   flex-shrink: 0;
 }
 body.crates-mode { overflow: hidden; }
-.crates-mode #filter-row { display: none; }
+.crates-mode #filter-row .filter-share { display: none; }
 
 .filter-pill {
   font-size: 16px;

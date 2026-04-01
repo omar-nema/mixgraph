@@ -472,15 +472,43 @@ export default {
 
       // GET /api/crates-index — pre-computed seed metadata for client-side crates
       if (url.pathname === '/api/crates-index') {
-        const raw = await env.GRAPH_KV.get('crates-index', 'text');
-        if (!raw) return jsonResponse({ error: 'crates-index not found — rebuild KV' }, 404);
-        return new Response(raw, {
-          headers: {
-            'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*',
-            'Cache-Control': 'public, max-age=86400, stale-while-revalidate=604800',
-          },
-        });
+        const genres = csvParam(q.get('genres'));
+        const artists = csvParam(q.get('artists'));
+        const djs = csvParam(q.get('djs'));
+        const hasFilters = genres.length > 0 || artists.length > 0 || djs.length > 0;
+
+        if (!hasFilters) {
+          // No filters — return cached static blob
+          const raw = await env.GRAPH_KV.get('crates-index', 'text');
+          if (!raw) return jsonResponse({ error: 'crates-index not found — rebuild KV' }, 404);
+          return new Response(raw, {
+            headers: {
+              'Content-Type': 'application/json',
+              'Access-Control-Allow-Origin': '*',
+              'Cache-Control': 'public, max-age=86400, stale-while-revalidate=604800',
+            },
+          });
+        }
+
+        // Filters active — filter candidates server-side (same logic as shuffle)
+        const allCandidates = await env.GRAPH_KV.get('candidates', 'json');
+        const matchIds = new Set(
+          allCandidates.filter(c => {
+            if (c.e < 4) return false;
+            if (genres.length > 0 && !genres.some(g => c.g.includes(g))) return false;
+            if (artists.length > 0 && !artists.some(a => c.a.includes(a.toLowerCase()))) return false;
+            if (djs.length > 0) {
+              const djsLower = djs.map(d => d.toLowerCase());
+              if (!c.d.some(d => djsLower.includes(d))) return false;
+            }
+            return true;
+          }).map(c => c.id)
+        );
+
+        const index = await env.GRAPH_KV.get('crates-index', 'json');
+        if (!index) return jsonResponse({ error: 'crates-index not found — rebuild KV' }, 404);
+        const filtered = index.filter(c => matchIds.has(c.id));
+        return jsonResponse(filtered);
       }
 
       // POST /api/event — telemetry via Analytics Engine
