@@ -63,8 +63,8 @@ cd pipeline && python3 enrich.py
 # Extract DJ names from show titles (run after graph.py)
 cd pipeline && python3 extract_dj_names.py
 
-# Serve frontend locally
-python3 -m http.server 8000
+# Serve frontend locally (SPA-aware, handles /dig and /shuffle routes)
+python3 serve.py
 ```
 
 ## Frontend
@@ -85,6 +85,10 @@ python3 -m http.server 8000
 - **NEVER use the Claude Code preview tool for testing or previewing this app.** The preview viewport is too narrow for the desktop layout and gives misleading results. Always use **Chrome MCP** (Claude in Chrome) or **Playwright** instead — they render at real browser widths.
 - **Verify every frontend-facing change in a real browser after editing.** Load the local dev server in Chrome MCP or Playwright, check for console errors, and confirm the page renders correctly before presenting results to the user.
 - **Always load with `?noplay`** when testing in Chrome MCP or Playwright (e.g. `http://localhost:8000/?noplay`). This suppresses audio playback so random tracks don't blast during automated testing. The flag is checked in `js/audio.js` via `AUDIO_SUPPRESSED`.
+
+## Git rules
+
+- **Never commit `web-app/output/combined_graph.json`** — it's 100MB+ and exceeds GitHub's file size limit. It's gitignored. Don't try to add it.
 
 ## Backend (Python scrapers)
 
