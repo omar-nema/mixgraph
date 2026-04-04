@@ -1651,7 +1651,7 @@ body.night #card-context-menu {
 }
 
 /* Mobile-only elements: hidden on desktop */
-#mobile-help-btn, #mobile-help-panel, #mobile-find-bar, #mobile-title, #mobile-mode-tabs, #mobile-header-share, #mobile-tracks, #popover-backdrop { display: none; }
+#mobile-header, #mobile-help-btn, #mobile-help-panel, #mobile-find-bar, #mobile-title, #mobile-mode-tabs, #mobile-header-share, #mobile-tracks, #popover-backdrop { display: none; }
 
 /* (debug-bar and filter-select moved into dev panel) */
 
@@ -2011,6 +2011,7 @@ body.night #card-context-menu {
   white-space: nowrap;
 }
 .ac-item .ac-parent { font-weight: 500; }
+.ac-no-results { color: var(--text-secondary); pointer-events: none; cursor: default; }
 
 /* Active artist filter indicator */
 #artist-search.filtered {

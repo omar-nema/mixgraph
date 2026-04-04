@@ -44,6 +44,22 @@
 @media (max-width: 768px) {
   body:not(.night) { --text-primary: #193382; }
 
+  /* Mobile header bar — matches desktop toolbar */
+  #mobile-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 200;
+    padding: calc(8px + env(safe-area-inset-top, 0px)) 8px 8px;
+    background: color-mix(in srgb, var(--bg) 90%, transparent);
+    -webkit-backdrop-filter: blur(16px) saturate(1.4);
+    backdrop-filter: blur(16px) saturate(1.4);
+  }
+
   /* Hide desktop-only elements */
   #graph-viewport { display: none; }
   #desktop-genres { display: none !important; }
@@ -56,11 +72,6 @@
   #mode-tabs { display: none; }
   #mobile-mode-tabs {
     display: flex;
-    position: fixed;
-    top: calc(8px + env(safe-area-inset-top, 0px));
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 200;
     gap: 2px;
     background: var(--toolbar-btn-bg);
     border: none;
@@ -288,10 +299,6 @@
 
   #mobile-help-btn {
     display: flex;
-    position: fixed;
-    top: calc(8px + env(safe-area-inset-top, 0px));
-    right: 8px;
-    z-index: 200;
     width: 32px;
     height: 32px;
     align-items: center;
@@ -301,20 +308,16 @@
     border-radius: var(--card-radius);
     cursor: pointer;
     color: var(--text-secondary);
-
     font-size: 16px;
     font-weight: 500;
     padding: 0;
+    flex-shrink: 0;
   }
   #mobile-help-btn:active { background: var(--card-border); }
   #mobile-help-btn.open { color: var(--text-primary); }
 
   #mobile-header-share {
     display: flex;
-    position: fixed;
-    top: calc(8px + env(safe-area-inset-top, 0px));
-    left: 8px;
-    z-index: 200;
     width: 32px;
     height: 32px;
     align-items: center;
@@ -325,6 +328,7 @@
     cursor: pointer;
     color: var(--text-secondary);
     padding: 0;
+    flex-shrink: 0;
   }
   #mobile-header-share:active { background: var(--card-border); }
   #mobile-header-share.copied { color: var(--connection-highlight); border-color: var(--connection-highlight); }
