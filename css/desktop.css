@@ -362,6 +362,11 @@ body.night .mode-tab.active { color: var(--connection-highlight); background: no
   position: absolute;
   cursor: pointer;
   contain: layout style paint;
+  animation: crateFadeIn 0.2s ease both;
+}
+@keyframes crateFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 .crate-stack.fade-out { opacity: 0; transition: opacity 0.15s ease; }
 .crate-stack.crate-loading { animation: cratePulse 1s ease-in-out infinite; pointer-events: none; }

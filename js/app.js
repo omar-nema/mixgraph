@@ -708,30 +708,18 @@ document.addEventListener('DOMContentLoaded', async () => {
               sorted[0].weight *= 1.6;
             }
           }
-          // For filtered results, use a uniform row-based grid packing top-left
+          // For filtered results, treemap into a tight top-left bounding box
           const hasFilters = cratesFilterKey && cratesFilterKey !== '||';
           if (!isMobileView() && (hasFilters || items.length < CLUSTERS_PER_PAGE)) {
-            // Content coords: divide by scale since surface is scaled down
             const contentW = vw / crateScale;
-            const gridGap = 20;
-            const gridPad = 25;
+            const contentH = vh / crateScale;
+            const tmPad = 25;
             const headerH = Math.ceil(120 / crateScale) + 15;
-            const avail = contentW - gridPad * 2;
-            // Uniform card size — target ~220px rendered (= 220/scale in content)
-            const targetRendered = 220;
-            const targetContent = targetRendered / crateScale;
-            const cols = Math.min(items.length, Math.floor((avail + gridGap) / (targetContent + gridGap)));
-            const cardSize = Math.min(targetContent, (avail - (cols - 1) * gridGap) / cols);
-            // Pack row by row, starting below header
-            let cx = gridPad, cy = headerH;
-            items.forEach(it => {
-              if (cx + cardSize > gridPad + avail && cx > gridPad) {
-                cx = gridPad;
-                cy += cardSize + gridGap;
-              }
-              it.rect = { x: cx, y: cy, w: cardSize, h: cardSize };
-              cx += cardSize + gridGap;
-            });
+            // Scale bounding box to item count — fewer items = tighter box
+            const fillRatio = Math.min(1, items.length / CLUSTERS_PER_PAGE);
+            const tmW = contentW - tmPad * 2;
+            const tmH = (contentH - headerH - tmPad) * Math.max(0.4, fillRatio);
+            cratesTreemap(items, tmPad, headerH, tmW, tmH);
           } else {
             cratesTreemap(items, pad, pad, vw - pad * 2, vh - pad * 2);
           }
@@ -1061,7 +1049,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           e.touches[1].clientX - e.touches[0].clientX,
           e.touches[1].clientY - e.touches[0].clientY
         );
-        targetScale = Math.max(0.2, Math.min(2, pinchStartScale * (dist / lastPinchDist)));
+        targetScale = Math.max(0.6, Math.min(2, pinchStartScale * (dist / lastPinchDist)));
         requestPanFrame();
       } else if (e.touches.length === 1 && touchDragging) {
         const now = performance.now();
