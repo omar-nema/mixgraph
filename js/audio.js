@@ -407,6 +407,21 @@ function findCardForNode(nodeId) {
       || document.querySelector(`.mobile-carousel-card[data-node-id="${nodeId}"]`);
 }
 
+// ── PWA background/foreground: nudge widgets to resume faster ──
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState !== 'visible' || !currentlyPlayingId) return;
+  const card = findCardForNode(currentlyPlayingId);
+  const isPlaying = card && card.classList.contains('playing');
+  if (!isPlaying) return;
+  // Nudge the widget — calling play() on an already-playing widget
+  // is a no-op but wakes the iframe from browser throttling
+  if (currentBackend === 'sc' && scWidget && scWidgetReady) {
+    try { scWidget.play(); } catch (e) {}
+  } else if (currentBackend === 'mc' && mcWidget) {
+    try { mcWidget.play(); } catch (e) {}
+  }
+});
+
 function togglePlay(nodeId) {
   const node = nodeMap[nodeId];
   if (!node) return;
