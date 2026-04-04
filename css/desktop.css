@@ -197,14 +197,19 @@ body {
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
-  position: relative;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
   z-index: 200;
+  background: color-mix(in srgb, var(--bg) 90%, transparent);
+  -webkit-backdrop-filter: blur(16px) saturate(1.4);
+  backdrop-filter: blur(16px) saturate(1.4);
 }
 #toolbar-row {
   display: flex;
   align-items: center;
-  height: 52px;
-  padding: 0 20px;
+  padding: 20px 20px 10px;
   max-width: 1750px;
   margin: 0 auto;
   width: 100%;
@@ -330,9 +335,33 @@ body.night .mode-tab.active { color: var(--connection-highlight); background: no
   position: relative;
   transition: opacity 0.3s ease;
 }
+/* Staged reveal: first visit to tracks mode */
+#tracks-view.reveal-loading .node-card,
+#tracks-view.reveal-loading #connections-layer { opacity: 0; }
+#tracks-view.reveal-cards .node-card {
+  opacity: 1;
+  transition: opacity 0.3s ease;
+}
+#tracks-view.reveal-cards .node-card .art-wrap,
+#tracks-view.reveal-cards .node-card .track-title,
+#tracks-view.reveal-cards .node-card .artist-name,
+#tracks-view.reveal-cards .node-card .dj-line,
+#tracks-view.reveal-cards .node-card .card-toolbar,
+#tracks-view.reveal-cards .node-card .rank-tooltip { opacity: 0; }
+#tracks-view.reveal-cards #connections-layer { opacity: 0; }
+#tracks-view.reveal-details .node-card .art-wrap,
+#tracks-view.reveal-details .node-card .track-title,
+#tracks-view.reveal-details .node-card .artist-name,
+#tracks-view.reveal-details .node-card .dj-line,
+#tracks-view.reveal-details .node-card .card-toolbar,
+#tracks-view.reveal-details .node-card .rank-tooltip,
+#tracks-view.reveal-details #connections-layer {
+  opacity: 1;
+  transition: opacity 0.35s ease;
+}
 #crates-view {
-  flex: 1;
-  position: relative;
+  position: fixed;
+  inset: 0;
   overflow: hidden;
   cursor: grab;
   transition: opacity 0.3s ease;
@@ -341,6 +370,9 @@ body.night .mode-tab.active { color: var(--connection-highlight); background: no
   overscroll-behavior: contain;
 }
 #crates-view.dragging { cursor: grabbing; }
+#crates-view.dragging .crate-card { transition: none; }
+#crates-view.dragging .crate-info { backdrop-filter: none; -webkit-backdrop-filter: none; }
+#crates-view.dragging .crate-stack { pointer-events: none; }
 
 #crates-surface {
   position: absolute;
@@ -351,6 +383,7 @@ body.night .mode-tab.active { color: var(--connection-highlight); background: no
 .crate-stack {
   position: absolute;
   cursor: pointer;
+  contain: layout style paint;
 }
 .crate-stack.fade-out { opacity: 0; transition: opacity 0.15s ease; }
 .crate-stack.crate-loading { animation: cratePulse 1s ease-in-out infinite; pointer-events: none; }
@@ -433,10 +466,6 @@ body.night .mode-tab.active { color: var(--connection-highlight); background: no
 .node-card .artist-name,
 .node-card .dj-line { transition: opacity 0.3s ease; }
 #crates-view.fading {
-  position: fixed;
-  inset: 0;
-  top: 52px;
-  z-index: 150;
   opacity: 0;
   transition: opacity 0.4s ease;
   pointer-events: none;
@@ -1043,10 +1072,10 @@ a.track-title:hover { text-decoration-color: var(--text-secondary); }
 #filter-row {
   display: flex;
   align-items: center;
-  justify-content: flex-start;
-  padding: 13px 20px 0;
+  justify-content: space-between;
+  padding: 10px 20px 20px;
   max-width: 1750px;
-  margin: 0 auto -5px;
+  margin: 0 auto;
   width: 100%;
   gap: 12px;
 }
@@ -1071,17 +1100,16 @@ a.track-title:hover { text-decoration-color: var(--text-secondary); }
 }
 /* Unified search input */
 .filter-search-wrap {
-  display: none; /* TODO: bring back unified search */
   position: relative;
-  /* display: flex; */
+  display: flex;
   align-items: center;
   flex: 1;
   min-width: 0;
-  max-width: 520px;
+  max-width: 640px;
   background: var(--card-bg);
   border: 1px solid var(--card-border);
-  border-radius: 20px;
-  padding: 6px 16px;
+  border-radius: 5px;
+  padding: 10px 16px;
   transition: border-color 0.15s ease;
 }
 .filter-search-wrap:focus-within {
@@ -1106,6 +1134,27 @@ a.track-title:hover { text-decoration-color: var(--text-secondary); }
 #filter-search::placeholder {
   color: var(--text-tertiary);
 }
+.filter-search-wrap.has-selection {
+  border-color: var(--connection-highlight);
+  background: var(--accent-wash);
+}
+.filter-search-wrap.has-selection #filter-search {
+  font-weight: 300;
+  color: var(--connection-highlight);
+}
+.filter-search-clear {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-secondary);
+  padding: 2px;
+  display: flex;
+  align-items: center;
+}
+.filter-search-clear:hover {
+  color: var(--text-primary);
+}
 #filter-search-ac {
   position: absolute;
   top: calc(100% + 6px);
@@ -1113,7 +1162,7 @@ a.track-title:hover { text-decoration-color: var(--text-secondary); }
   right: 0;
   background: var(--card-bg);
   border: 1px solid var(--card-border);
-  border-radius: 12px;
+  border-radius: 5px;
   max-height: 320px;
   overflow-y: auto;
   z-index: 300;
@@ -1126,14 +1175,14 @@ a.track-title:hover { text-decoration-color: var(--text-secondary); }
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 14px;
+  padding: 10px 16px;
   cursor: pointer;
-  font-size: 14px;
+  font-size: 16px;
   color: var(--text-primary);
   transition: background 0.1s;
 }
-#filter-search-ac .ac-item:first-child { border-radius: 12px 12px 0 0; }
-#filter-search-ac .ac-item:last-child { border-radius: 0 0 12px 12px; }
+#filter-search-ac .ac-item:first-child { border-radius: 5px 5px 0 0; }
+#filter-search-ac .ac-item:last-child { border-radius: 0 0 5px 5px; }
 #filter-search-ac .ac-item:hover,
 #filter-search-ac .ac-item.active {
   background: var(--accent-wash);
@@ -1156,7 +1205,7 @@ body.crates-mode { overflow: hidden; }
   background: var(--card-bg);
   border: 1px solid var(--card-border);
   border-radius: 20px;
-  padding: 6px 16px;
+  padding: 10px 16px;
   cursor: pointer;
   transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
   white-space: nowrap;
@@ -1199,6 +1248,8 @@ body.crates-mode { overflow: hidden; }
   padding: 0 4px;
   user-select: none;
 }
+body.crates-mode .filter-shuffle,
+body.crates-mode .filter-dot { display: none; }
 .filter-shuffle,
 .filter-shuffle:hover,
 .filter-shuffle:active,
@@ -1206,7 +1257,7 @@ body.crates-mode { overflow: hidden; }
   background: var(--accent);
   border-color: var(--accent);
   color: white;
-  padding: 6px 16px;
+  padding: 10px 16px;
 }
 .filter-shuffle:hover {
   background: color-mix(in oklch, var(--accent) 85%, white);
@@ -1343,7 +1394,8 @@ body.night .filter-popover { background: var(--surface-elevated); box-shadow: 0 
 #find-ac, #dj-ac, #genre-ac {
   position: absolute;
   top: 100%;
-  left: 0; right: 0;
+  right: 0;
+  min-width: 220px;
   max-height: 280px;
   overflow-y: auto;
   display: none;
@@ -1910,8 +1962,8 @@ body.night #card-context-menu {
 #artist-autocomplete {
   position: absolute;
   bottom: calc(100% + 4px);
-  left: 0;
-  width: 100%;
+  right: 0;
+  min-width: 220px;
   max-height: 260px;
   overflow-y: auto;
   background: var(--card-bg);

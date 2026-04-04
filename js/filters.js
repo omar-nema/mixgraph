@@ -331,11 +331,18 @@ async function initFilters() {
     });
   }
 
-  // Position a popover below its anchor pill
+  // Position a popover below its anchor pill, clamped to viewport
   function positionPopover(popover, anchorEl) {
     const rect = anchorEl.getBoundingClientRect();
-    popover.style.top = (rect.bottom + 8) + 'px';
-    popover.style.left = rect.left + 'px';
+    const top = rect.bottom + 8;
+    let left = rect.left;
+    // Clamp so popover doesn't overflow right edge
+    const pw = popover.offsetWidth || 540;
+    const maxLeft = window.innerWidth - pw - 12;
+    if (left > maxLeft) left = maxLeft;
+    if (left < 12) left = 12;
+    popover.style.top = top + 'px';
+    popover.style.left = left + 'px';
   }
 
   // Close all popovers
@@ -404,34 +411,7 @@ async function initFilters() {
     shuffle();
   }
 
-  // Desktop hover-to-open for filter pills
-  let _hoverCloseTimer = null;
-  function setupPillHover(pillEl, popover, searchInput) {
-    function openThis() {
-      clearTimeout(_hoverCloseTimer);
-      const wasOpen = popover.classList.contains('open');
-      closeAllPopovers();
-      positionPopover(popover, pillEl);
-      popover.classList.add('open');
-      pillEl.classList.add('semi-open');
-      if (!wasOpen) setTimeout(() => searchInput.focus(), 50);
-    }
-    function scheduleClose() {
-      _hoverCloseTimer = setTimeout(() => {
-        closeAllPopovers();
-        reshuffleIfFiltered();
-      }, 200);
-    }
-    function cancelClose() { clearTimeout(_hoverCloseTimer); }
 
-    pillEl.addEventListener('mouseenter', () => { if (!isMobileView()) openThis(); });
-    pillEl.addEventListener('mouseleave', () => { if (!isMobileView()) scheduleClose(); });
-    popover.addEventListener('mouseenter', () => { if (!isMobileView()) cancelClose(); });
-    popover.addEventListener('mouseleave', () => { if (!isMobileView()) scheduleClose(); });
-  }
-  setupPillHover(pillGenreEl, genrePopover, genreSearchInput);
-  setupPillHover(pillArtistEl, artistPopover, findSearchInput);
-  setupPillHover(pillDjEl, djPopover, djSearchInput);
 
   // Close popovers on outside click (desktop only — mobile uses backdrop)
   document.addEventListener('click', (e) => {
@@ -635,8 +615,46 @@ async function initFilters() {
   // ── Unified search (searches across artist, DJ, genre) ──
   const filterSearchInput = document.getElementById('filter-search');
   const filterSearchAc = document.getElementById('filter-search-ac');
+  const filterSearchClear = document.getElementById('filter-search-clear');
+  const filterSearchWrap = filterSearchInput?.closest('.filter-search-wrap');
   if (filterSearchInput && filterSearchAc) {
     let uniItems = [], uniActiveIdx = -1, uniDebounce = null;
+
+    function setSearchSelection(label) {
+      filterSearchInput.value = label;
+      filterSearchInput.readOnly = true;
+      filterSearchClear.style.display = 'flex';
+      filterSearchWrap.classList.add('has-selection');
+    }
+
+    function clearSearchSelection() {
+      // Remove the most recently added filter
+      if (artistFilters.length) {
+        artistFilters.pop();
+      } else if (djFilters.length) {
+        djFilters.pop();
+      } else if (genreSearchFilters.length) {
+        genreSearchFilters.pop();
+        syncGenrePillHighlights();
+        renderGenreChips();
+      }
+      filterSearchInput.value = '';
+      filterSearchInput.readOnly = false;
+      filterSearchClear.style.display = 'none';
+      filterSearchWrap.classList.remove('has-selection');
+      shuffleHistory.clear();
+      updateFilterUI();
+      updateClusterPills();
+      if (document.body.classList.contains('crates-mode') && window._cratesResetFn) {
+        window._cratesResetFn();
+      }
+    }
+
+    filterSearchClear.addEventListener('click', (e) => {
+      e.stopPropagation();
+      clearSearchSelection();
+      filterSearchInput.focus();
+    });
 
     function closeUnifiedAc() {
       filterSearchAc.classList.remove('open');
@@ -672,7 +690,7 @@ async function initFilters() {
             if (type === 'artist') addSearchFilter(entry);
             else if (type === 'dj') addDjFilter(entry);
             else if (type === 'genre') addGenreSearchFilter(entry);
-            filterSearchInput.value = '';
+            setSearchSelection(label);
             closeUnifiedAc();
           });
           div.addEventListener('mouseenter', () => {
@@ -689,6 +707,11 @@ async function initFilters() {
 
     filterSearchInput.addEventListener('input', () => {
       clearTimeout(uniDebounce);
+      // If user types while a selection is shown, clear the selection state
+      if (filterSearchWrap.classList.contains('has-selection')) {
+        clearSearchSelection();
+        filterSearchInput.readOnly = false;
+      }
       if (filterSearchInput.value.trim()) {
         uniDebounce = setTimeout(() => showUnifiedAc(filterSearchInput.value), 150);
       } else {

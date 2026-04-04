@@ -592,6 +592,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Track last known mouse position from outside any stack
     let lastOuterX = 0, lastOuterY = 0;
     document.getElementById('crates-view').addEventListener('mousemove', e => {
+      if (isDragging) return;
       // Only update if target is NOT inside a crate-stack
       if (!e.target.closest('.crate-stack')) {
         lastOuterX = e.clientX;
@@ -1160,18 +1161,43 @@ document.addEventListener('DOMContentLoaded', async () => {
       // Hide the other mode's toast when switching
       if (mode === 'tracks') {
         cratesHelperToast.classList.remove('visible');
-        // Re-render cluster (it may have been laid out while hidden)
-        if (currentCluster) {
-          requestAnimationFrame(() => showCluster(currentCluster));
-        } else {
-          shuffle();
-        }
-        // Prevent connection arrows from replaying draw animation
-        document.querySelectorAll('.connection-path').forEach(p => {
-          p.style.animation = 'none';
-          p.style.strokeDasharray = 'none';
-          p.style.strokeDashoffset = '0';
+        // Fade in shuffle button + dot when switching to tracks
+        document.querySelectorAll('.filter-shuffle, .filter-dot').forEach(el => {
+          el.style.opacity = '0';
+          void el.offsetWidth;
+          el.style.transition = 'opacity 0.25s ease';
+          el.style.opacity = '1';
+          el.addEventListener('transitionend', () => { el.style.transition = ''; el.style.opacity = ''; }, { once: true });
         });
+        // First visit: staged reveal (loading → cards → details)
+        if (!window._tracksRevealed) {
+          window._tracksRevealed = true;
+          const tv = document.getElementById('tracks-view');
+          tv.classList.add('reveal-loading');
+          shuffle().then(() => {
+            tv.classList.remove('reveal-loading');
+            tv.classList.add('reveal-cards');
+            setTimeout(() => {
+              tv.classList.add('reveal-details');
+              setTimeout(() => {
+                tv.classList.remove('reveal-cards', 'reveal-details');
+              }, 400);
+            }, 300);
+          });
+        } else {
+          // Re-render cluster (it may have been laid out while hidden)
+          if (currentCluster) {
+            requestAnimationFrame(() => showCluster(currentCluster));
+          } else {
+            shuffle();
+          }
+          // Prevent connection arrows from replaying draw animation
+          document.querySelectorAll('.connection-path').forEach(p => {
+            p.style.animation = 'none';
+            p.style.strokeDasharray = 'none';
+            p.style.strokeDashoffset = '0';
+          });
+        }
       }
       if (mode === 'crates') tracksHelperToast.classList.remove('visible');
     });
