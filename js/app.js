@@ -293,8 +293,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Wire theme toggle
   const themeBtn = document.getElementById('theme-toggle');
   const savedTheme = localStorage.getItem('b2b-theme');
-  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-  const startNight = savedTheme ? savedTheme === 'night' : prefersDark;
+  const startNight = savedTheme ? savedTheme === 'night' : true;
   function applyTheme(isNight) {
     document.body.classList.toggle('night', isNight);
     document.documentElement.classList.toggle('night', isNight);
@@ -302,11 +301,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     themeBtn.querySelectorAll('.sun-icon').forEach(el => el.style.display = isNight ? 'none' : '');
     themeBtn.querySelector('.moon-icon').style.display = isNight ? '' : 'none';
   }
-  if (startNight) applyTheme(true);
-  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
-    if (localStorage.getItem('b2b-theme')) return;
-    applyTheme(e.matches);
-  });
+  applyTheme(startNight);
   themeBtn.addEventListener('click', () => {
     const isNight = !document.body.classList.contains('night');
     applyTheme(isNight);
@@ -661,11 +656,13 @@ document.addEventListener('DOMContentLoaded', async () => {
           const seen = new Set();
           let deduped = index.filter(c => { if (seen.has(c.id)) return false; seen.add(c.id); return true; });
           // When artist filter is active, keep only seed-direct matches (drop neighbor-only hits)
+          // Split on commas to match individual artist credits exactly
           if (params.artists) {
-            const arts = params.artists.map(a => a.toLowerCase());
+            const arts = params.artists.map(a => a.toLowerCase().trim());
             deduped = deduped.filter(c => {
-              const seedArtist = (c.a || c.id.split(':::')[0] || '').toLowerCase();
-              return arts.some(a => seedArtist.includes(a) || a.includes(seedArtist));
+              const raw = c.a || c.id.split(':::')[0] || '';
+              const credits = raw.toLowerCase().split(/,\s*/).map(s => s.trim());
+              return arts.some(a => credits.some(cr => cr === a));
             });
           }
           const pool = [...deduped];
