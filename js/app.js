@@ -1131,8 +1131,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     function momentumStep() {
       // Stop if crates view was hidden (e.g. user switched to Tracks mid-momentum)
       if (cratesView.classList.contains('hidden')) { momentumId = null; return; }
-      velX *= 0.85;
-      velY *= 0.85;
+      velX *= 0.95;
+      velY *= 0.95;
       if (Math.abs(velX) < 0.5 && Math.abs(velY) < 0.5) {
         momentumId = null;
         updateVisible();
