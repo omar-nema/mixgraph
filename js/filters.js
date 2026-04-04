@@ -311,15 +311,17 @@ async function initFilters() {
   const artistPopover = document.getElementById('artist-popover');
   const djPopover = document.getElementById('dj-popover');
 
-  // Filter row shuffle button
+  // Filter row shuffle button (removed from UI, kept as guard)
   const filterShuffleBtn = document.getElementById('filter-shuffle-btn');
-  filterShuffleBtn.addEventListener('click', () => {
-    filterShuffleBtn.classList.remove('squish');
-    void filterShuffleBtn.offsetWidth; // reflow to restart animation
-    filterShuffleBtn.classList.add('squish');
-    shuffle();
-  });
-  filterShuffleBtn.addEventListener('animationend', () => filterShuffleBtn.classList.remove('squish'));
+  if (filterShuffleBtn) {
+    filterShuffleBtn.addEventListener('click', () => {
+      filterShuffleBtn.classList.remove('squish');
+      void filterShuffleBtn.offsetWidth;
+      filterShuffleBtn.classList.add('squish');
+      shuffle();
+    });
+    filterShuffleBtn.addEventListener('animationend', () => filterShuffleBtn.classList.remove('squish'));
+  }
 
   // Filter row share button
   const filterShareBtn = document.getElementById('filter-share-btn');
@@ -629,10 +631,12 @@ async function initFilters() {
 
     function clearSearchSelection() {
       // Remove the most recently added filter
-      if (artistFilters.length) {
-        artistFilters.pop();
-      } else if (djFilters.length) {
-        djFilters.pop();
+      if (searchFilters.length) {
+        searchFilters.pop();
+        renderFindChips();
+      } else if (djSearchFilters.length) {
+        djSearchFilters.pop();
+        renderDjChips();
       } else if (genreSearchFilters.length) {
         genreSearchFilters.pop();
         syncGenrePillHighlights();
@@ -642,6 +646,8 @@ async function initFilters() {
       filterSearchInput.readOnly = false;
       filterSearchClear.style.display = 'none';
       filterSearchWrap.classList.remove('has-selection');
+      clearTimeout(uniDebounce);
+      closeUnifiedAc();
       shuffleHistory.clear();
       updateFilterUI();
       updateClusterPills();
@@ -722,6 +728,13 @@ async function initFilters() {
       if (filterSearchInput.value.trim()) showUnifiedAc(filterSearchInput.value);
     });
     filterSearchInput.addEventListener('keydown', (e) => {
+      // Backspace/Delete clears active selection even when input is readOnly
+      if ((e.key === 'Backspace' || e.key === 'Delete') && filterSearchWrap.classList.contains('has-selection')) {
+        e.preventDefault();
+        clearSearchSelection();
+        filterSearchInput.focus();
+        return;
+      }
       if (!filterSearchAc.classList.contains('open')) return;
       if (e.key === 'ArrowDown') {
         e.preventDefault();

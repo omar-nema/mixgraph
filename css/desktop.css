@@ -1235,10 +1235,17 @@ body.crates-mode { overflow: hidden; }
   color: var(--text-tertiary);
   font-size: 18px;
   padding: 0 4px;
+  max-width: 20px;
   user-select: none;
 }
+.filter-shuffle,
+.filter-dot {
+  transition: opacity 0.25s ease, max-width 0.25s ease, padding 0.25s ease, margin 0.25s ease;
+  overflow: hidden;
+  white-space: nowrap;
+}
 body.crates-mode .filter-shuffle,
-body.crates-mode .filter-dot { display: none; }
+body.crates-mode .filter-dot { opacity: 0; max-width: 0; padding: 0; margin: 0; pointer-events: none; }
 .filter-shuffle,
 .filter-shuffle:hover,
 .filter-shuffle:active,
@@ -1247,6 +1254,7 @@ body.crates-mode .filter-dot { display: none; }
   border-color: var(--accent);
   color: white;
   padding: 10px 16px;
+  max-width: 150px;
 }
 .filter-shuffle:hover {
   background: color-mix(in oklch, var(--accent) 85%, white);
@@ -1383,8 +1391,8 @@ body.night .filter-popover { background: var(--surface-elevated); box-shadow: 0 
 #find-ac, #dj-ac, #genre-ac {
   position: absolute;
   top: 100%;
+  left: 0;
   right: 0;
-  min-width: 220px;
   max-height: 280px;
   overflow-y: auto;
   display: none;
@@ -1968,7 +1976,8 @@ body.night #card-context-menu {
 }
 
 .ac-item {
-  padding: 8px 14px;
+  padding: 8px 12px;
+  min-height: 44px;
   font-size: 14px;
   color: var(--text-primary);
   cursor: pointer;
@@ -1976,6 +1985,7 @@ body.night #card-context-menu {
   justify-content: space-between;
   align-items: center;
   transition: background 0.1s ease;
+  box-sizing: border-box;
 }
 
 .ac-item:hover,

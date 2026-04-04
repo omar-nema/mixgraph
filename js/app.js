@@ -657,7 +657,18 @@ document.addEventListener('DOMContentLoaded', async () => {
         cratesPoolPromise = apiFetch('/api/crates-index', q).then(index => {
           let rngState = crateSeed === 0 ? 1 : crateSeed;
           const rng = () => { rngState = (rngState * 16807) % 2147483647; return (rngState - 1) / 2147483646; };
-          const pool = [...index];
+          // Deduplicate by id
+          const seen = new Set();
+          let deduped = index.filter(c => { if (seen.has(c.id)) return false; seen.add(c.id); return true; });
+          // When artist filter is active, keep only seed-direct matches (drop neighbor-only hits)
+          if (params.artists) {
+            const arts = params.artists.map(a => a.toLowerCase());
+            deduped = deduped.filter(c => {
+              const seedArtist = (c.a || c.id.split(':::')[0] || '').toLowerCase();
+              return arts.some(a => seedArtist.includes(a) || a.includes(seedArtist));
+            });
+          }
+          const pool = [...deduped];
           for (let i = pool.length - 1; i > 0; i--) {
             const j = Math.floor(rng() * (i + 1));
             [pool[i], pool[j]] = [pool[j], pool[i]];
@@ -697,7 +708,33 @@ document.addEventListener('DOMContentLoaded', async () => {
               sorted[0].weight *= 1.6;
             }
           }
-          cratesTreemap(items, pad, pad, vw - pad * 2, vh - pad * 2);
+          // For filtered results, use a uniform row-based grid packing top-left
+          const hasFilters = cratesFilterKey && cratesFilterKey !== '||';
+          if (!isMobileView() && (hasFilters || items.length < CLUSTERS_PER_PAGE)) {
+            // Content coords: divide by scale since surface is scaled down
+            const contentW = vw / crateScale;
+            const gridGap = 20;
+            const gridPad = 25;
+            const headerH = Math.ceil(120 / crateScale) + 15;
+            const avail = contentW - gridPad * 2;
+            // Uniform card size — target ~220px rendered (= 220/scale in content)
+            const targetRendered = 220;
+            const targetContent = targetRendered / crateScale;
+            const cols = Math.min(items.length, Math.floor((avail + gridGap) / (targetContent + gridGap)));
+            const cardSize = Math.min(targetContent, (avail - (cols - 1) * gridGap) / cols);
+            // Pack row by row, starting below header
+            let cx = gridPad, cy = headerH;
+            items.forEach(it => {
+              if (cx + cardSize > gridPad + avail && cx > gridPad) {
+                cx = gridPad;
+                cy += cardSize + gridGap;
+              }
+              it.rect = { x: cx, y: cy, w: cardSize, h: cardSize };
+              cx += cardSize + gridGap;
+            });
+          } else {
+            cratesTreemap(items, pad, pad, vw - pad * 2, vh - pad * 2);
+          }
           receivePage(col, row, items);
         } else {
           receivePage(col, row, []);
@@ -876,7 +913,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       visibleTimer = setTimeout(() => {
         visibleTimer = null;
         updateVisible();
-      }, isMobileView() ? 200 : 80);
+      }, 200);
     }
 
     function updateVisible() {
@@ -1161,37 +1198,23 @@ document.addEventListener('DOMContentLoaded', async () => {
       // Hide the other mode's toast when switching
       if (mode === 'tracks') {
         cratesHelperToast.classList.remove('visible');
-        // Fade in shuffle button + dot when switching to tracks
-        document.querySelectorAll('.filter-shuffle, .filter-dot').forEach(el => {
-          el.style.opacity = '0';
-          void el.offsetWidth;
-          el.style.transition = 'opacity 0.25s ease';
-          el.style.opacity = '1';
-          el.addEventListener('transitionend', () => { el.style.transition = ''; el.style.opacity = ''; }, { once: true });
-        });
-        // First visit: staged reveal (loading → cards → details)
+        // First visit: fade in after shuffle loads
         if (!window._tracksRevealed) {
           window._tracksRevealed = true;
           const tv = document.getElementById('tracks-view');
           tv.classList.add('reveal-loading');
           shuffle().then(() => {
             tv.classList.remove('reveal-loading');
-            tv.classList.add('reveal-cards');
-            setTimeout(() => {
-              tv.classList.add('reveal-details');
-              setTimeout(() => {
-                tv.classList.remove('reveal-cards', 'reveal-details');
-              }, 400);
-            }, 300);
+            tv.classList.add('reveal-fade');
+            setTimeout(() => tv.classList.remove('reveal-fade'), 500);
           });
         } else {
-          // Re-render cluster (it may have been laid out while hidden)
+          // Subsequent: instant, no transition
           if (currentCluster) {
             requestAnimationFrame(() => showCluster(currentCluster));
           } else {
             shuffle();
           }
-          // Prevent connection arrows from replaying draw animation
           document.querySelectorAll('.connection-path').forEach(p => {
             p.style.animation = 'none';
             p.style.strokeDasharray = 'none';

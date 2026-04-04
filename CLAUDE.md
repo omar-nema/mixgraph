@@ -82,8 +82,9 @@ python3 -m http.server 8000
 
 ## Testing frontend changes
 
-- **Verify every frontend-facing change in Playwright after editing.** Load the local dev server in Playwright, check for console errors, and confirm the page renders correctly before presenting results to the user. Don't just rely on the preview tool — use Playwright to catch runtime JS errors.
-- **Always load with `?noplay`** when testing in preview or Playwright (e.g. `http://localhost:8000/?noplay`). This suppresses audio playback so random tracks don't blast during automated testing. The flag is checked in `js/audio.js` via `AUDIO_SUPPRESSED`.
+- **NEVER use the Claude Code preview tool for testing or previewing this app.** The preview viewport is too narrow for the desktop layout and gives misleading results. Always use **Chrome MCP** (Claude in Chrome) or **Playwright** instead — they render at real browser widths.
+- **Verify every frontend-facing change in a real browser after editing.** Load the local dev server in Chrome MCP or Playwright, check for console errors, and confirm the page renders correctly before presenting results to the user.
+- **Always load with `?noplay`** when testing in Chrome MCP or Playwright (e.g. `http://localhost:8000/?noplay`). This suppresses audio playback so random tracks don't blast during automated testing. The flag is checked in `js/audio.js` via `AUDIO_SUPPRESSED`.
 
 ## Backend (Python scrapers)
 
