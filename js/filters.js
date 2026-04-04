@@ -527,7 +527,12 @@ async function initFilters() {
       if (!q && !opts.showAllOnFocus) { close(); return; }
       try {
         const results = await searchFn(q, 15);
-        if (results.length === 0) { close(); return; }
+        if (results.length === 0) {
+          acEl.innerHTML = '<div class="ac-item ac-no-results">No results, try different artist, DJ or genre</div>';
+          acEl.classList.add('open');
+          items = []; activeIdx = -1;
+          return;
+        }
         items = [];
         activeIdx = -1;
         buildAcItems(acEl, results, (entry) => {
@@ -682,7 +687,12 @@ async function initFilters() {
         for (const g of genres) all.push({ entry: g, type: 'genre', label: g.isParent ? g.display : `${g.display} (${g.parent})` });
         for (const a of artists) all.push({ entry: a, type: 'artist', label: a.display });
         for (const d of djs) all.push({ entry: d, type: 'dj', label: d.display });
-        if (all.length === 0) { closeUnifiedAc(); return; }
+        if (all.length === 0) {
+          filterSearchAc.innerHTML = '<div class="ac-item ac-no-results">No results, try different artist, DJ or genre</div>';
+          filterSearchAc.classList.add('open');
+          uniItems = []; uniActiveIdx = -1;
+          return;
+        }
         filterSearchAc.innerHTML = '';
         uniItems = [];
         uniActiveIdx = -1;

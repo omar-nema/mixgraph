@@ -527,6 +527,34 @@ body.night #desktop-genres .desktop-genre-pill:hover {
   background: color-mix(in oklch, var(--card-bg), white 10%);
 }
 
+#desktop-genres .desktop-genre-label {
+  position: relative;
+  cursor: default;
+}
+
+.genre-tooltip {
+  display: none;
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 6px 8px;
+  background: color-mix(in srgb, var(--bg) 92%, transparent);
+  -webkit-backdrop-filter: blur(20px) saturate(1.4);
+  backdrop-filter: blur(20px) saturate(1.4);
+  border: 1px solid var(--card-border);
+  border-radius: 10px;
+  box-shadow: 0 8px 40px rgba(42, 37, 32, 0.15);
+  flex-wrap: wrap;
+  gap: 4px;
+  animation: ctx-fade-in 0.12s ease-out;
+}
+.genre-tooltip.open { display: flex; }
+body.night .genre-tooltip {
+  background: var(--surface-elevated);
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.5);
+}
+
 #graph-container {
   position: relative;
   transform-origin: center top;
@@ -673,6 +701,27 @@ body.night #desktop-genres .desktop-genre-pill:hover {
 .node-card .artist-name:hover {
   color: var(--text-primary);
   text-decoration-color: var(--text-secondary);
+}
+
+/* Subtle highlight on hover for all context menu triggers */
+.artist-ctx-trigger,
+.track-ctx-trigger,
+.dj-line a[data-dj],
+.dj-line .dj-ctx-trigger {
+  border-radius: 3px;
+  padding: 1px 3px;
+  margin: -1px -3px;
+  cursor: pointer;
+  transition: color 0.15s ease, text-decoration-color 0.15s ease, background 0.15s ease;
+}
+.track-ctx-trigger {
+  width: fit-content;
+}
+.artist-ctx-trigger:hover,
+.track-ctx-trigger:hover,
+.dj-line a[data-dj]:hover,
+.dj-line .dj-ctx-trigger:hover {
+  background: var(--accent-wash);
 }
 
 .node-card[data-rank="root"] .track-title { font-size: 22px; }
