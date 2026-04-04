@@ -12,10 +12,10 @@
   <g clip-path="url(#rounded)">
     <rect x="0" y="0" width="512" height="512" fill="#0d1117"/>
     <circle cx="256" cy="256" r="140.8" fill="#d0cfe8"/>
-    <circle cx="256" cy="256" r="108.8" fill="none" stroke="#9998b8" stroke-width="4"/>
+    <circle cx="256" cy="256" r="108.8" fill="none" stroke="#9998b8" stroke-width="22.4"/>
     <circle cx="256" cy="256" r="96" fill="url(#lg)"/>
     <circle cx="256" cy="256" r="24" fill="#0d1117"/>
-    <line x1="400" y1="112" x2="326.4" y2="185.6" stroke="#ffffff" stroke-width="12" stroke-linecap="round"/>
+    <line x1="400" y1="112" x2="326.4" y2="185.6" stroke="#ffffff" stroke-width="38.4" stroke-linecap="round"/>
   </g>
-  <rect x="12" y="12" width="488" height="488" fill="none" stroke="#c0bfc8" stroke-width="8" rx="90"/>
+  <rect x="12" y="12" width="488" height="488" fill="none" stroke="#c0bfc8" stroke-width="24" rx="80"/>
 </svg>
