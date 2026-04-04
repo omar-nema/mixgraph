@@ -209,7 +209,7 @@ body {
 #toolbar-row {
   display: flex;
   align-items: center;
-  padding: 20px 20px 10px;
+  padding: 20px 20px 5px;
   max-width: 1750px;
   margin: 0 auto;
   width: 100%;
@@ -335,30 +335,9 @@ body.night .mode-tab.active { color: var(--connection-highlight); background: no
   position: relative;
   transition: opacity 0.3s ease;
 }
-/* Staged reveal: first visit to tracks mode */
-#tracks-view.reveal-loading .node-card,
-#tracks-view.reveal-loading #connections-layer { opacity: 0; }
-#tracks-view.reveal-cards .node-card {
-  opacity: 1;
-  transition: opacity 0.3s ease;
-}
-#tracks-view.reveal-cards .node-card .art-wrap,
-#tracks-view.reveal-cards .node-card .track-title,
-#tracks-view.reveal-cards .node-card .artist-name,
-#tracks-view.reveal-cards .node-card .dj-line,
-#tracks-view.reveal-cards .node-card .card-toolbar,
-#tracks-view.reveal-cards .node-card .rank-tooltip { opacity: 0; }
-#tracks-view.reveal-cards #connections-layer { opacity: 0; }
-#tracks-view.reveal-details .node-card .art-wrap,
-#tracks-view.reveal-details .node-card .track-title,
-#tracks-view.reveal-details .node-card .artist-name,
-#tracks-view.reveal-details .node-card .dj-line,
-#tracks-view.reveal-details .node-card .card-toolbar,
-#tracks-view.reveal-details .node-card .rank-tooltip,
-#tracks-view.reveal-details #connections-layer {
-  opacity: 1;
-  transition: opacity 0.35s ease;
-}
+/* First-visit fade-in for tracks mode */
+#tracks-view.reveal-loading #graph-viewport { opacity: 0; }
+#tracks-view.reveal-fade #graph-viewport { opacity: 1; transition: opacity 0.4s ease; }
 #crates-view {
   position: fixed;
   inset: 0;
@@ -371,7 +350,6 @@ body.night .mode-tab.active { color: var(--connection-highlight); background: no
 }
 #crates-view.dragging { cursor: grabbing; }
 #crates-view.dragging .crate-card { transition: none; }
-#crates-view.dragging .crate-info { backdrop-filter: none; -webkit-backdrop-filter: none; }
 #crates-view.dragging .crate-stack { pointer-events: none; }
 
 #crates-surface {
@@ -411,14 +389,16 @@ body.night .mode-tab.active { color: var(--connection-highlight); background: no
   bottom: 0; left: 0; right: 0;
   padding: 10px 12px;
   background: rgba(42, 37, 32, 0.55);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
   border-radius: 0 0 2px 2px;
   opacity: 0;
   transition: opacity 0.25s ease;
   pointer-events: none;
 }
-.crate-card.active .crate-info { opacity: 1; }
+.crate-card.active .crate-info {
+  opacity: 1;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
 .crate-info .ci-title { font-size: 13px; font-weight: 600; color: #fff; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .crate-info .ci-artist { font-size: 11px; font-weight: 300; color: rgba(255,255,255,0.75); line-height: 1.3; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .crate-info .ci-count { font-size: 9px; color: rgba(255,255,255,0.4); margin-top: 4px; }
@@ -1073,7 +1053,7 @@ a.track-title:hover { text-decoration-color: var(--text-secondary); }
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 20px 20px;
+  padding: 5px 20px 20px;
   max-width: 1750px;
   margin: 0 auto;
   width: 100%;
@@ -1110,15 +1090,20 @@ a.track-title:hover { text-decoration-color: var(--text-secondary); }
   border: 1px solid var(--card-border);
   border-radius: 5px;
   padding: 10px 16px;
-  transition: border-color 0.15s ease;
+  transition: border-color 0.25s ease, box-shadow 0.3s ease, background 0.25s ease;
 }
 .filter-search-wrap:focus-within {
   border-color: var(--connection-highlight);
+  box-shadow: 0 0 0 3px color-mix(in oklch, var(--accent) 12%, transparent);
 }
 .filter-search-icon {
   flex-shrink: 0;
   color: var(--text-tertiary);
   margin-right: 8px;
+  transition: color 0.25s ease;
+}
+.filter-search-wrap:focus-within .filter-search-icon {
+  color: var(--connection-highlight);
 }
 #filter-search {
   flex: 1;
@@ -1133,6 +1118,10 @@ a.track-title:hover { text-decoration-color: var(--text-secondary); }
 }
 #filter-search::placeholder {
   color: var(--text-tertiary);
+  transition: opacity 0.2s ease;
+}
+#filter-search:focus::placeholder {
+  opacity: 0.4;
 }
 .filter-search-wrap.has-selection {
   border-color: var(--connection-highlight);
