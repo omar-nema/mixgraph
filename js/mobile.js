@@ -12,8 +12,8 @@ function showClusterMobile(cluster) {
   nodes.forEach(n => nodeMap[n.id] = n);
   currentRootId = cluster.nodes[0].graphId;
   document.getElementById('cluster-id').textContent = currentRootId;
-  const newHash = '#' + encodeURIComponent(currentRootId);
-  if (window.location.hash !== newHash) history.pushState(null, '', newHash);
+  const target = '/shuffle#' + encodeURIComponent(currentRootId);
+  if (location.pathname + location.hash !== target) history.pushState(null, '', target);
   logCluster(cluster);
 
   // Shuffle button above carousel

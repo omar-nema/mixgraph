@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script>
+    // SPA redirect for GitHub Pages — preserve path + hash for index.html
+    var path = location.pathname;
+    var hash = location.hash;
+    var search = location.search;
+    // Encode path into query param so index.html can restore it
+    // Query params must come before hash in the URL
+    var qs = '?route=' + encodeURIComponent(path.slice(1)) + (search ? '&' + search.slice(1) : '');
+    location.replace('/' + qs + (hash || ''));
+  </script>
+</head>
+<body></body>
+</html>

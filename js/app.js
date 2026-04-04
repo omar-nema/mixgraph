@@ -11,9 +11,9 @@ function showCluster(cluster) {
   nodes.forEach(n => nodeMap[n.id] = n);
   currentRootId = cluster.nodes[0].graphId;
   document.getElementById('cluster-id').textContent = currentRootId;
-  const newHash = '#' + encodeURIComponent(currentRootId);
-  if (window.location.hash !== newHash) {
-    history.pushState(null, '', newHash);
+  const target = '/shuffle#' + encodeURIComponent(currentRootId);
+  if (location.pathname + location.hash !== target) {
+    history.pushState(null, '', target);
   }
   logCluster(cluster);
 
@@ -121,14 +121,54 @@ function showCluster(cluster) {
     const label = document.createElement('span');
     label.className = 'desktop-genre-label';
     label.textContent = 'Genres';
+    // Tooltip showing all genres on hover
+    const tip = document.createElement('div');
+    tip.className = 'genre-tooltip';
+    commonGenres.forEach(g => {
+      const pill = document.createElement('span');
+      pill.className = 'desktop-genre-pill';
+      pill.dataset.genre = g;
+      pill.textContent = g;
+      tip.appendChild(pill);
+    });
+    label.appendChild(tip);
+    label.addEventListener('mouseenter', () => tip.classList.add('open'));
+    label.addEventListener('mouseleave', () => tip.classList.remove('open'));
     desktopGenres.appendChild(label);
-    commonGenres.slice(0, 4).forEach(g => {
+    // Prioritize active genre filters to the front
+    const activeGenres = typeof genreFilters !== 'undefined' ? genreFilters : [];
+    const sorted = [...commonGenres].sort((a, b) => {
+      const aActive = activeGenres.includes(a) ? 0 : 1;
+      const bActive = activeGenres.includes(b) ? 0 : 1;
+      return aActive - bActive;
+    });
+    const CAP = 4;
+    const visible = sorted.slice(0, CAP);
+    const rest = sorted.slice(CAP);
+    visible.forEach(g => {
       const pill = document.createElement('span');
       pill.className = 'desktop-genre-pill';
       pill.dataset.genre = g;
       pill.textContent = g;
       desktopGenres.appendChild(pill);
     });
+    if (rest.length > 0) {
+      const more = document.createElement('span');
+      more.className = 'desktop-genre-pill genre-more';
+      more.textContent = `+${rest.length}`;
+      more.addEventListener('click', (e) => {
+        e.stopPropagation();
+        more.remove();
+        rest.forEach(g => {
+          const pill = document.createElement('span');
+          pill.className = 'desktop-genre-pill';
+          pill.dataset.genre = g;
+          pill.textContent = g;
+          desktopGenres.appendChild(pill);
+        });
+      });
+      desktopGenres.appendChild(more);
+    }
     desktopGenres.classList.add('visible');
   } else {
     desktopGenres.classList.remove('visible');
@@ -252,21 +292,36 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Register cluster pills hook before initial load
   onClusterShown = () => { filterCtrl.updateClusterPills(); filterCtrl.updateFilterUI(); };
 
-  // Load cluster from URL hash, or shuffle for a random one
+  // Determine starting mode from URL path
+  const startPath = location.pathname.replace(/\/$/, '');
+  const startInShuffle = startPath === '/shuffle';
   const hashId = decodeURIComponent(window.location.hash.slice(1));
-  if (hashId) {
-    loadClusterById(hashId);
+
+  if (startInShuffle || hashId) {
+    // Switch to shuffle/tracks mode
+    switchToMode('tracks');
+    if (hashId) {
+      loadClusterById(hashId);
+    } else {
+      shuffle();
+    }
   } else {
-    shuffle();
+    // Default: dig/crates mode — URL is / or /dig
+    if (startPath !== '/dig' && startPath !== '' && startPath !== '/') {
+      history.replaceState(null, '', '/dig');
+    }
   }
 
-  // Navigate to cluster on back/forward
+  // Navigate on back/forward
   window.addEventListener('popstate', () => {
-    const id = decodeURIComponent(window.location.hash.slice(1));
-    if (id && id !== currentRootId) {
-      loadClusterById(id);
-    } else if (!id) {
-      shuffle();
+    const path = location.pathname.replace(/\/$/, '');
+    const id = decodeURIComponent(location.hash.slice(1));
+    if (path === '/shuffle') {
+      switchToMode('tracks');
+      if (id && id !== currentRootId) loadClusterById(id);
+      else if (!currentCluster) shuffle();
+    } else {
+      switchToMode('crates');
     }
   });
 
@@ -656,14 +711,27 @@ document.addEventListener('DOMContentLoaded', async () => {
           // Deduplicate by id
           const seen = new Set();
           let deduped = index.filter(c => { if (seen.has(c.id)) return false; seen.add(c.id); return true; });
-          // When artist filter is active, keep only seed-direct matches (drop neighbor-only hits)
-          // Split on commas to match individual artist credits exactly
+          // Keep only seed-direct matches (drop neighbor-only hits from server)
+          if (params.genres) {
+            const genres = params.genres.map(g => g.toLowerCase());
+            deduped = deduped.filter(c => {
+              const seedGenres = (c.g || []).map(g => g.toLowerCase());
+              return genres.some(g => seedGenres.includes(g));
+            });
+          }
           if (params.artists) {
             const arts = params.artists.map(a => a.toLowerCase().trim());
             deduped = deduped.filter(c => {
               const raw = c.a || c.id.split(':::')[0] || '';
               const credits = raw.toLowerCase().split(/,\s*/).map(s => s.trim());
               return arts.some(a => credits.some(cr => cr === a));
+            });
+          }
+          if (params.djs) {
+            const djs = params.djs.map(d => d.toLowerCase().trim());
+            deduped = deduped.filter(c => {
+              const seedDjs = (c.d || []).map(d => d.toLowerCase());
+              return djs.some(d => seedDjs.includes(d));
             });
           }
           const pool = [...deduped];
@@ -1143,6 +1211,23 @@ document.addEventListener('DOMContentLoaded', async () => {
     console.log('Crates: initialized');
   }
 
+  // Switch mode UI without side-effects (no shuffle, no reveal animation)
+  function switchToMode(mode) {
+    document.querySelectorAll('.mode-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll(`.mode-tab[data-mode="${mode}"]`).forEach(t => t.classList.add('active'));
+    document.getElementById('tracks-view').classList.toggle('hidden', mode !== 'tracks');
+    document.getElementById('crates-view').classList.toggle('hidden', mode !== 'crates');
+    document.body.classList.toggle('crates-mode', mode === 'crates');
+    if (mode === 'crates') {
+      requestAnimationFrame(() => initCrates());
+      document.getElementById('tracks-helper-toast')?.classList.remove('visible');
+    }
+    if (mode === 'tracks') {
+      document.getElementById('crates-helper-toast')?.classList.remove('visible');
+      window._tracksRevealed = true;
+    }
+  }
+
   // Wire mode tabs
   document.querySelectorAll('.mode-tab').forEach(tab => {
     tab.addEventListener('click', () => {
@@ -1152,6 +1237,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       document.getElementById('tracks-view').classList.toggle('hidden', mode !== 'tracks');
       document.getElementById('crates-view').classList.toggle('hidden', mode !== 'crates');
       document.body.classList.toggle('crates-mode', mode === 'crates');
+      // Push URL for mode change
+      if (mode === 'crates') {
+        history.pushState(null, '', '/dig');
+      } else {
+        history.pushState(null, '', '/shuffle' + (currentRootId ? '#' + encodeURIComponent(currentRootId) : ''));
+      }
       // Lazy init crates — defer so tab switch is instant
       if (mode === 'crates') {
         trackEvent('crates');
@@ -1238,9 +1329,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
-  // Default to crates (Dig) mode — init crates on first load
-  requestAnimationFrame(() => initCrates());
-  showHelper(cratesHelperToast, 'b2b-crates-helper-dismissed');
+  // Default to crates (Dig) mode — init crates on first load (unless URL says /shuffle)
+  if (!startInShuffle && !hashId) {
+    requestAnimationFrame(() => initCrates());
+    showHelper(cratesHelperToast, 'b2b-crates-helper-dismissed');
+  }
 
   // Dev panel controls
   document.getElementById('freeze-btn').addEventListener('click', () => {

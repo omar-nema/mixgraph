@@ -11,6 +11,19 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <script>
+    // SPA route restore — decode path from 404.html redirect
+    (function() {
+      var q = new URLSearchParams(window.location.search);
+      var route = q.get('route');
+      if (route) {
+        q.delete('route');
+        var remaining = q.toString();
+        var clean = '/' + route + (remaining ? '?' + remaining : '') + window.location.hash;
+        history.replaceState(null, '', clean);
+      }
+    })();
+  </script>
+  <script>
     // Apply theme before first paint to prevent flash
     var __night = (function() {
       var saved = localStorage.getItem('b2b-theme');
