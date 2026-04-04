@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>back2back — Install</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#1e2228">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Space Grotesk', sans-serif;
+      background: #1e2228;
+      color: #e8e4e0;
+      min-height: 100dvh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .container {
+      text-align: center;
+      padding: 2rem;
+      max-width: 360px;
+    }
+
+    .icon {
+      width: 80px;
+      height: 80px;
+      margin: 0 auto 1.5rem;
+      border-radius: 18px;
+      overflow: hidden;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.4);
+    }
+
+    .icon svg {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    h1 {
+      font-size: 1.5rem;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      margin-bottom: 0.5rem;
+    }
+
+    .subtitle {
+      font-size: 0.85rem;
+      color: #9a9590;
+      margin-bottom: 2rem;
+      line-height: 1.5;
+    }
+
+    #install-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.75rem 1.75rem;
+      font-family: inherit;
+      font-size: 0.95rem;
+      font-weight: 500;
+      color: #e8e4e0;
+      background: color-mix(in oklch, #3c3cfa 14%, #1e2228);
+      border: 1px solid color-mix(in oklch, #3c3cfa 25%, #1e2228);
+      border-radius: 10px;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s, transform 0.1s;
+    }
+
+    #install-btn:hover {
+      background: color-mix(in oklch, #3c3cfa 22%, #1e2228);
+      border-color: color-mix(in oklch, #3c3cfa 35%, #1e2228);
+    }
+
+    #install-btn:active {
+      transform: scale(0.97);
+    }
+
+    #install-btn svg {
+      width: 18px;
+      height: 18px;
+      flex-shrink: 0;
+    }
+
+    .installed-msg {
+      font-size: 0.9rem;
+      color: #9a9590;
+      padding: 0.75rem 0;
+    }
+
+    .installed-msg svg {
+      width: 16px;
+      height: 16px;
+      vertical-align: -3px;
+      margin-right: 0.25rem;
+      stroke: #6bc46d;
+    }
+
+    .fallback-msg {
+      font-size: 0.8rem;
+      color: #7f7a75;
+      margin-top: 1.5rem;
+      line-height: 1.6;
+    }
+
+    .fallback-msg kbd {
+      display: inline-block;
+      padding: 0.1em 0.45em;
+      font-family: inherit;
+      font-size: 0.85em;
+      background: color-mix(in srgb, white 8%, #1e2228);
+      border: 1px solid color-mix(in srgb, white 15%, #1e2228);
+      border-radius: 5px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="icon">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16">
+        <defs>
+          <radialGradient id="lg" cx="40%" cy="35%" r="60%">
+            <stop offset="0%" stop-color="#f5f5f5"/>
+            <stop offset="60%" stop-color="#c0bfc8"/>
+            <stop offset="100%" stop-color="#9896a4"/>
+          </radialGradient>
+          <clipPath id="rounded">
+            <rect x="0" y="0" width="16" height="16" rx="3"/>
+          </clipPath>
+        </defs>
+        <g clip-path="url(#rounded)">
+          <rect x="0" y="0" width="16" height="16" fill="#0d1117"/>
+          <circle cx="8" cy="8" r="4.4" fill="#d0cfe8"/>
+          <circle cx="8" cy="8" r="3.4" fill="none" stroke="#9998b8" stroke-width="0.7"/>
+          <circle cx="8" cy="8" r="3.0" fill="url(#lg)"/>
+          <circle cx="8" cy="8" r="0.75" fill="#0d1117"/>
+          <line x1="12.5" y1="3.5" x2="10.2" y2="5.8" stroke="#ffffff" stroke-width="1.2" stroke-linecap="round"/>
+        </g>
+        <rect x="0.75" y="0.75" width="14.5" height="14.5" fill="none" stroke="#c0bfc8" stroke-width="1.5" rx="2.5"/>
+      </svg>
+    </div>
+
+    <h1>back2back</h1>
+    <p class="subtitle">Music discovery through DJ set adjacency</p>
+
+    <button id="install-btn" style="display:none">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+        <polyline points="7 10 12 15 17 10"/>
+        <line x1="12" y1="15" x2="12" y2="3"/>
+      </svg>
+      Add to Home Screen
+    </button>
+
+    <div id="installed-msg" class="installed-msg" style="display:none">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="20 6 9 17 4 12"/>
+      </svg>
+      App installed
+    </div>
+
+    <div id="fallback-msg" class="fallback-msg" style="display:none"></div>
+  </div>
+
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js');
+    }
+
+    let deferredPrompt = null;
+    const btn = document.getElementById('install-btn');
+    const fallback = document.getElementById('fallback-msg');
+    const installed = document.getElementById('installed-msg');
+
+    // Detect if already installed as standalone
+    if (window.matchMedia('(display-mode: standalone)').matches || navigator.standalone) {
+      installed.style.display = 'block';
+    } else {
+      // Listen for the browser's install prompt
+      window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        deferredPrompt = e;
+        btn.style.display = 'inline-flex';
+        fallback.style.display = 'none';
+      });
+
+      btn.addEventListener('click', async () => {
+        if (!deferredPrompt) return;
+        deferredPrompt.prompt();
+        const result = await deferredPrompt.userChoice;
+        if (result.outcome === 'accepted') {
+          btn.style.display = 'none';
+          installed.style.display = 'block';
+        }
+        deferredPrompt = null;
+      });
+
+      // Show manual instructions if no prompt after 1s
+      setTimeout(() => {
+        if (!deferredPrompt && !window.matchMedia('(display-mode: standalone)').matches) {
+          const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+          const isMac = /Macintosh/.test(navigator.userAgent);
+          if (isIOS) {
+            fallback.innerHTML = 'Tap <svg style="width:14px;height:14px;vertical-align:-2px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg> Share, then <strong>Add to Home Screen</strong>';
+          } else if (isMac) {
+            fallback.innerHTML = 'In Chrome or Edge: <kbd>&#8984;</kbd> + <kbd>Shift</kbd> + <kbd>A</kbd><br>or Menu &rarr; Install back2back';
+          } else {
+            fallback.innerHTML = 'In Chrome: Menu &rarr; <strong>Install app</strong><br>In Edge: Menu &rarr; <strong>Apps &rarr; Install</strong>';
+          }
+          fallback.style.display = 'block';
+        }
+      }, 1000);
+    }
+
+    window.addEventListener('appinstalled', () => {
+      btn.style.display = 'none';
+      installed.style.display = 'block';
+      fallback.style.display = 'none';
+    });
+  </script>
+</body>
+</html>

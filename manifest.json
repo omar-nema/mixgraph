@@ -1,0 +1,17 @@
+{
+  "name": "back2back",
+  "short_name": "back2back",
+  "description": "Music discovery through DJ set adjacency",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#1e2228",
+  "theme_color": "#1e2228",
+  "icons": [
+    {
+      "src": "favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
