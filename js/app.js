@@ -635,6 +635,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     let cratesPoolCache = {};  // filterKey -> shuffled array
     let cratesPoolPromise = null;
     let cratesFilterKey = '';
+    let cratesGeneration = 0;  // bumped on each reset to discard stale async responses
 
     function getCratesPool() {
       const params = buildFilterParams();
@@ -687,8 +688,11 @@ document.addEventListener('DOMContentLoaded', async () => {
       // so a failed request doesn't skip clusters when it retries.
       if (pageNums[key] === undefined) pageNums[key] = pageIdCounter++;
       const pageNum = pageNums[key];
+      const gen = cratesGeneration;  // capture generation at request time
 
       getCratesPool().then(pool => {
+        // Discard if a reset happened since this request started
+        if (gen !== cratesGeneration) { pendingPageKeys.delete(key); return; }
         const slice = pool.slice(pageNum * CLUSTERS_PER_PAGE, (pageNum + 1) * CLUSTERS_PER_PAGE);
         delete pageNums[key];
         if (slice.length > 0) {
@@ -705,21 +709,7 @@ document.addEventListener('DOMContentLoaded', async () => {
               sorted[0].weight *= 1.6;
             }
           }
-          // For filtered results, treemap into a tight top-left bounding box
-          const hasFilters = cratesFilterKey && cratesFilterKey !== '||';
-          if (!isMobileView() && (hasFilters || items.length < CLUSTERS_PER_PAGE)) {
-            const contentW = vw / crateScale;
-            const contentH = vh / crateScale;
-            const tmPad = 25;
-            const headerH = Math.ceil(120 / crateScale) + 15;
-            // Scale bounding box to item count — fewer items = tighter box
-            const fillRatio = Math.min(1, items.length / CLUSTERS_PER_PAGE);
-            const tmW = contentW - tmPad * 2;
-            const tmH = (contentH - headerH - tmPad) * Math.max(0.4, fillRatio);
-            cratesTreemap(items, tmPad, headerH, tmW, tmH);
-          } else {
-            cratesTreemap(items, pad, pad, vw - pad * 2, vh - pad * 2);
-          }
+          cratesTreemap(items, pad, pad, vw - pad * 2, vh - pad * 2);
           receivePage(col, row, items);
         } else {
           receivePage(col, row, []);
@@ -1125,32 +1115,26 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (touchDidDrag) { e.stopPropagation(); touchDidDrag = false; }
     }, true);
 
-    // Expose reset for filter changes — clears pages & re-requests from filtered pool
+    // Expose reset for filter changes — clears everything and re-requests
     window._cratesResetFn = function() {
-      // Invalidate pool cache so new filters take effect
+      cratesGeneration++;
       cratesPoolCache = {};
       cratesPoolPromise = null;
       cratesFilterKey = '';
-      // Cancel pending
       pendingPageKeys.clear();
-      // Clear page numbering so filtered pool starts from page 0
       for (const k in pageNums) delete pageNums[k];
       pageIdCounter = 0;
-      // Unmount and clear all pages
       for (const k in pages) {
         if (pages[k].el) pages[k].el.remove();
         delete pages[k];
       }
       minCol = 0; maxCol = 0; minRow = 0; maxRow = 0;
-      // Reset pan to origin
       panX = 0; panY = 0; targetPanX = 0; targetPanY = 0;
       crateScale = isMobileView() ? 0.75 : 0.8; targetScale = crateScale;
       applyTransform();
-      // Show loading spinner while new pages load
       const cl = document.getElementById('crates-loading');
       cl.classList.remove('hidden');
       cl.style.visibility = 'visible';
-      // Re-request visible pages with new filters
       updateVisible();
     };
 
@@ -1432,7 +1416,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     viewSet: ctxMenu.querySelector('[data-action="view-set"]'),
   };
   let ctxData = {};
-  let ctxHideTimer = null;
   let ctxActiveDots = null;
 
   const CTX_SELECTOR = '.dj-line a[data-dj], .dj-line .dj-ctx-trigger, .artist-ctx-trigger[data-artist], .track-ctx-trigger[data-artist], .card-dots[data-artist]';
@@ -1478,7 +1461,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   function openCtxMenu(e, trigger, source) {
     e.preventDefault();
     e.stopPropagation();
-    clearTimeout(ctxHideTimer);
+
     // If clicking the same dots that's already open, close instead
     if (trigger.classList.contains('card-dots') && ctxActiveDots === trigger) {
       closeCtxMenu();
@@ -1509,37 +1492,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     ctxMenu.classList.remove('open');
     if (ctxActiveDots) { ctxActiveDots.classList.remove('dots-open'); ctxActiveDots = null; }
   }
-  function scheduleClose() { ctxHideTimer = setTimeout(closeCtxMenu, 200); }
-
-  // Desktop: hover to open
-  document.addEventListener('mouseover', (e) => {
-    if (isMobileView()) return;
-    const trigger = e.target.closest(CTX_SELECTOR);
-    if (!trigger) return;
-    clearTimeout(ctxHideTimer);
-    const source = getSource(trigger);
-    ctxData = { dj: trigger.dataset.dj, artist: trigger.dataset.artist, set: trigger.dataset.setUrl || '', track: trigger.dataset.trackUrl || '' };
-    reorderCtxMenu(source);
-    const rect = trigger.getBoundingClientRect();
-    positionCtxMenu(rect.left, rect.bottom + 4);
-  });
-
-  document.addEventListener('mouseout', (e) => {
-    if (isMobileView()) return;
-    if (e.target.closest(CTX_SELECTOR)) scheduleClose();
-  });
-
-  ctxMenu.addEventListener('mouseenter', () => clearTimeout(ctxHideTimer));
-  ctxMenu.addEventListener('mouseleave', scheduleClose);
-
-  // Click handling
+  // Click handling (desktop + mobile)
   document.addEventListener('click', (e) => {
-    // Genre pill click → open genre context menu (mobile + desktop)
+    // Genre pill click → open genre context menu
     const genrePill = e.target.closest('.mobile-genre-pill[data-genre], .desktop-genre-pill[data-genre]');
     if (genrePill) {
       e.preventDefault();
       e.stopPropagation();
-      clearTimeout(ctxHideTimer);
+  
       ctxData = { genre: genrePill.dataset.genre };
       ctxItems.genre.innerHTML = '<svg viewBox="0 0 16 16" width="14" height="14"><path d="M2 4h12M4 8h8M6 12h4" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg> Filter for ' + genrePill.dataset.genre;
       reorderCtxMenu('genre');
@@ -1559,17 +1519,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       return;
     }
     const trigger = e.target.closest(CTX_SELECTOR);
-    // Dots button always opens on click (desktop & mobile)
-    if (trigger && trigger.classList.contains('card-dots')) {
-      openCtxMenu(e, trigger, getSource(trigger));
-      return;
-    }
-    if (trigger && !isMobileView()) {
-      e.preventDefault();
-      e.stopPropagation();
-      return;
-    }
-    if (trigger && isMobileView()) {
+    if (trigger) {
       openCtxMenu(e, trigger, getSource(trigger));
       return;
     }
