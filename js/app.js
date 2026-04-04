@@ -183,8 +183,8 @@ function buildFilterParams() {
 
 async function shuffle() {
   if (frozen) return;
-  // Crates filter reset — only when dev panel toggle is on
-  if (document.body.classList.contains('crates-mode') && document.getElementById('show-crates-filters')?.checked) {
+  // Crates mode: rebuild crates surface with current filters
+  if (document.body.classList.contains('crates-mode')) {
     if (window._cratesResetFn) window._cratesResetFn();
     return;
   }
@@ -1104,6 +1104,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Expose reset for filter changes — clears pages & re-requests from filtered pool
     window._cratesResetFn = function() {
+      // Invalidate pool cache so new filters take effect
+      cratesPoolCache = {};
+      cratesPoolPromise = null;
+      cratesFilterKey = '';
       // Cancel pending
       pendingPageKeys.clear();
       // Clear page numbering so filtered pool starts from page 0
@@ -1119,6 +1123,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       panX = 0; panY = 0; targetPanX = 0; targetPanY = 0;
       crateScale = isMobileView() ? 0.75 : 0.8; targetScale = crateScale;
       applyTransform();
+      // Show loading spinner while new pages load
+      const cl = document.getElementById('crates-loading');
+      cl.classList.remove('hidden');
+      cl.style.visibility = 'visible';
       // Re-request visible pages with new filters
       updateVisible();
     };
@@ -1152,6 +1160,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       // Hide the other mode's toast when switching
       if (mode === 'tracks') {
         cratesHelperToast.classList.remove('visible');
+        // Re-render cluster (it may have been laid out while hidden)
+        if (currentCluster) {
+          requestAnimationFrame(() => showCluster(currentCluster));
+        } else {
+          shuffle();
+        }
         // Prevent connection arrows from replaying draw animation
         document.querySelectorAll('.connection-path').forEach(p => {
           p.style.animation = 'none';
@@ -1168,14 +1182,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   showGenresCheckbox.checked = true;
   showGenresCheckbox.addEventListener('change', () => {
     if (currentCluster) showCluster(currentCluster);
-  });
-
-  // Crates filters toggle (dev panel)
-  const cratesFiltersCheckbox = document.getElementById('show-crates-filters');
-  cratesFiltersCheckbox.checked = false;
-  cratesFiltersCheckbox.addEventListener('change', () => {
-    const filterRow = document.getElementById('filter-row');
-    filterRow.classList.toggle('crates-filters-on', cratesFiltersCheckbox.checked);
   });
 
   // Helper toast logic
@@ -1214,8 +1220,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
-  // Show tracks helper on first load
-  showHelper(tracksHelperToast, 'b2b-tracks-helper-dismissed');
+  // Default to crates (Dig) mode — init crates on first load
+  requestAnimationFrame(() => initCrates());
+  showHelper(cratesHelperToast, 'b2b-crates-helper-dismissed');
 
   // Dev panel controls
   document.getElementById('freeze-btn').addEventListener('click', () => {

@@ -490,24 +490,67 @@ export default {
           });
         }
 
-        // Filters active — filter candidates server-side (same logic as shuffle)
-        const allCandidates = await env.GRAPH_KV.get('candidates', 'json');
-        const matchIds = new Set(
-          allCandidates.filter(c => {
-            if (c.e < 4) return false;
-            if (genres.length > 0 && !genres.some(g => c.g.includes(g))) return false;
-            if (artists.length > 0 && !artists.some(a => c.a.includes(a.toLowerCase()))) return false;
-            if (djs.length > 0) {
-              const djsLower = djs.map(d => d.toLowerCase());
-              if (!c.d.some(d => djsLower.includes(d))) return false;
-            }
-            return true;
-          }).map(c => c.id)
-        );
-
-        const index = await env.GRAPH_KV.get('crates-index', 'json');
+        // Filters active — match against full candidates pool (no edge threshold)
+        const [index, allCandidates] = await Promise.all([
+          env.GRAPH_KV.get('crates-index', 'json'),
+          env.GRAPH_KV.get('candidates', 'json'),
+        ]);
         if (!index) return jsonResponse({ error: 'crates-index not found — rebuild KV' }, 404);
-        const filtered = index.filter(c => matchIds.has(c.id));
+
+        // Find all candidates matching filters (same logic as shuffle, no edge minimum)
+        const matchIds = new Set();
+        const matchCandidates = {};
+        for (const c of allCandidates) {
+          if (genres.length > 0 && !genres.some(g => c.g.includes(g))) continue;
+          if (artists.length > 0 && !artists.some(a => c.a.includes(a.toLowerCase()))) continue;
+          if (djs.length > 0) {
+            const djsLower = djs.map(d => d.toLowerCase());
+            if (!c.d.some(d => djsLower.includes(d))) continue;
+          }
+          matchIds.add(c.id);
+          matchCandidates[c.id] = c;
+        }
+
+        // Start with crates-index entries where seed or neighbor matches
+        const indexIds = new Set();
+        const filtered = index.filter(c => {
+          const hit = matchIds.has(c.id) || (c.n || []).some(n => matchIds.has(n));
+          if (hit) indexIds.add(c.id);
+          return hit;
+        });
+
+        // Add entries for matching candidates not already in the index
+        // Fetch their nodes in parallel to get artwork + neighbors (cap to avoid worker timeout)
+        const extraIds = Object.keys(matchCandidates).filter(id => !indexIds.has(id)).slice(0, 100);
+        if (extraIds.length > 0) {
+          // Batch in chunks of 20 to avoid KV fan-out limits
+          const nodes = [];
+          for (let b = 0; b < extraIds.length; b += 20) {
+            const chunk = extraIds.slice(b, b + 20);
+            const batch = await Promise.all(chunk.map(id => getNode(env.GRAPH_KV, id)));
+            nodes.push(...batch);
+          }
+          for (let i = 0; i < extraIds.length; i++) {
+            const id = extraIds[i], c = matchCandidates[id], node = nodes[i];
+            const [artist, title] = id.split(':::');
+            const neighbors = node?.edges?.map(e => e.node) || [];
+            const artworks = node?.artUrl ? [node.artUrl] : [];
+            // Also grab neighbor artwork
+            if (neighbors.length > 0) {
+              const nNodes = await Promise.all(neighbors.slice(0, 8).map(n => getNode(env.GRAPH_KV, n)));
+              for (const nn of nNodes) {
+                if (nn?.artUrl) artworks.push(nn.artUrl);
+              }
+            }
+            const cnt = Math.max(5, 1 + neighbors.length * 2);
+            filtered.push({
+              id, artworks, n: neighbors,
+              count: cnt, weight: cnt,
+              g: c.g || [], a: c.a || artist, d: c.d || [],
+            });
+          }
+        }
+
         return jsonResponse(filtered);
       }
 

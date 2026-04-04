@@ -87,6 +87,9 @@ async function initFilters() {
     renderFn();
     updateFilterUI();
     updateClusterPills();
+    if (document.body.classList.contains('crates-mode') && window._cratesResetFn) {
+      window._cratesResetFn();
+    }
   }
 
   function addSearchFilter(entry) {
@@ -132,6 +135,9 @@ async function initFilters() {
     syncGenrePillHighlights();
     renderGenreChips();
     updateFilterUI();
+    if (document.body.classList.contains('crates-mode') && window._cratesResetFn) {
+      window._cratesResetFn();
+    }
   }
 
   function removeGenreSearchFilter(index) {
@@ -153,6 +159,9 @@ async function initFilters() {
     syncGenrePillHighlights();
     renderGenreChips();
     updateFilterUI();
+    if (document.body.classList.contains('crates-mode') && window._cratesResetFn) {
+      window._cratesResetFn();
+    }
   }
 
   function syncGenrePillHighlights() {
@@ -176,6 +185,9 @@ async function initFilters() {
     shuffleHistory.clear();
     syncGenrePillHighlights();
     updateFilterUI();
+    if (document.body.classList.contains('crates-mode') && window._cratesResetFn) {
+      window._cratesResetFn();
+    }
   }
 
   function clearAllFilters() {
@@ -191,6 +203,9 @@ async function initFilters() {
     renderAllChips();
     updateFilterUI();
     updateClusterPills();
+    if (document.body.classList.contains('crates-mode') && window._cratesResetFn) {
+      window._cratesResetFn();
+    }
   }
 
   // Shared helper: update a pill's active state, count, and clear button
@@ -617,6 +632,99 @@ async function initFilters() {
   );
   const closeGenreAc = genreAcCtrl.close;
 
+  // ── Unified search (searches across artist, DJ, genre) ──
+  const filterSearchInput = document.getElementById('filter-search');
+  const filterSearchAc = document.getElementById('filter-search-ac');
+  if (filterSearchInput && filterSearchAc) {
+    let uniItems = [], uniActiveIdx = -1, uniDebounce = null;
+
+    function closeUnifiedAc() {
+      filterSearchAc.classList.remove('open');
+      filterSearchAc.innerHTML = '';
+      uniItems = [];
+      uniActiveIdx = -1;
+    }
+
+    async function showUnifiedAc(query) {
+      const q = query.trim();
+      if (!q) { closeUnifiedAc(); return; }
+      try {
+        const [artists, djs, genres] = await Promise.all([
+          apiSearchArtists(q, 5),
+          apiSearchDjs(q, 5),
+          Promise.resolve(searchGenresLocal(q, 8)),
+        ]);
+        const all = [];
+        for (const g of genres) all.push({ entry: g, type: 'genre', label: g.isParent ? g.display : `${g.display} (${g.parent})` });
+        for (const a of artists) all.push({ entry: a, type: 'artist', label: a.display });
+        for (const d of djs) all.push({ entry: d, type: 'dj', label: d.display });
+        if (all.length === 0) { closeUnifiedAc(); return; }
+        filterSearchAc.innerHTML = '';
+        uniItems = [];
+        uniActiveIdx = -1;
+        for (let i = 0; i < all.length; i++) {
+          const { entry, type, label } = all[i];
+          const div = document.createElement('div');
+          div.className = 'ac-item';
+          div.innerHTML = `<span class="ac-name">${escHtml(label)}</span><span class="ac-type">${type}</span>`;
+          div.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (type === 'artist') addSearchFilter(entry);
+            else if (type === 'dj') addDjFilter(entry);
+            else if (type === 'genre') addGenreSearchFilter(entry);
+            filterSearchInput.value = '';
+            closeUnifiedAc();
+          });
+          div.addEventListener('mouseenter', () => {
+            uniItems.forEach(el => el.classList.remove('active'));
+            div.classList.add('active');
+            uniActiveIdx = i;
+          });
+          filterSearchAc.appendChild(div);
+        }
+        uniItems = [...filterSearchAc.children];
+        filterSearchAc.classList.add('open');
+      } catch (e) { console.warn('Unified search error:', e.message); }
+    }
+
+    filterSearchInput.addEventListener('input', () => {
+      clearTimeout(uniDebounce);
+      if (filterSearchInput.value.trim()) {
+        uniDebounce = setTimeout(() => showUnifiedAc(filterSearchInput.value), 150);
+      } else {
+        closeUnifiedAc();
+      }
+    });
+    filterSearchInput.addEventListener('focus', () => {
+      if (filterSearchInput.value.trim()) showUnifiedAc(filterSearchInput.value);
+    });
+    filterSearchInput.addEventListener('keydown', (e) => {
+      if (!filterSearchAc.classList.contains('open')) return;
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        uniActiveIdx = Math.min(uniActiveIdx + 1, uniItems.length - 1);
+        uniItems.forEach((el, i) => el.classList.toggle('active', i === uniActiveIdx));
+        uniItems[uniActiveIdx]?.scrollIntoView({ block: 'nearest' });
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        uniActiveIdx = Math.max(uniActiveIdx - 1, 0);
+        uniItems.forEach((el, i) => el.classList.toggle('active', i === uniActiveIdx));
+        uniItems[uniActiveIdx]?.scrollIntoView({ block: 'nearest' });
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        if (uniActiveIdx >= 0 && uniActiveIdx < uniItems.length) uniItems[uniActiveIdx].click();
+      } else if (e.key === 'Escape') {
+        closeUnifiedAc();
+      }
+    });
+    // Close when clicking outside
+    document.addEventListener('mousedown', (e) => {
+      if (!filterSearchInput.closest('.filter-search-wrap').contains(e.target)) {
+        closeUnifiedAc();
+      }
+    });
+  }
+
   // ── Cluster context pills ──
   function toggleClusterFilter(filtersArr, entry) {
     const idx = filtersArr.findIndex(f => f.display === entry.display);
@@ -629,6 +737,9 @@ async function initFilters() {
     shuffleHistory.clear();
     updateFilterUI();
     updateClusterPills();
+    if (document.body.classList.contains('crates-mode') && window._cratesResetFn) {
+      window._cratesResetFn();
+    }
   }
 
   function updateClusterPills() {
