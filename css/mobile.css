@@ -14,7 +14,7 @@
     height: 80px;
     pointer-events: auto;
     z-index: 99;
-    filter: hue-rotate(215deg);
+    filter: hue-rotate(25deg) saturate(0.7) brightness(1.05);
   }
   /* Hide player in crates mode */
   body.crates-mode #sc-player-area { transform: translateY(100%); }
@@ -23,7 +23,7 @@
   #sc-placeholder { display: none; }
   body.night #sc-player-area { background: var(--bg); border-top-color: var(--card-border); }
   body.night #sc-widget {
-    filter: invert(0.88) hue-rotate(35deg) saturate(3);
+    filter: invert(0.88) hue-rotate(230deg) saturate(2);
   }
   html {
     height: 100%;
@@ -100,8 +100,8 @@
     font-weight: 300;
   }
   body.night #mobile-mode-tabs .mode-tab.active {
-    background: var(--connection-highlight);
-    color: #fff;
+    background: rgba(245, 206, 10, 0.8);
+    color: #000;
   }
 
   /* Show mobile tracks container */
@@ -180,6 +180,11 @@
     transition: background 0.15s ease, transform 0.2s cubic-bezier(0.22, 1, 0.36, 1);
   }
   #mobile-shuffle-area .mobile-shuffle:active { background: var(--accent-bold); }
+  body.night #mobile-shuffle-area .mobile-shuffle {
+    background: rgba(245, 206, 10, 0.8);
+    color: #000;
+    border-color: rgba(245, 206, 10, 0.8);
+  }
 
   /* Mobile header title — hidden, replaced by mode tabs */
   #mobile-title {

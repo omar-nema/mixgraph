@@ -81,7 +81,7 @@
   <div id="genre-popover" class="filter-popover">
     <button class="popover-clear" id="genre-clear-btn" disabled>Clear all</button>
     <div class="popover-search-wrap">
-      <div id="genre-chips-input">
+      <div id="genre-chips-input" class="chips-input">
         <input id="genre-search" type="text" placeholder="Search genres" autocomplete="off">
       </div>
       <div id="genre-ac"></div>
@@ -91,7 +91,7 @@
   <div id="artist-popover" class="filter-popover">
     <button class="popover-clear" id="artist-clear-btn" disabled>Clear all</button>
     <div class="popover-search-wrap">
-      <div id="find-chips-input">
+      <div id="find-chips-input" class="chips-input">
         <input id="find-search" type="text" placeholder="Search artists" autocomplete="off">
       </div>
       <div id="find-ac"></div>
@@ -104,7 +104,7 @@
   <div id="dj-popover" class="filter-popover">
     <button class="popover-clear" id="dj-clear-btn" disabled>Clear all</button>
     <div class="popover-search-wrap">
-      <div id="dj-chips-input">
+      <div id="dj-chips-input" class="chips-input">
         <input id="dj-search" type="text" placeholder="Search DJs" autocomplete="off">
       </div>
       <div id="dj-ac"></div>
@@ -133,6 +133,7 @@
       <div id="filter-row-left">
         <div class="filter-search-wrap">
           <svg class="filter-search-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <div id="filter-search-chips"></div>
           <input type="text" id="filter-search" placeholder="Search by artist, DJ, or genre" autocomplete="off">
           <button id="filter-search-clear" class="filter-search-clear" style="display:none"><svg viewBox="0 0 12 12" width="12" height="12"><path d="M3 3L9 9M9 3L3 9" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button>
           <div id="filter-search-ac" class="ac-dropdown"></div>

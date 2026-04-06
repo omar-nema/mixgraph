@@ -82,14 +82,16 @@ async function initFilters() {
   // ── Filter state management ──
   function modifyFilter(arr, action, renderFn) {
     action(arr);
-    filtersDirty = true;
+    filtersDirty = true; filterGeneration++;
     shuffleHistory.clear();
     renderFn();
     updateFilterUI();
     updateClusterPills();
+    if (window._renderSearchBarChips) window._renderSearchBarChips();
     if (document.body.classList.contains('crates-mode') && window._cratesResetFn) {
       window._cratesResetFn();
     }
+    if (!document.body.classList.contains('crates-mode')) shuffle();
   }
 
   function addSearchFilter(entry) {
@@ -130,7 +132,7 @@ async function initFilters() {
     for (const name of names) {
       if (!genreFilters.includes(name)) genreFilters.push(name);
     }
-    filtersDirty = true;
+    filtersDirty = true; filterGeneration++;
     shuffleHistory.clear();
     syncGenrePillHighlights();
     renderGenreChips();
@@ -154,14 +156,17 @@ async function initFilters() {
         }
       }
     }
-    filtersDirty = true;
+    filtersDirty = true; filterGeneration++;
     shuffleHistory.clear();
     syncGenrePillHighlights();
     renderGenreChips();
     updateFilterUI();
+    updateClusterPills();
+    if (window._renderSearchBarChips) window._renderSearchBarChips();
     if (document.body.classList.contains('crates-mode') && window._cratesResetFn) {
       window._cratesResetFn();
     }
+    if (!document.body.classList.contains('crates-mode')) shuffle();
   }
 
   function syncGenrePillHighlights() {
@@ -181,7 +186,7 @@ async function initFilters() {
       trackEvent('filter_genre');
       genreFilters.push(name);
     }
-    filtersDirty = true;
+    filtersDirty = true; filterGeneration++;
     shuffleHistory.clear();
     syncGenrePillHighlights();
     updateFilterUI();
@@ -197,10 +202,11 @@ async function initFilters() {
     clusterDjFilters = [];
     genreFilters = [];
     genreSearchFilters = [];
-    filtersDirty = true;
+    filtersDirty = true; filterGeneration++;
     shuffleHistory.clear();
     document.querySelectorAll('.genre-pill.selected').forEach(p => p.classList.remove('selected'));
     renderAllChips();
+    if (window._renderSearchBarChips) window._renderSearchBarChips();
     updateFilterUI();
     updateClusterPills();
     if (document.body.classList.contains('crates-mode') && window._cratesResetFn) {
@@ -439,7 +445,7 @@ async function initFilters() {
     e.stopPropagation();
     genreFilters = [];
     genreSearchFilters = [];
-    filtersDirty = true;
+    filtersDirty = true; filterGeneration++;
     shuffleHistory.clear();
     document.querySelectorAll('.genre-pill.selected').forEach(p => p.classList.remove('selected'));
     renderGenreChips();
@@ -449,7 +455,7 @@ async function initFilters() {
     e.stopPropagation();
     searchFilters = [];
     clusterArtistFilters = [];
-    filtersDirty = true;
+    filtersDirty = true; filterGeneration++;
     shuffleHistory.clear();
     renderFindChips();
     updateFilterUI();
@@ -459,7 +465,7 @@ async function initFilters() {
     e.stopPropagation();
     djSearchFilters = [];
     clusterDjFilters = [];
-    filtersDirty = true;
+    filtersDirty = true; filterGeneration++;
     shuffleHistory.clear();
     renderDjChips();
     updateFilterUI();
@@ -627,43 +633,94 @@ async function initFilters() {
   if (filterSearchInput && filterSearchAc) {
     let uniItems = [], uniActiveIdx = -1, uniDebounce = null;
 
-    function setSearchSelection(label) {
-      filterSearchInput.value = label;
-      filterSearchInput.readOnly = true;
-      filterSearchClear.style.display = 'flex';
-      filterSearchWrap.classList.add('has-selection');
+    function applyUnifiedSearchFilters() {
+      filtersDirty = false;
+      if (document.body.classList.contains('crates-mode')) {
+        if (window._cratesResetFn) window._cratesResetFn();
+        return;
+      }
+      shuffle();
     }
 
-    function clearSearchSelection() {
-      // Remove the most recently added filter
-      if (searchFilters.length) {
-        searchFilters.pop();
-        renderFindChips();
-      } else if (djSearchFilters.length) {
-        djSearchFilters.pop();
-        renderDjChips();
-      } else if (genreSearchFilters.length) {
-        genreSearchFilters.pop();
-        syncGenrePillHighlights();
-        renderGenreChips();
+    const searchChipsContainer = document.getElementById('filter-search-chips');
+
+    window._renderSearchBarChips = renderSearchBarChips;
+    function renderSearchBarChips() {
+      searchChipsContainer.querySelectorAll('.find-chip').forEach(c => c.remove());
+      const allChips = [
+        ...searchFilters.map((f, i) => ({ label: f.display, type: 'artist', remove: () => removeSearchFilter(i) })),
+        ...djSearchFilters.map((f, i) => ({ label: f.display, type: 'dj', remove: () => removeDjFilter(i) })),
+        ...genreSearchFilters.map((f, i) => ({ label: f.display, type: 'genre', remove: () => removeGenreSearchFilter(i) })),
+      ];
+      for (const { label, remove } of allChips) {
+        const chip = document.createElement('span');
+        chip.className = 'find-chip';
+        chip.innerHTML = `${escHtml(label)} <button class="chip-remove">&times;</button>`;
+        chip.querySelector('.chip-remove').addEventListener('click', (e) => {
+          e.stopPropagation();
+          remove();
+        });
+        searchChipsContainer.appendChild(chip);
       }
+      const hasChips = allChips.length > 0;
+      filterSearchWrap.classList.toggle('has-chips', hasChips);
+      filterSearchClear.style.display = hasChips ? 'flex' : 'none';
+      filterSearchInput.placeholder = hasChips ? '' : 'Search by artist, DJ, or genre';
+    }
+
+    function addSearchBarChip(type, entry) {
+      if (type === 'artist') addSearchFilter(entry);
+      else if (type === 'dj') addDjFilter(entry);
+      else if (type === 'genre') addGenreSearchFilter(entry);
+      renderSearchBarChips();
       filterSearchInput.value = '';
-      filterSearchInput.readOnly = false;
-      filterSearchClear.style.display = 'none';
-      filterSearchWrap.classList.remove('has-selection');
+      closeUnifiedAc();
+      filterSearchInput.focus();
+    }
+
+    function clearAllSearchChips() {
+      searchFilters.length = 0;
+      djSearchFilters.length = 0;
+      genreSearchFilters.length = 0;
+      renderFindChips();
+      renderDjChips();
+      syncGenrePillHighlights();
+      renderGenreChips();
+      renderSearchBarChips();
       clearTimeout(uniDebounce);
       closeUnifiedAc();
+      filterSearchInput.value = '';
       shuffleHistory.clear();
       updateFilterUI();
       updateClusterPills();
       if (document.body.classList.contains('crates-mode') && window._cratesResetFn) {
         window._cratesResetFn();
       }
+      applyUnifiedSearchFilters();
+    }
+
+    function removeLastSearchChip() {
+      if (genreSearchFilters.length) {
+        genreSearchFilters.pop();
+        syncGenrePillHighlights();
+        renderGenreChips();
+      } else if (djSearchFilters.length) {
+        djSearchFilters.pop();
+        renderDjChips();
+      } else if (searchFilters.length) {
+        searchFilters.pop();
+        renderFindChips();
+      } else return;
+      renderSearchBarChips();
+      shuffleHistory.clear();
+      updateFilterUI();
+      updateClusterPills();
+      applyUnifiedSearchFilters();
     }
 
     filterSearchClear.addEventListener('click', (e) => {
       e.stopPropagation();
-      clearSearchSelection();
+      clearAllSearchChips();
       filterSearchInput.focus();
     });
 
@@ -703,11 +760,8 @@ async function initFilters() {
           div.innerHTML = `<span class="ac-name">${escHtml(label)}</span><span class="ac-type">${type}</span>`;
           div.addEventListener('click', (e) => {
             e.stopPropagation();
-            if (type === 'artist') addSearchFilter(entry);
-            else if (type === 'dj') addDjFilter(entry);
-            else if (type === 'genre') addGenreSearchFilter(entry);
-            setSearchSelection(label);
-            closeUnifiedAc();
+            addSearchBarChip(type, entry);
+            applyUnifiedSearchFilters();
           });
           div.addEventListener('mouseenter', () => {
             uniItems.forEach(el => el.classList.remove('active'));
@@ -723,11 +777,6 @@ async function initFilters() {
 
     filterSearchInput.addEventListener('input', () => {
       clearTimeout(uniDebounce);
-      // If user types while a selection is shown, clear the selection state
-      if (filterSearchWrap.classList.contains('has-selection')) {
-        clearSearchSelection();
-        filterSearchInput.readOnly = false;
-      }
       if (filterSearchInput.value.trim()) {
         uniDebounce = setTimeout(() => showUnifiedAc(filterSearchInput.value), 150);
       } else {
@@ -738,11 +787,10 @@ async function initFilters() {
       if (filterSearchInput.value.trim()) showUnifiedAc(filterSearchInput.value);
     });
     filterSearchInput.addEventListener('keydown', (e) => {
-      // Backspace/Delete clears active selection even when input is readOnly
-      if ((e.key === 'Backspace' || e.key === 'Delete') && filterSearchWrap.classList.contains('has-selection')) {
+      // Backspace on empty input removes the last chip
+      if (e.key === 'Backspace' && !filterSearchInput.value && filterSearchWrap.classList.contains('has-chips')) {
         e.preventDefault();
-        clearSearchSelection();
-        filterSearchInput.focus();
+        removeLastSearchChip();
         return;
       }
       if (!filterSearchAc.classList.contains('open')) return;
@@ -779,7 +827,7 @@ async function initFilters() {
     } else {
       filtersArr.push({ display: entry.display, trackIds: entry.trackIds });
     }
-    filtersDirty = true;
+    filtersDirty = true; filterGeneration++;
     shuffleHistory.clear();
     updateFilterUI();
     updateClusterPills();
