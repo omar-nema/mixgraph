@@ -13,7 +13,6 @@ let progressInterval = null;
 let isSeeking = false;
 let playingSetOffset = 0;   // track start offset in set (ms)
 let scPlayTimeout = null;
-let userPaused = false;     // true if user explicitly paused (vs. track stopped/switched)
 const ASSUMED_TRACK_DUR = 5 * 60 * 1000; // 5 min fallback for set tracks
 var seekResumeDelay = 300;
 
@@ -121,7 +120,6 @@ function stopCurrentPlayback() {
   resetCardUI(currentlyPlayingId);
   currentlyPlayingId = null;
   currentBackend = null;
-  userPaused = false;
 }
 
 function onPlaybackEnded() {
@@ -242,7 +240,6 @@ function initProgressBarInteraction(card) {
 }
 
 function prepareCardForPlayback(nodeId, source) {
-  userPaused = false;
   const card = findCardForNode(nodeId);
   const btn = card ? card.querySelector('.play-btn') : null;
   if (btn) btn.innerHTML = PAUSE_SVG;
@@ -410,23 +407,6 @@ function findCardForNode(nodeId) {
       || document.querySelector(`.mobile-carousel-card[data-node-id="${nodeId}"]`);
 }
 
-// ── PWA background/foreground: nudge widgets to resume faster ──
-document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState !== 'visible' || !currentlyPlayingId) return;
-  // Don't resume if the user explicitly paused before backgrounding
-  if (userPaused) return;
-  const card = findCardForNode(currentlyPlayingId);
-  const isPlaying = card && card.classList.contains('playing');
-  if (!isPlaying) return;
-  // Nudge the widget — calling play() on an already-playing widget
-  // is a no-op but wakes the iframe from browser throttling
-  if (currentBackend === 'sc' && scWidget && scWidgetReady) {
-    try { scWidget.play(); } catch (e) {}
-  } else if (currentBackend === 'mc' && mcWidget) {
-    try { mcWidget.play(); } catch (e) {}
-  }
-});
-
 function togglePlay(nodeId) {
   const node = nodeMap[nodeId];
   if (!node) return;
@@ -450,13 +430,11 @@ function togglePlay(nodeId) {
       else if (currentBackend === 'mc' && mcWidget) try { mcWidget.pause(); } catch(e) {}
       if (btn) btn.innerHTML = PLAY_SVG;
       if (card) card.classList.remove('playing');
-      userPaused = true;
     } else {
       if (currentBackend === 'sc' && scWidget) scWidget.play();
       else if (currentBackend === 'mc' && mcWidget) mcWidget.play();
       if (btn) btn.innerHTML = PAUSE_SVG;
       if (card) { card.classList.add('playing'); applyGlow(card); }
-      userPaused = false;
     }
     return;
   }
