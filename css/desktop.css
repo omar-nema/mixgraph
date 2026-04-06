@@ -81,7 +81,7 @@ body.night {
   --text-tertiary: #7f7a75;
 
   /* Accent */
-  --accent: #f5ce0a;
+  --accent: #4a95f8;
   --connection-highlight: var(--accent);
   --accent-wash: color-mix(in oklch, var(--accent) 14%, var(--bg));
   --accent-wash-hover: color-mix(in oklch, var(--accent) 20%, var(--bg));
@@ -110,7 +110,7 @@ body.night .find-chip { background: rgba(255, 255, 255, 0.1); }
 body.night .genre-pill, body.night .cluster-pill { background: rgba(255, 255, 255, 0.12); }
 body.night .chips-input { background: var(--bg); }
 body.night #artist-search { background: var(--bg); }
-body.night .genre-pill.selected, body.night .cluster-pill.added { background: var(--accent); border-color: var(--accent); color: #000; }
+body.night .genre-pill.selected, body.night .cluster-pill.added { background: var(--accent); border-color: var(--accent); }
 body.night .filter-pill.active { background: var(--accent-wash-selected); border-color: var(--accent-border); }
 body.night .mode-tab.active { background: none; color: var(--connection-highlight); box-shadow: none; }
 body.night #mode-tabs { background: none; }
@@ -129,11 +129,6 @@ body.night .help-diagram text[fill="#7a7068"] { fill: #9a9590; }
 body.night .ac-item:hover, body.night .ac-item.active { background: rgba(255,255,255,0.1); }
 body.night #find-ac, body.night #dj-ac, body.night #artist-autocomplete { box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5); }
 body.night .help-diagram path[stroke="#2A2520"] { stroke: #e8e4e0; }
-body.night .filter-shuffle,
-body.night .filter-shuffle:hover,
-body.night .filter-shuffle:active,
-body.night .filter-shuffle.active { background: rgba(245, 206, 10, 0.7); color: #000; border-color: rgba(245, 206, 10, 0.7); }
-body.night .filter-shuffle:hover { background: rgba(245, 206, 10, 0.8); border-color: rgba(245, 206, 10, 0.8); }
 body.night .help-diagram path[stroke="#212121"] { stroke: #666; }
 body.night .help-diagram path[stroke="#C4B5A5"] { stroke: #444; }
 body.night .help-diagram path[fill="#2A2520"] { fill: #e8e4e0; }
@@ -324,7 +319,7 @@ body.night .card-footer button:active { background: rgba(255,255,255,0.1); }
 body.night .mode-tab:not(.active):hover { background: none; }
 .mode-tab.active {
   color: var(--connection-highlight);
-  font-weight: 300;
+  font-weight: 500;
   border-bottom: 2px solid transparent;
   background: none;
   box-shadow: none;
@@ -629,6 +624,7 @@ body.night .genre-tooltip {
   padding: 13px;
   cursor: default;
   transition: box-shadow 0.25s ease;
+  overflow: hidden;
 
   /* fade in — JS sets opacity:1 after animation so .playing toggle works */
   opacity: 0;

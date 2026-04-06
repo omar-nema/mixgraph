@@ -364,7 +364,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Wire theme toggle
   const themeBtn = document.getElementById('theme-toggle');
   const savedTheme = localStorage.getItem('b2b-theme');
-  const startNight = savedTheme ? savedTheme === 'night' : true;
+  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  const startNight = savedTheme ? savedTheme === 'night' : prefersDark;
   function applyTheme(isNight) {
     document.body.classList.toggle('night', isNight);
     document.documentElement.classList.toggle('night', isNight);
@@ -372,7 +373,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     themeBtn.querySelectorAll('.sun-icon').forEach(el => el.style.display = isNight ? 'none' : '');
     themeBtn.querySelector('.moon-icon').style.display = isNight ? '' : 'none';
   }
-  applyTheme(startNight);
+  if (startNight) applyTheme(true);
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+    if (localStorage.getItem('b2b-theme')) return;
+    applyTheme(e.matches);
+  });
   themeBtn.addEventListener('click', () => {
     const isNight = !document.body.classList.contains('night');
     applyTheme(isNight);
