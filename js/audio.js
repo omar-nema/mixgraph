@@ -264,6 +264,7 @@ function setupScWidget(nodeId, card, offsetSec, onError) {
 
   let pendingSeekMs = offsetSec ? offsetSec * 1000 : 0;
   scWidget.bind(SC.Widget.Events.READY, () => {
+    scWidget.unbind(SC.Widget.Events.READY); // one-shot: prevent re-fire on iframe restore
     scWidgetReady = true;
     try { scWidget.play(); } catch (e) {}
   });
