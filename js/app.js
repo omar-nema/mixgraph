@@ -364,8 +364,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Wire theme toggle
   const themeBtn = document.getElementById('theme-toggle');
   const savedTheme = localStorage.getItem('b2b-theme');
-  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-  const startNight = savedTheme ? savedTheme === 'night' : prefersDark;
+  const startNight = savedTheme ? savedTheme === 'night' : true;
   function applyTheme(isNight) {
     document.body.classList.toggle('night', isNight);
     document.documentElement.classList.toggle('night', isNight);
@@ -373,11 +372,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     themeBtn.querySelectorAll('.sun-icon').forEach(el => el.style.display = isNight ? 'none' : '');
     themeBtn.querySelector('.moon-icon').style.display = isNight ? '' : 'none';
   }
-  if (startNight) applyTheme(true);
-  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
-    if (localStorage.getItem('b2b-theme')) return;
-    applyTheme(e.matches);
-  });
+  applyTheme(startNight);
   themeBtn.addEventListener('click', () => {
     const isNight = !document.body.classList.contains('night');
     applyTheme(isNight);
@@ -1248,6 +1243,14 @@ document.addEventListener('DOMContentLoaded', async () => {
       window._tracksRevealed = true;
     }
   }
+
+  // Mobile: move highlight immediately on touchstart (before 300ms click delay)
+  document.querySelectorAll('#mobile-mode-tabs .mode-tab').forEach(tab => {
+    tab.addEventListener('touchstart', () => {
+      document.querySelectorAll('.mode-tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll(`.mode-tab[data-mode="${tab.dataset.mode}"]`).forEach(t => t.classList.add('active'));
+    }, { passive: true });
+  });
 
   // Wire mode tabs
   document.querySelectorAll('.mode-tab').forEach(tab => {
