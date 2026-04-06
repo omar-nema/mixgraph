@@ -8,7 +8,7 @@ import { fileURLToPath } from 'url';
 import { buildCandidates } from '../shared/graph-logic.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const root = resolve(__dirname, 'output');
+const root = resolve(__dirname, '..', 'pipeline', 'output');
 
 console.log('Loading graph data...');
 const t0 = Date.now();
@@ -73,4 +73,4 @@ const outPath = `${root}/kv-crates-index.json`;
 writeFileSync(outPath, JSON.stringify([{ key: 'crates-index', value: cratesIndexJson }]));
 console.log(`Wrote ${outPath}`);
 console.log(`\nUpload with:`);
-console.log(`  npx wrangler kv:bulk put --namespace-id=04f5b3defaf84e6ba843601156adc9d6 pipeline/output/kv-crates-index.json`);
+console.log(`  npx wrangler kv:bulk put --namespace-id=04f5b3defaf84e6ba843601156adc9d6 web-app/output/kv-crates-index.json`);

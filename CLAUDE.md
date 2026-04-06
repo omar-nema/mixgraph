@@ -37,8 +37,18 @@ pipeline/               # Data processing (shared across sources)
   cluster.py            # Cluster selection + SoundCloud search functions
   utils.py              # Shared normalize() for track ID generation
   output/               # combined_graph.json, audio_cache.json
-plans/                  # Implementation plans and docs
-  cloud-migration.md    # Plan: Cloudflare Workers + R2 API migration
+scripts/                # Dev tools and build scripts
+  serve.py              # Local SPA dev server
+  build_kv.js           # Build KV bulk import files for Cloudflare
+  build_crates_index.js # Build crates search index for KV
+  analyze_candidates.mjs # Analyze candidate pool constraints
+docs/                   # Project documentation
+  dataModel.md          # Graph node structure, edges, audio cache, query flow
+  coverage.md           # Data coverage statistics
+  knownIssues.md        # Known bugs and potential fixes
+shared/                 # Provider-agnostic graph logic (server + worker)
+server/                 # Local Express dev server
+worker/                 # Cloudflare Worker adapter
 sandbox/                # Frontend experiments (prototyping)
 ```
 
@@ -64,7 +74,7 @@ cd pipeline && python3 enrich.py
 cd pipeline && python3 extract_dj_names.py
 
 # Serve frontend locally (SPA-aware, handles /dig and /shuffle routes)
-python3 serve.py
+python3 scripts/serve.py
 ```
 
 ## Frontend
@@ -165,7 +175,7 @@ When adding experimental/debug features (font switchers, layout toggles, debug i
 
 ## Workflow habits
 
-- **Document decisions** — when a meaningful architectural decision or strategic change is made, update the relevant docs (plans/, instructions.md, or this file) so there's a record
+- **Document decisions** — when a meaningful architectural decision or strategic change is made, update the relevant docs (docs/, or this file) so there's a record
 - **Keep things organized** — new files go in the right folder, not the root. Group related work together
 - **Periodic cleanup** — on new session startup, glance at the codebase for stale code, unused files, or outdated plans. Flag anything worth removing or consolidating
 - **Auto-commit meaningful work** — after completing a substantial change (new feature, significant refactor, new scraper pipeline, etc.), commit and push to GitHub. Skip commits for tiny tweaks, config edits, or mid-task WIP

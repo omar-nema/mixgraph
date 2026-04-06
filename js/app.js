@@ -4,6 +4,7 @@ function showCluster(cluster) {
     showClusterMobile(cluster);
     return;
   }
+  syncDesktopToolbarHeight();
   clearGraph();
   nodes = cluster.nodes;
   edges = cluster.edges;
@@ -181,6 +182,14 @@ function getFilteredPoolSize() {
   return lastPoolSize;
 }
 
+function syncDesktopToolbarHeight() {
+  const toolbar = document.getElementById('toolbar');
+  const height = (!toolbar || isMobileView())
+    ? 0
+    : Math.ceil(toolbar.getBoundingClientRect().height);
+  document.documentElement.style.setProperty('--toolbar-height', `${height}px`);
+}
+
 // ── Loading / error overlay ──
 function showStatus(message, isError) {
   const el = document.getElementById('app-status');
@@ -273,6 +282,13 @@ async function loadClusterById(id) {
 // ═══════════════════════════════════════════
 document.addEventListener('DOMContentLoaded', async () => {
   console.log(`API base: ${API_BASE}`);
+  syncDesktopToolbarHeight();
+  const toolbar = document.getElementById('toolbar');
+  if (toolbar && 'ResizeObserver' in window) {
+    const toolbarObserver = new ResizeObserver(() => syncDesktopToolbarHeight());
+    toolbarObserver.observe(toolbar);
+  }
+  window.addEventListener('resize', syncDesktopToolbarHeight);
 
   // Populate help panels from shared template
   const helpTpl = document.getElementById('help-content');

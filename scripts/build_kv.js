@@ -10,7 +10,7 @@ import {
 } from '../shared/graph-logic.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const root = resolve(__dirname, 'output');
+const root = resolve(__dirname, '..', 'pipeline', 'output');
 
 console.log('Loading graph data...');
 const t0 = Date.now();
@@ -183,5 +183,5 @@ for (let i = 0; i < chunks.length; i++) {
 
 console.log(`\nDone. Upload with:`);
 for (let i = 0; i < chunks.length; i++) {
-  console.log(`  npx wrangler kv bulk put --namespace-id=04f5b3defaf84e6ba843601156adc9d6 --remote pipeline/output/kv-bulk-${i}.json`);
+  console.log(`  npx wrangler kv bulk put --namespace-id=04f5b3defaf84e6ba843601156adc9d6 --remote web-app/output/kv-bulk-${i}.json`);
 }

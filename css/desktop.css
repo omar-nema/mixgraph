@@ -5,6 +5,7 @@ html { background: #f5f5f7; -webkit-text-size-adjust: 100%; text-size-adjust: 10
 :root {
   /* Background — change --bg (here + body.night) to re-theme surfaces */
   --bg: #f5f5f7;
+  --toolbar-height: 0px;
 
   /* Surface derivatives (auto-computed from --bg) */
   --card-bg: color-mix(in srgb, white 50%, var(--bg));
@@ -340,6 +341,11 @@ body.night .mode-tab.active { color: var(--connection-highlight); background: no
   flex-direction: column;
   position: relative;
   transition: opacity 0.3s ease;
+}
+@media (min-width: 769px) {
+  #tracks-view {
+    padding-top: var(--toolbar-height);
+  }
 }
 /* First-visit fade-in for tracks mode */
 #tracks-view.reveal-loading #graph-viewport { opacity: 0; }
@@ -2162,4 +2168,3 @@ body.night #card-context-menu {
   color: #fff;
 }
 .status-retry.hidden { display: none; }
-

@@ -1,2 +1,0 @@
-# Pipeline uses only Python stdlib (json, re, sys, time, signal, urllib, etc.)
-# No third-party dependencies required.
