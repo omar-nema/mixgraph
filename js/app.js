@@ -431,7 +431,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         item.style.opacity = '0';
         item.classList.add('fly-text-hidden');
       });
-      const carouselCards = [...carousel.querySelectorAll('.mobile-carousel-card')];
       const shuffleArea = document.getElementById('mobile-shuffle-area');
       shuffleArea.style.opacity = '0';
       shuffleArea.style.transition = 'opacity 0.3s ease 0.35s';
@@ -439,7 +438,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       carousel.offsetHeight; // force reflow — measure destinations
 
       // Measure destination rects
-      const destinations = carouselCards.map(card => ({
+      const destinations = [...carousel.querySelectorAll('.mobile-carousel-card')].map(card => ({
         cardRect: card.getBoundingClientRect(),
         artRect: card.querySelector('.mc-art-wrap').getBoundingClientRect(),
         item: card.closest('.mobile-carousel-item'),
@@ -447,8 +446,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       // ── Phase 2: Create flyers ──
       // Root always flies. Second card flies only if its track is in the crate.
-      // Build lookup: crate neighbor track ID → crate card source data
-      const seedHasArt = cluster.nodes[0]?.artUrl;
       const crateNeighborMap = {};
       const neighborIds = stackEl._b2bItem?.neighborIds || [];
       neighborIds.forEach((nId, idx) => {
@@ -512,7 +509,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (flyImg) flyImg.style.transition = 'none';
         document.body.appendChild(fly);
         dst.item._hasFlyer = true;
-        flyers.push({ el: fly, img: fly.querySelector('img'), dst });
+        flyers.push({ el: fly, img: flyImg, dst });
       }
 
       // Hide clicked crate immediately — must kill animation (fill-mode: both overrides inline opacity)
