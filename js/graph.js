@@ -91,7 +91,7 @@ function renderCards() {
     const artClass = hasArt ? 'album-art' : 'album-art no-art';
     const imgTag = hasArt
       ? `<img class="${artClass}" src="${node.artUrl}" alt="${node.title} by ${node.artist}" loading="lazy">`
-      : `<div class="${artClass}" style="background: ${generateGradient(node.title, node.artist)}; ${window._gradientFilter ? 'filter:' + window._gradientFilter : ''}"></div>`;
+      : (() => { const [gA, gT] = (node.graphId || '').split(':::'); return `<img class="${artClass}" src="${gradientArtUrl(gT || node.title, gA || node.artist)}" style="${window._gradientFilter ? 'filter:' + window._gradientFilter : ''}">`; })();
 
     const playBtn = hasAudio
       ? `<button class="play-btn" aria-label="Play">${PLAY_SVG}</button>`

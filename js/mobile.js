@@ -1,7 +1,8 @@
 function mobileArtHtml(node) {
   const url = node.artUrl;
   if (url) return `<img class="album-art" src="${url}" loading="lazy">`;
-  return `<div class="album-art no-art" style="background: ${generateGradient(node.title, node.artist)}"></div>`;
+  const [gArtist, gTitle] = (node.graphId || '').split(':::');
+  return `<img class="album-art no-art" src="${gradientArtUrl(gTitle || node.title, gArtist || node.artist)}" loading="lazy">`;
 }
 
 function showClusterMobile(cluster) {

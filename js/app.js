@@ -462,9 +462,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         const delay = i === 0 ? 0 : i <= 2 ? 0.03 : 0.06;
         fly.style.transitionDelay = delay + 's';
 
-        if (src.imgSrc) {
+        // Extract image source: either from <img> or from gradient background URL
+        let flySrc = src.imgSrc;
+        if (!flySrc && src.bg) {
+          const m = src.bg.match(/url\(["']?([^"')]+)/);
+          if (m) flySrc = m[1];
+        }
+        if (flySrc) {
           const img = document.createElement('img');
-          img.src = src.imgSrc;
+          img.src = flySrc;
           img.style.width = src.rect.width + 'px';
           img.style.height = src.rect.height + 'px';
           img.style.transitionDelay = delay + 's';
@@ -474,7 +480,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         fly.style.transition = 'none';
-        if (src.imgSrc) fly.querySelector('img').style.transition = 'none';
+        const flyImg = fly.querySelector('img');
+        if (flyImg) flyImg.style.transition = 'none';
         document.body.appendChild(fly);
         flyers.push({ el: fly, img: fly.querySelector('img'), dst });
       }
@@ -597,8 +604,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         const cardRect = card.getBoundingClientRect();
         const artWrap = card.querySelector('.art-wrap');
         const artRect = artWrap ? artWrap.getBoundingClientRect() : null;
-        const hasArt = artWrap && n.artUrl;
-
         const startSize = Math.min(stackRect.width, stackRect.height) * 0.4;
 
         // Wrapper div — starts as small shape at stack center, morphs to card-sized
@@ -608,20 +613,18 @@ document.addEventListener('DOMContentLoaded', async () => {
         fly.style.height = startSize + 'px';
         fly.style.left = (srcX - startSize / 2) + 'px';
         fly.style.top = (srcY - startSize / 2) + 'px';
-        fly.style.opacity = hasArt ? '' : '0.6';
         const delay = n.rank === 'root' ? 0 : n.rank === '1' ? 0.05 : 0.12;
         fly.style.transitionDelay = `${delay + idx * 0.02}s`;
 
-        let img = null;
-        if (hasArt) {
-          // Image inside — starts filling wrapper, shrinks to art area within card
-          img = document.createElement('img');
-          img.src = n.artUrl;
-          img.style.width = startSize + 'px';
-          img.style.height = startSize + 'px';
-          img.style.transitionDelay = `${delay + idx * 0.02}s`;
-          fly.appendChild(img);
-        }
+        // Image inside — starts filling wrapper, shrinks to art area within card
+        const [fArtist, fTitle] = (n.graphId || '').split(':::');
+        const flySrc = n.artUrl || gradientArtUrl(fTitle || n.title, fArtist || n.artist);
+        const img = document.createElement('img');
+        img.src = flySrc;
+        img.style.width = startSize + 'px';
+        img.style.height = startSize + 'px';
+        img.style.transitionDelay = `${delay + idx * 0.02}s`;
+        fly.appendChild(img);
 
         document.body.appendChild(fly);
         flyingEls.push({
@@ -752,8 +755,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       el.style.width = w + 'px'; el.style.height = h + 'px';
 
       const artKeys = item.artKeys || [];
-      // Use first artwork as top key (server already promotes best art)
       const topKey = artKeys.length > 0 ? artKeys[0] : null;
+      // Detect if seed track has its own artwork in the packed artworks array
+      const seedHasArt = item.artworks.length > item.neighborIds.length;
       for (let i = 0; i < numCards; i++) {
         const card = document.createElement('div');
         card.className = 'crate-card placeholder';
@@ -763,10 +767,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         card.style.width = cardW + 'px'; card.style.height = cardH + 'px';
         card.style.zIndex = i;
 
-        // Start as placeholder — artwork loads after
-        const base = 148 + Math.floor(crateRand() * 40) - 20;
-        card.style.background = `rgb(${base}, ${base - 4}, ${base - 8})`;
-
+        // Determine which track this card represents
         let cardTitle = item.title, cardArtist = item.artist;
         const isTopCard = (i === numCards - 1);
         if (!isTopCard && item.neighborIds.length > 0) {
@@ -774,6 +775,19 @@ document.addEventListener('DOMContentLoaded', async () => {
           const [nArtist, nTitle] = nId.split(':::');
           cardTitle = nTitle || item.title;
           cardArtist = nArtist || item.artist;
+        }
+
+        // Use gradient placeholder only for cards that won't get artwork
+        let artIdx;
+        if (isTopCard) artIdx = seedHasArt ? 0 : -1;
+        else artIdx = seedHasArt ? 1 + i : i;
+        const hasArt = artIdx >= 0 && !!item.artworks[artIdx];
+        if (hasArt) {
+          const base = 148 + Math.floor(crateRand() * 40) - 20;
+          card.style.background = `rgb(${base}, ${base - 4}, ${base - 8})`;
+        } else {
+          card.style.background = generateGradient(cardTitle, cardArtist);
+          card.classList.remove('placeholder');
         }
         const info = document.createElement('div');
         info.className = 'crate-info';
@@ -1057,10 +1071,13 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
           });
         };
+        const seedHasArt = item.artworks.length > item.neighborIds.length;
         cards.forEach((card, i) => {
-          // Top card = artworks[0] (seed), others = artworks[1..] (neighbors)
-          const url = (i === last) ? (item.artworks[0] || null)
-            : (item.artworks[1 + i] || null);
+          // Correct index into packed artworks array
+          let artIdx;
+          if (i === last) artIdx = seedHasArt ? 0 : -1;
+          else artIdx = seedHasArt ? 1 + i : i;
+          const url = (artIdx >= 0 && item.artworks[artIdx]) || null;
           if (url) {
             pending++;
             const img = document.createElement('img');
@@ -1069,6 +1086,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             img.onload = reveal;
             img.onerror = reveal;
             card.insertBefore(img, card.firstChild);
+          } else {
+            // No artwork — show gradient, remove placeholder shimmer
+            card.classList.remove('placeholder');
           }
         });
       });
@@ -1082,10 +1102,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         const cards = stackEl.querySelectorAll('.crate-card');
         cards.forEach((card, i) => {
           const img = card.querySelector('img');
-          if (img) img.remove();
-          const base = 148 + ((i * 17 + 3) % 40) - 20;
-          card.style.background = `rgb(${base}, ${base - 4}, ${base - 8})`;
-          card.classList.add('placeholder');
+          if (img) {
+            img.remove();
+            // Restore simple placeholder for cards that had artwork
+            const base = 148 + ((i * 17 + 3) % 40) - 20;
+            card.style.background = `rgb(${base}, ${base - 4}, ${base - 8})`;
+            card.classList.add('placeholder');
+          }
+          // Cards without art keep their gradient — no change needed
         });
       });
     }

@@ -101,23 +101,11 @@ function simpleHash(str) {
   return Math.abs(h);
 }
 
+const GRADIENT_COUNT = 40;
+function gradientArtUrl(title, artist) {
+  const h = simpleHash(((title || '') + (artist || '')).toLowerCase());
+  return `/gradients/${h % GRADIENT_COUNT}.jpg`;
+}
 function generateGradient(title, artist) {
-  const h = simpleHash((title || '') + (artist || ''));
-  const palette = gradientPalettes[h % gradientPalettes.length];
-  // Layered radial gradients at pseudo-random positions to mimic mesh gradient
-  const positions = [
-    [h % 40 + 10, h % 30 + 10],
-    [70 + (h >> 4) % 20, h % 25 + 5],
-    [(h >> 8) % 30 + 10, 70 + (h >> 2) % 20],
-    [60 + (h >> 6) % 30, 60 + (h >> 3) % 30],
-    [40 + (h >> 5) % 20, 40 + (h >> 7) % 20],
-  ];
-  const layers = palette.map((c, i) => {
-    const [x, y] = positions[i % positions.length];
-    const size = 50 + ((h >> (i * 3)) % 40);
-    return `radial-gradient(circle at ${x}% ${y}%, ${c} 0%, transparent ${size}%)`;
-  });
-  // Base color from the palette's darkest-looking color
-  const base = palette[1];
-  return `${layers.join(', ')}, ${base}`;
+  return `url(${gradientArtUrl(title, artist)}) center/cover`;
 }
