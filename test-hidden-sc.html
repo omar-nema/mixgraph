@@ -278,26 +278,11 @@
       // Init widget on first user interaction (required for iOS audio unlock)
       if (!widget) initWidget();
 
-      // Rebind READY for this load in case we need a fresh play() call
-      if (widgetReady) {
-        widget.load(track.url, { auto_play: true, show_artwork: false });
-      } else {
-        // First load: READY will fire, then we need to trigger play manually
-        // because the initial iframe src has no track
-        const onFirstReady = () => {
-          widgetReady = true;
-          widget.unbind(SC.Widget.Events.READY);
-          // Re-bind permanent READY handler
-          widget.bind(SC.Widget.Events.READY, () => {
-            widgetReady = true;
-            log('READY (reload)');
-          });
-          widget.load(track.url, { auto_play: true, show_artwork: false });
-          log('READY — loading track');
-        };
-        widget.bind(SC.Widget.Events.READY, onFirstReady);
-        initWidget(); // no-op if already called, triggers READY
-      }
+      // Call load() + play() synchronously in the tap handler.
+      // iOS requires play() to be in the same call stack as the user gesture —
+      // calling it only in a READY callback (async postMessage) loses the gesture context.
+      widget.load(track.url, { auto_play: true, show_artwork: false });
+      try { widget.play(); } catch (e) {}  // synchronous unlock for iOS
     }
 
     // ── Play/pause toggle ──
