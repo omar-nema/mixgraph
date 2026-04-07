@@ -911,7 +911,6 @@ a.track-title:hover { text-decoration-color: var(--text-secondary); }
 .album-art.no-art {
   position: relative;
   background: #d9d1c7; /* fallback */
-  filter: url(#gradient-distort) saturate(50%) hue-rotate(46deg);
 }
 
 /* Source badge (SoundCloud logo) */
