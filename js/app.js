@@ -1150,7 +1150,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       // Velocity-dependent friction: coast further at low speed, same feel at high speed
       const speed = Math.sqrt(velX * velX + velY * velY);
       const t = Math.min(speed / 12, 1); // 0 at low speed, 1 at ≥12px/frame
-      const friction = 0.98 - 0.03 * t;  // 0.98 low-speed → 0.95 high-speed
+      const friction = 0.96 - 0.03 * t;  // 0.96 low-speed → 0.93 high-speed
       velX *= friction;
       velY *= friction;
       if (Math.abs(velX) < 0.5 && Math.abs(velY) < 0.5) {
