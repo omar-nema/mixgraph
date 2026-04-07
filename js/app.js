@@ -1147,8 +1147,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     function momentumStep() {
       // Stop if crates view was hidden (e.g. user switched to Tracks mid-momentum)
       if (cratesView.classList.contains('hidden')) { momentumId = null; return; }
-      velX *= 0.95;
-      velY *= 0.95;
+      // Velocity-dependent friction: coast further at low speed, same feel at high speed
+      const speed = Math.sqrt(velX * velX + velY * velY);
+      const t = Math.min(speed / 12, 1); // 0 at low speed, 1 at ≥12px/frame
+      const friction = 0.98 - 0.03 * t;  // 0.98 low-speed → 0.95 high-speed
+      velX *= friction;
+      velY *= friction;
       if (Math.abs(velX) < 0.5 && Math.abs(velY) < 0.5) {
         momentumId = null;
         updateVisible();
