@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>SC Hidden Widget Test</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, sans-serif;
+      background: #1a1a1a;
+      color: #fff;
+      min-height: 100vh;
+      padding: 24px 16px;
+    }
+
+    h1 { font-size: 18px; margin-bottom: 6px; }
+    .subtitle { font-size: 13px; color: #888; margin-bottom: 24px; }
+
+    /* Hidden SC widget — completely invisible but in the DOM */
+    #sc-widget {
+      opacity: 0;
+      position: absolute;
+      top: 0; left: 0;
+      width: 1px; height: 1px;
+      pointer-events: none;
+    }
+
+    /* Track cards */
+    .cards { display: flex; flex-direction: column; gap: 10px; margin-bottom: 28px; }
+
+    .card {
+      background: #2a2a2a;
+      border: 1px solid #333;
+      border-radius: 10px;
+      padding: 14px 16px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+      transition: background 0.15s;
+    }
+    .card:active { background: #333; }
+    .card.active { border-color: #4a90e2; background: #1e2d42; }
+
+    .card-icon {
+      width: 36px; height: 36px;
+      background: #3a3a3a;
+      border-radius: 6px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px;
+      flex-shrink: 0;
+    }
+    .card.active .card-icon { background: #4a90e2; }
+
+    .card-info { flex: 1; min-width: 0; }
+    .card-title { font-size: 14px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .card-artist { font-size: 12px; color: #888; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    .card-status { font-size: 11px; color: #4a90e2; flex-shrink: 0; }
+
+    /* Player bar */
+    #player {
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      background: #222;
+      border-top: 1px solid #333;
+      padding: 14px 16px 28px;
+    }
+
+    #player.hidden { display: none; }
+
+    #player-track { font-size: 13px; font-weight: 500; margin-bottom: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    #player-artist { font-size: 11px; color: #888; margin-top: -6px; margin-bottom: 10px; }
+
+    .progress-wrap {
+      background: #333;
+      border-radius: 3px;
+      height: 4px;
+      margin-bottom: 12px;
+      position: relative;
+      cursor: pointer;
+    }
+    #progress-fill {
+      background: #4a90e2;
+      border-radius: 3px;
+      height: 100%;
+      width: 0%;
+      transition: width 0.1s linear;
+      pointer-events: none;
+    }
+
+    .controls {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 20px;
+    }
+
+    #play-btn {
+      width: 48px; height: 48px;
+      border-radius: 50%;
+      background: #4a90e2;
+      border: none;
+      color: #fff;
+      font-size: 20px;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      -webkit-tap-highlight-color: transparent;
+    }
+    #play-btn:active { background: #3a7bd5; }
+
+    #status {
+      margin-bottom: 80px;
+      padding: 12px;
+      background: #222;
+      border-radius: 8px;
+      font-size: 12px;
+      color: #888;
+      font-family: monospace;
+      line-height: 1.6;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>SC Hidden Widget Test</h1>
+  <p class="subtitle">Tests audio via hidden SC iframe (opacity:0). Tap a track to load it.</p>
+
+  <!-- The SC widget — invisible, but functional -->
+  <iframe id="sc-widget"
+    src="https://w.soundcloud.com/player/?auto_play=false"
+    allow="autoplay; encrypted-media">
+  </iframe>
+
+  <div class="cards" id="cards"></div>
+
+  <div id="status">Waiting for interaction…</div>
+
+  <!-- Fixed player bar -->
+  <div id="player" class="hidden">
+    <div id="player-track">—</div>
+    <div id="player-artist"></div>
+    <div class="progress-wrap" id="progress-wrap">
+      <div id="progress-fill"></div>
+    </div>
+    <div class="controls">
+      <button id="play-btn">▶</button>
+    </div>
+  </div>
+
+  <script src="https://w.soundcloud.com/player/api.js"></script>
+  <script>
+    // ── Test tracks — known public SC URLs ──
+    const TRACKS = [
+      {
+        title: 'Floating Points - LesAlpx',
+        artist: 'Floating Points',
+        url: 'https://soundcloud.com/floatingpoints/lesalpx'
+      },
+      {
+        title: 'Four Tet - Angel Echoes',
+        artist: 'Four Tet',
+        url: 'https://soundcloud.com/four-tet/angel-echoes'
+      },
+      {
+        title: 'Caribou - Sun',
+        artist: 'Caribou',
+        url: 'https://soundcloud.com/caribouband/sun'
+      },
+    ];
+
+    // ── State ──
+    let widget = null;
+    let widgetReady = false;
+    let activeIdx = null;
+    let isPlaying = false;
+    let progressInterval = null;
+
+    // ── DOM refs ──
+    const statusEl = document.getElementById('status');
+    const playerEl = document.getElementById('player');
+    const playerTrackEl = document.getElementById('player-track');
+    const playerArtistEl = document.getElementById('player-artist');
+    const progressFill = document.getElementById('progress-fill');
+    const progressWrap = document.getElementById('progress-wrap');
+    const playBtn = document.getElementById('play-btn');
+
+    function log(msg) {
+      const now = new Date().toLocaleTimeString();
+      statusEl.textContent = `[${now}] ${msg}`;
+      console.log(msg);
+    }
+
+    // ── Build cards ──
+    const cardsEl = document.getElementById('cards');
+    TRACKS.forEach((track, i) => {
+      const card = document.createElement('div');
+      card.className = 'card';
+      card.innerHTML = `
+        <div class="card-icon">♪</div>
+        <div class="card-info">
+          <div class="card-title">${track.title}</div>
+          <div class="card-artist">${track.artist}</div>
+        </div>
+        <div class="card-status" id="card-status-${i}"></div>
+      `;
+      card.addEventListener('click', () => loadTrack(i));
+      cardsEl.appendChild(card);
+    });
+
+    function setActiveCard(idx) {
+      document.querySelectorAll('.card').forEach((c, i) => {
+        c.classList.toggle('active', i === idx);
+        document.getElementById(`card-status-${i}`).textContent = i === idx ? '▶' : '';
+      });
+    }
+
+    // ── Init widget ──
+    function initWidget() {
+      if (widget) return;
+      try {
+        widget = SC.Widget(document.getElementById('sc-widget'));
+
+        widget.bind(SC.Widget.Events.READY, () => {
+          widgetReady = true;
+          log('READY — widget initialized');
+        });
+
+        widget.bind(SC.Widget.Events.PLAY, () => {
+          isPlaying = true;
+          playBtn.textContent = '⏸';
+          playerEl.classList.remove('hidden');
+          log('PLAY event fired');
+          startProgress();
+        });
+
+        widget.bind(SC.Widget.Events.PAUSE, () => {
+          isPlaying = false;
+          playBtn.textContent = '▶';
+          log('PAUSE event fired');
+          stopProgress();
+        });
+
+        widget.bind(SC.Widget.Events.FINISH, () => {
+          isPlaying = false;
+          playBtn.textContent = '▶';
+          progressFill.style.width = '100%';
+          log('FINISH event fired');
+          stopProgress();
+        });
+
+        widget.bind(SC.Widget.Events.ERROR, (e) => {
+          log(`ERROR: ${JSON.stringify(e)}`);
+        });
+      } catch (e) {
+        log(`Widget init error: ${e}`);
+      }
+    }
+
+    // ── Load track ──
+    function loadTrack(idx) {
+      const track = TRACKS[idx];
+      activeIdx = idx;
+      setActiveCard(idx);
+
+      playerTrackEl.textContent = track.title;
+      playerArtistEl.textContent = track.artist;
+      playerEl.classList.remove('hidden');
+      progressFill.style.width = '0%';
+      playBtn.textContent = '⏳';
+
+      log(`Loading: ${track.title}`);
+
+      // Init widget on first user interaction (required for iOS audio unlock)
+      if (!widget) initWidget();
+
+      // Rebind READY for this load in case we need a fresh play() call
+      if (widgetReady) {
+        widget.load(track.url, { auto_play: true, show_artwork: false });
+      } else {
+        // First load: READY will fire, then we need to trigger play manually
+        // because the initial iframe src has no track
+        const onFirstReady = () => {
+          widgetReady = true;
+          widget.unbind(SC.Widget.Events.READY);
+          // Re-bind permanent READY handler
+          widget.bind(SC.Widget.Events.READY, () => {
+            widgetReady = true;
+            log('READY (reload)');
+          });
+          widget.load(track.url, { auto_play: true, show_artwork: false });
+          log('READY — loading track');
+        };
+        widget.bind(SC.Widget.Events.READY, onFirstReady);
+        initWidget(); // no-op if already called, triggers READY
+      }
+    }
+
+    // ── Play/pause toggle ──
+    playBtn.addEventListener('click', () => {
+      if (!widget || !widgetReady || activeIdx === null) return;
+      if (isPlaying) {
+        widget.pause();
+      } else {
+        widget.play();
+      }
+    });
+
+    // ── Progress bar ──
+    function startProgress() {
+      stopProgress();
+      progressInterval = setInterval(() => {
+        if (!widget || !widgetReady) return;
+        widget.getPosition(pos => {
+          widget.getDuration(dur => {
+            if (dur > 0) progressFill.style.width = Math.min((pos / dur) * 100, 100) + '%';
+          });
+        });
+      }, 500);
+    }
+
+    function stopProgress() {
+      if (progressInterval) { clearInterval(progressInterval); progressInterval = null; }
+    }
+
+    // Seek on progress bar tap
+    progressWrap.addEventListener('click', e => {
+      if (!widget || !widgetReady) return;
+      const rect = progressWrap.getBoundingClientRect();
+      const frac = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+      widget.getDuration(dur => {
+        if (dur > 0) widget.seekTo(dur * frac);
+      });
+    });
+
+    // Pre-init widget on page load (desktop) — on iOS this won't unlock audio
+    // but at least gets the iframe ready
+    window.addEventListener('load', () => {
+      setTimeout(initWidget, 500);
+    });
+  </script>
+</body>
+</html>
