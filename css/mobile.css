@@ -522,6 +522,43 @@
     font-size: 13px;
   }
 
+  /* ── Flying artwork transition (crates → carousel) ── */
+  .mobile-flying-art {
+    position: fixed;
+    z-index: 250;
+    border-radius: 2px;
+    border: 2px solid transparent;
+    background: transparent;
+    overflow: hidden;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.12);
+    transition: all 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  /* Suppress selected border during fly transition */
+  #mobile-carousel.fly-transitioning .mobile-carousel-card.selected {
+    border-color: var(--card-border);
+    animation: none;
+  }
+  #mobile-carousel.fly-transitioning .mobile-carousel-card.selected .mc-art-wrap {
+    animation: none;
+  }
+  .mobile-flying-art img {
+    position: absolute;
+    top: 0;
+    left: 0;
+    object-fit: cover;
+    border-radius: 2px;
+    transition: all 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  #crates-view.mobile-fading {
+    opacity: 0;
+    transition: opacity 0.25s ease;
+    pointer-events: none;
+  }
+  .mobile-carousel-item.fly-text-hidden .mc-info-row,
+  .mobile-carousel-item.fly-text-hidden .mc-context { opacity: 0; }
+  .mobile-carousel-item .mc-info-row,
+  .mobile-carousel-item .mc-context { transition: opacity 0.15s ease; }
+
   /* Mobile fade-in animation */
   @keyframes mobileFadeIn {
     from { opacity: 0; transform: translateY(12px) scale(0.95); }

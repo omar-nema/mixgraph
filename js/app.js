@@ -397,12 +397,152 @@ document.addEventListener('DOMContentLoaded', async () => {
     const tracksView = document.getElementById('tracks-view');
 
     if (isMobileView()) {
+      // ── Phase 1: Capture source geometry ──
+      const crateCards = [...stackEl.querySelectorAll('.crate-card')].reverse(); // top card first
+      const sources = crateCards.map(card => ({
+        rect: card.getBoundingClientRect(),
+        imgSrc: card.querySelector('img')?.src || null,
+        bg: card.style.background,
+      }));
+
+      // Switch mode, build carousel invisibly
       document.querySelectorAll('.mode-tab').forEach(t => t.classList.remove('active'));
       document.querySelectorAll('.mode-tab[data-mode="tracks"]').forEach(t => t.classList.add('active'));
       document.body.classList.remove('crates-mode');
       tracksView.classList.remove('hidden');
-      cratesView.classList.add('hidden');
+
+      const carousel = document.getElementById('mobile-carousel');
+      carousel.style.visibility = 'hidden';
       showClusterMobile(cluster);
+
+      // Suppress default animate-in, hide text, and suppress selected border until flyers done
+      carousel.classList.add('fly-transitioning');
+      const carouselItems = carousel.querySelectorAll('.mobile-carousel-item');
+      carouselItems.forEach(item => {
+        item.classList.remove('mobile-animate-in');
+        item.style.animation = 'none';
+        item.style.opacity = '0';
+        item.classList.add('fly-text-hidden');
+      });
+      const carouselCards = [...carousel.querySelectorAll('.mobile-carousel-card')];
+      const shuffleArea = document.getElementById('mobile-shuffle-area');
+      shuffleArea.style.opacity = '0';
+      shuffleArea.style.transition = 'opacity 0.3s ease 0.35s';
+
+      carousel.offsetHeight; // force reflow — measure destinations
+
+      // Measure destination rects
+      const destinations = carouselCards.map(card => ({
+        cardRect: card.getBoundingClientRect(),
+        artRect: card.querySelector('.mc-art-wrap').getBoundingClientRect(),
+        item: card.closest('.mobile-carousel-item'),
+      }));
+
+      // ── Phase 2: Create flyers, animate ──
+      const flyCount = Math.min(sources.length, destinations.length);
+      const flyers = [];
+      for (let i = 0; i < flyCount; i++) {
+        const src = sources[i];
+        const dst = destinations[i];
+        // Skip off-screen destinations — they'll use standard animate-in when scrolled
+        if (dst.cardRect.left > window.innerWidth + 50) {
+          dst.item.style.opacity = '';
+          dst.item.style.animation = '';
+          dst.item.classList.add('mobile-animate-in');
+          continue;
+        }
+
+        const fly = document.createElement('div');
+        fly.className = 'mobile-flying-art';
+        fly.style.width = src.rect.width + 'px';
+        fly.style.height = src.rect.height + 'px';
+        fly.style.left = src.rect.left + 'px';
+        fly.style.top = src.rect.top + 'px';
+
+        const delay = i === 0 ? 0 : i <= 2 ? 0.03 : 0.06;
+        fly.style.transitionDelay = delay + 's';
+
+        if (src.imgSrc) {
+          const img = document.createElement('img');
+          img.src = src.imgSrc;
+          img.style.width = src.rect.width + 'px';
+          img.style.height = src.rect.height + 'px';
+          img.style.transitionDelay = delay + 's';
+          fly.appendChild(img);
+        } else {
+          fly.style.background = src.bg || '#b0aaa4';
+        }
+
+        fly.style.transition = 'none';
+        if (src.imgSrc) fly.querySelector('img').style.transition = 'none';
+        document.body.appendChild(fly);
+        flyers.push({ el: fly, img: fly.querySelector('img'), dst });
+      }
+
+      // Hide clicked crate immediately so flyer replaces it with no double-vision
+      stackEl.style.opacity = '0';
+
+      // Force reflow so browser registers start positions before transition
+      document.body.offsetHeight;
+
+      // Fade out crates behind the flyers
+      cratesView.classList.add('mobile-fading');
+
+      // Enable transitions and set end states — animation starts immediately
+      flyers.forEach(f => {
+        f.el.style.transition = '';
+        if (f.img) f.img.style.transition = '';
+
+        const { cardRect, artRect } = f.dst;
+        f.el.style.width = cardRect.width + 'px';
+        f.el.style.height = cardRect.height + 'px';
+        f.el.style.left = cardRect.left + 'px';
+        f.el.style.top = cardRect.top + 'px';
+        f.el.style.background = 'var(--card-bg)';
+        f.el.style.border = '2px solid var(--card-border)';
+        f.el.style.borderRadius = 'var(--card-radius)';
+        f.el.style.boxShadow = 'var(--card-shadow)';
+
+        if (f.img) {
+          // Subtract flyer's border (2px) — absolute positioning is relative to padding edge
+          f.img.style.left = (artRect.left - cardRect.left - 2) + 'px';
+          f.img.style.top = (artRect.top - cardRect.top - 2) + 'px';
+          f.img.style.width = artRect.width + 'px';
+          f.img.style.height = artRect.height + 'px';
+          f.img.style.borderRadius = 'var(--art-radius)';
+        }
+      });
+
+      // ── Phase 3: Start text fade-in early (80% through flight) ──
+      setTimeout(() => {
+        // Make carousel visible underneath flyers, start text fade
+        carouselItems.forEach(item => {
+          item.style.animation = 'none';
+          item.style.opacity = '1';
+        });
+        carousel.style.visibility = '';
+        carousel.offsetHeight;
+        carouselItems.forEach(item => item.classList.remove('fly-text-hidden'));
+      }, 360);
+
+      // ── Phase 4: Crossfade flyers out ──
+      setTimeout(() => {
+        flyers.forEach(f => {
+          f.el.style.transition = 'opacity 0.15s ease';
+          f.el.style.opacity = '0';
+        });
+
+        // After crossfade, clean up and restore selected styling
+        setTimeout(() => {
+          flyers.forEach(f => f.el.remove());
+          carousel.classList.remove('fly-transitioning');
+          shuffleArea.style.opacity = '1';
+          cratesView.classList.add('hidden');
+          cratesView.classList.remove('mobile-fading');
+          stackEl.style.opacity = '';
+        }, 160);
+      }, 550);
+
       return;
     }
 
