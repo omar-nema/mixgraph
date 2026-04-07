@@ -381,19 +381,26 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // ── Crates → Tracks fly-out transition ──
   async function transitionToTracks(seedKey, stackEl) {
-    // Show loading state on the clicked crate
+    const cratesView = document.getElementById('crates-view');
+
+    // Immediately fade out all other crate stacks
+    cratesView.querySelectorAll('.crate-stack').forEach(s => {
+      if (s !== stackEl) s.classList.add('fade-out');
+    });
+
+    // Quick loading pulse on clicked crate
     stackEl.classList.add('crate-loading');
     let cluster;
     try {
       cluster = await apiLoadCluster(seedKey);
     } catch (err) {
       stackEl.classList.remove('crate-loading');
+      // Restore faded stacks on error
+      cratesView.querySelectorAll('.crate-stack.fade-out').forEach(s => s.classList.remove('fade-out'));
       console.error('Failed to load cluster:', err.message);
       return;
     }
     stackEl.classList.remove('crate-loading');
-
-    const cratesView = document.getElementById('crates-view');
     const tracksView = document.getElementById('tracks-view');
 
     if (isMobileView()) {
@@ -438,17 +445,39 @@ document.addEventListener('DOMContentLoaded', async () => {
         item: card.closest('.mobile-carousel-item'),
       }));
 
-      // ── Phase 2: Create flyers, animate ──
-      const flyCount = Math.min(sources.length, destinations.length);
+      // ── Phase 2: Create flyers ──
+      // Root always flies. Second card flies only if its track is in the crate.
+      // Build lookup: crate neighbor track ID → crate card source data
+      const seedHasArt = cluster.nodes[0]?.artUrl;
+      const crateNeighborMap = {};
+      const neighborIds = stackEl._b2bItem?.neighborIds || [];
+      neighborIds.forEach((nId, idx) => {
+        // Crate cards are reversed: [0]=top/seed, [1]=first neighbor, etc.
+        if (sources[1 + idx]) crateNeighborMap[nId] = sources[1 + idx];
+      });
+
       const flyers = [];
-      for (let i = 0; i < flyCount; i++) {
-        const src = sources[i];
+      for (let i = 0; i < destinations.length; i++) {
         const dst = destinations[i];
-        // Skip off-screen destinations — they'll use standard animate-in when scrolled
-        if (dst.cardRect.left > window.innerWidth + 50) {
+        let src = null;
+
+        if (i === 0) {
+          // Root card: always fly from top crate card
+          src = sources[0];
+        } else if (i === 1) {
+          // Second card: fly only if this track was in the crate
+          const cardEl = dst.item.querySelector('.mobile-carousel-card');
+          const nodeId = cardEl?.dataset?.nodeId;
+          const node = nodeId && nodes.find(n => String(n.id) === nodeId);
+          if (node) src = crateNeighborMap[node.graphId] || null;
+        }
+
+        if (!src) {
+          // Fade in normally
           dst.item.style.opacity = '';
           dst.item.style.animation = '';
           dst.item.classList.add('mobile-animate-in');
+          dst.item.style.animationDelay = `${0.15 + i * 0.06}s`;
           continue;
         }
 
@@ -459,8 +488,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         fly.style.left = src.rect.left + 'px';
         fly.style.top = src.rect.top + 'px';
 
-        const delay = i === 0 ? 0 : i <= 2 ? 0.03 : 0.06;
-        fly.style.transitionDelay = delay + 's';
+        if (i > 0) fly.style.transitionDelay = '0.03s';
 
         // Extract image source: either from <img> or from gradient background URL
         let flySrc = src.imgSrc;
@@ -473,7 +501,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           img.src = flySrc;
           img.style.width = src.rect.width + 'px';
           img.style.height = src.rect.height + 'px';
-          img.style.transitionDelay = delay + 's';
+          if (i > 0) img.style.transitionDelay = '0.03s';
           fly.appendChild(img);
         } else {
           fly.style.background = src.bg || '#b0aaa4';
@@ -483,10 +511,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         const flyImg = fly.querySelector('img');
         if (flyImg) flyImg.style.transition = 'none';
         document.body.appendChild(fly);
+        dst.item._hasFlyer = true;
         flyers.push({ el: fly, img: fly.querySelector('img'), dst });
       }
 
-      // Hide clicked crate immediately so flyer replaces it with no double-vision
+      // Hide clicked crate immediately — must kill animation (fill-mode: both overrides inline opacity)
+      stackEl.style.animation = 'none';
       stackEl.style.opacity = '0';
 
       // Force reflow so browser registers start positions before transition
@@ -520,26 +550,37 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
       });
 
-      // ── Phase 3: Start text fade-in early (80% through flight) ──
+      // ── Phase 3: Reveal non-flying carousel items (80% through flight) ──
       setTimeout(() => {
-        // Make carousel visible underneath flyers, start text fade
-        carouselItems.forEach(item => {
-          item.style.animation = 'none';
-          item.style.opacity = '1';
-        });
         carousel.style.visibility = '';
-        carousel.offsetHeight;
-        carouselItems.forEach(item => item.classList.remove('fly-text-hidden'));
+        carouselItems.forEach(item => {
+          if (!item._hasFlyer) {
+            // Non-flying items: show normally (they have mobile-animate-in)
+            item.classList.remove('fly-text-hidden');
+          }
+          // Flying items stay hidden — flyer covers them
+        });
       }, 360);
 
-      // ── Phase 4: Crossfade flyers out ──
+      // ── Phase 4: Swap flyers for real cards ──
       setTimeout(() => {
+        // Reveal flying carousel items underneath, then fade flyers out
+        carouselItems.forEach(item => {
+          if (item._hasFlyer) {
+            item.style.animation = 'none';
+            item.style.opacity = '1';
+            item.classList.remove('fly-text-hidden');
+            delete item._hasFlyer;
+          }
+        });
+        carousel.offsetHeight;
+
         flyers.forEach(f => {
           f.el.style.transition = 'opacity 0.15s ease';
           f.el.style.opacity = '0';
         });
 
-        // After crossfade, clean up and restore selected styling
+        // After crossfade, clean up
         setTimeout(() => {
           flyers.forEach(f => f.el.remove());
           carousel.classList.remove('fly-transitioning');
@@ -547,15 +588,12 @@ document.addEventListener('DOMContentLoaded', async () => {
           cratesView.classList.add('hidden');
           cratesView.classList.remove('mobile-fading');
           stackEl.style.opacity = '';
+          stackEl.style.animation = '';
         }, 160);
       }, 550);
 
       return;
     }
-
-    // Fade out all other crate stacks, keep clicked one visible
-    const allStacks = cratesView.querySelectorAll('.crate-stack');
-    allStacks.forEach(s => { if (s !== stackEl) s.classList.add('fade-out'); });
 
     // Capture stack position before anything moves
     const stackRect = stackEl.getBoundingClientRect();
@@ -800,6 +838,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
 
       // Click → fly-out transition to Tracks view
+      el._b2bItem = item;
       el.addEventListener('click', () => {
         // Force mouseleave so hover state resets (it won't fire naturally during transition)
         el.dispatchEvent(new MouseEvent('mouseleave'));
@@ -1405,6 +1444,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (mode === 'crates') {
       requestAnimationFrame(() => initCrates());
       document.getElementById('tracks-helper-toast')?.classList.remove('visible');
+      // Restore any faded-out crate stacks from a previous transition
+      document.querySelectorAll('.crate-stack.fade-out').forEach(s => {
+        s.classList.remove('fade-out');
+        s.style.opacity = '';
+      });
     }
     if (mode === 'tracks') {
       document.getElementById('crates-helper-toast')?.classList.remove('visible');
@@ -1446,6 +1490,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
         requestAnimationFrame(() => initCrates());
         showHelper(cratesHelperToast, 'b2b-crates-helper-dismissed');
+        // Restore any faded-out crate stacks from a previous transition
+        document.querySelectorAll('.crate-stack.fade-out').forEach(s => {
+          s.classList.remove('fade-out');
+          s.style.opacity = '';
+        });
       }
       // Hide the other mode's toast when switching
       if (mode === 'tracks') {

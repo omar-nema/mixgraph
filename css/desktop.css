@@ -375,11 +375,24 @@ body.night .mode-tab.active { color: var(--connection-highlight); background: no
   from { opacity: 0; }
   to { opacity: 1; }
 }
-.crate-stack.fade-out { opacity: 0; transition: opacity 0.15s ease; }
-.crate-stack.crate-loading { animation: cratePulse 1s ease-in-out infinite; pointer-events: none; }
-@keyframes cratePulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
+.crate-stack.fade-out { animation: crateFadeOut 0.15s ease forwards; }
+@keyframes crateFadeOut {
+  to { opacity: 0; }
+}
+.crate-stack.crate-loading { pointer-events: none; }
+.crate-stack.crate-loading .crate-card.active::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent 25%, rgba(255,255,255,0.15) 50%, transparent 75%);
+  background-size: 200% 100%;
+  animation: crateShimmer 1.2s ease-in-out infinite;
+  z-index: 10;
+  border-radius: inherit;
+}
+@keyframes crateShimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
 }
 
 #crates-surface.has-hover .crate-stack.hovered { z-index: 100; }
