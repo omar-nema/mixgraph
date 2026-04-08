@@ -1342,8 +1342,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
         if (touchDidDrag) {
           const dt = now - lastTouchTime || 16;
-          velX = (cx - lastTouchX) / dt * 16;
-          velY = (cy - lastTouchY) / dt * 16;
+          velX = (cx - lastTouchX) / dt * 22;
+          velY = (cy - lastTouchY) / dt * 22;
           lastTouchX = cx; lastTouchY = cy; lastTouchTime = now;
           targetPanX = touchPanStartX + dx;
           targetPanY = touchPanStartY + dy;
