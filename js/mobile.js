@@ -312,8 +312,8 @@ function makeCarouselCard(node) {
     item.appendChild(label);
   }
 
-  // Back arrow for root card (left of card)
-  if (node.rank === 'root') {
+  // Back arrow for root card (only if user came from Dig, not on direct link)
+  if (node.rank === 'root' && window._cameFromDig) {
     const backBtn = document.createElement('button');
     backBtn.className = 'mc-back';
     backBtn.setAttribute('aria-label', 'Back to Dig');

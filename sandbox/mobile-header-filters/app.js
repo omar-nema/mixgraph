@@ -352,11 +352,81 @@ document.addEventListener('DOMContentLoaded', async () => {
     mobileHelpBtn.classList.toggle('open', isOpen);
   });
   const mobileHeaderShare = document.getElementById('mobile-header-share');
-  mobileHeaderShare.addEventListener('click', () => {
-    navigator.clipboard.writeText(window.location.href);
-    mobileHeaderShare.classList.add('copied');
-    setTimeout(() => mobileHeaderShare.classList.remove('copied'), 1500);
-  });
+  if (mobileHeaderShare) {
+    mobileHeaderShare.addEventListener('click', () => {
+      navigator.clipboard.writeText(window.location.href);
+      mobileHeaderShare.classList.add('copied');
+      setTimeout(() => mobileHeaderShare.classList.remove('copied'), 1500);
+    });
+  }
+  // Wire chevron to toggle filter bar — default collapsed in Dig, expanded in Shuffle
+  const headerChevron = document.getElementById('mobile-header-chevron');
+  const filterBar = document.getElementById('mobile-filter-bar');
+  if (headerChevron && filterBar) {
+    // Start collapsed (Dig mode is default)
+    headerChevron.classList.add('collapsed');
+    filterBar.classList.add('collapsed');
+
+    headerChevron.addEventListener('click', () => {
+      headerChevron.classList.toggle('collapsed');
+      filterBar.classList.toggle('collapsed');
+    });
+  }
+
+  // Wire mobile filter bar (persistent across Dig/Shuffle)
+  const filterBarGenre = document.getElementById('mobile-bar-genre');
+  const filterBarArtist = document.getElementById('mobile-bar-artist');
+  const filterBarDj = document.getElementById('mobile-bar-dj');
+  const filterBarShuffle = document.getElementById('mobile-bar-shuffle');
+  if (filterBarGenre) {
+    const popoverBackdrop = document.getElementById('popover-backdrop');
+    const popovers = {
+      genre: document.getElementById('genre-popover'),
+      artist: document.getElementById('artist-popover'),
+      dj: document.getElementById('dj-popover'),
+    };
+    function closeBarPopovers(andReshuffle) {
+      const anyOpen = Object.values(popovers).some(p => p && p.classList.contains('open'));
+      Object.values(popovers).forEach(p => { if (p) p.classList.remove('open'); });
+      popoverBackdrop.classList.remove('open');
+      [filterBarGenre, filterBarArtist, filterBarDj].forEach(p => p.classList.remove('semi-open'));
+      if (andReshuffle && anyOpen && typeof filtersDirty !== 'undefined' && filtersDirty) {
+        filtersDirty = false;
+        if (typeof shuffle === 'function') shuffle();
+      }
+    }
+    function openBarPopover(name, pillEl) {
+      const popover = popovers[name];
+      if (!popover) return;
+      const already = popover.classList.contains('open');
+      closeBarPopovers(false);
+      if (already) {
+        if (typeof filtersDirty !== 'undefined' && filtersDirty) { filtersDirty = false; if (typeof shuffle === 'function') shuffle(); }
+        return;
+      }
+      const rect = pillEl.getBoundingClientRect();
+      popover.style.top = (rect.bottom + 8) + 'px';
+      popover.classList.add('open');
+      popoverBackdrop.classList.add('open');
+      pillEl.classList.add('semi-open');
+    }
+    filterBarGenre.addEventListener('click', function() {
+      openBarPopover('genre', this);
+      setTimeout(() => document.getElementById('genre-search')?.focus(), 100);
+    });
+    filterBarArtist.addEventListener('click', function() {
+      openBarPopover('artist', this);
+      setTimeout(() => document.getElementById('find-search')?.focus(), 100);
+    });
+    filterBarDj.addEventListener('click', function() {
+      openBarPopover('dj', this);
+      setTimeout(() => document.getElementById('dj-search')?.focus(), 100);
+    });
+    filterBarShuffle.addEventListener('click', () => {
+      if (typeof shuffle === 'function') shuffle();
+    });
+  }
+
   helpOverlay.addEventListener('click', (e) => { if (e.target === helpOverlay) helpOverlay.classList.remove('open'); });
   helpOverlay.querySelector('.help-close').addEventListener('click', () => helpOverlay.classList.remove('open'));
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') helpOverlay.classList.remove('open'); });
@@ -976,6 +1046,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       getCratesPool().then(pool => {
         // Discard if a reset happened since this request started
         if (gen !== cratesGeneration) { pendingPageKeys.delete(key); return; }
+
         const slice = pool.slice(pageNum * CLUSTERS_PER_PAGE, (pageNum + 1) * CLUSTERS_PER_PAGE);
         delete pageNums[key];
         if (slice.length > 0) {
@@ -1455,10 +1526,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         s.classList.remove('fade-out');
         s.style.opacity = '';
       });
+      // Collapse filter bar in Dig
+      if (headerChevron) { headerChevron.classList.add('collapsed'); }
+      if (filterBar) { filterBar.classList.add('collapsed'); }
     }
     if (mode === 'tracks') {
       document.getElementById('crates-helper-toast')?.classList.remove('visible');
       window._tracksRevealed = true;
+      // Expand filter bar in Shuffle
+      if (headerChevron) { headerChevron.classList.remove('collapsed'); }
+      if (filterBar) { filterBar.classList.remove('collapsed'); }
     }
   }
 
@@ -1501,9 +1578,15 @@ document.addEventListener('DOMContentLoaded', async () => {
           s.classList.remove('fade-out');
           s.style.opacity = '';
         });
+        // Collapse filter bar in Dig
+        if (headerChevron) { headerChevron.classList.add('collapsed'); }
+        if (filterBar) { filterBar.classList.add('collapsed'); }
       }
       // Hide the other mode's toast when switching
       if (mode === 'tracks') {
+        // Expand filter bar in Shuffle
+        if (headerChevron) { headerChevron.classList.remove('collapsed'); }
+        if (filterBar) { filterBar.classList.remove('collapsed'); }
         cratesHelperToast.classList.remove('visible');
         // First visit: fade in after shuffle loads
         if (!window._tracksRevealed) {
