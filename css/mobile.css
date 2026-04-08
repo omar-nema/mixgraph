@@ -454,7 +454,7 @@
   .mobile-carousel-card:active:not(.selected):not(:has(.card-dots:active)) { box-shadow: var(--card-hover-shadow); }
   .mc-context {
     font-size: 11px; font-weight: 400; color: var(--text-tertiary);
-    text-align: center; margin-bottom: 16px;
+    text-align: center; margin-bottom: 11px;
   }
 
   .mobile-carousel-card .mc-art-wrap {
