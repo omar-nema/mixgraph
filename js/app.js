@@ -422,6 +422,11 @@ document.addEventListener('DOMContentLoaded', async () => {
       carousel.style.visibility = 'hidden';
       showClusterMobile(cluster);
 
+      // Force selectMobileTrack synchronously so #mobile-sources is populated before measuring
+      const allClusterCards = cluster.nodes.filter(n => n.rank === 'root' || n.rank === '1' || n.rank === '2');
+      const firstWithAudio = allClusterCards.find(n => n.scTrackUrl || n.setUrl);
+      if (firstWithAudio) selectMobileTrack(firstWithAudio.id);
+
       // Suppress default animate-in, hide text, and suppress selected border until flyers done
       carousel.classList.add('fly-transitioning');
       const carouselItems = carousel.querySelectorAll('.mobile-carousel-item');
@@ -443,6 +448,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         artRect: card.querySelector('.mc-art-wrap').getBoundingClientRect(),
         item: card.closest('.mobile-carousel-item'),
       }));
+
+
 
       // ── Phase 2: Create flyers ──
       // Only root card flies — crate neighbors rarely match carousel R1/R2 tracks
