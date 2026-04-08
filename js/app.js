@@ -439,7 +439,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       });
       const shuffleArea = document.getElementById('mobile-shuffle-area');
       shuffleArea.style.opacity = '0';
-      shuffleArea.style.transition = 'opacity 0.3s ease 0.35s';
+      shuffleArea.style.transition = 'opacity 0.2s ease';
 
       carousel.offsetHeight; // force reflow — measure destinations
 
