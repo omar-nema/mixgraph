@@ -445,38 +445,21 @@ document.addEventListener('DOMContentLoaded', async () => {
       }));
 
       // ── Phase 2: Create flyers ──
-      // Root always flies. Second card flies only if its track is in the crate.
-      const crateNeighborMap = {};
-      const neighborIds = stackEl._b2bItem?.neighborIds || [];
-      neighborIds.forEach((nId, idx) => {
-        // Crate cards are reversed: [0]=top/seed, [1]=first neighbor, etc.
-        if (sources[1 + idx]) crateNeighborMap[nId] = sources[1 + idx];
-      });
-
+      // Only root card flies — crate neighbors rarely match carousel R1/R2 tracks
       const flyers = [];
       for (let i = 0; i < destinations.length; i++) {
         const dst = destinations[i];
-        let src = null;
 
-        if (i === 0) {
-          // Root card: always fly from top crate card
-          src = sources[0];
-        } else if (i === 1) {
-          // Second card: fly only if this track was in the crate
-          const cardEl = dst.item.querySelector('.mobile-carousel-card');
-          const nodeId = cardEl?.dataset?.nodeId;
-          const node = nodeId && nodes.find(n => String(n.id) === nodeId);
-          if (node) src = crateNeighborMap[node.graphId] || null;
-        }
-
-        if (!src) {
-          // Fade in normally
+        if (i > 0) {
+          // Non-root cards: fade in normally
           dst.item.style.opacity = '';
           dst.item.style.animation = '';
           dst.item.classList.add('mobile-animate-in');
           dst.item.style.animationDelay = `${0.15 + i * 0.06}s`;
           continue;
         }
+
+        const src = sources[0];
 
         const fly = document.createElement('div');
         fly.className = 'mobile-flying-art';
