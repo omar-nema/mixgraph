@@ -408,10 +408,37 @@
     flex-shrink: 0;
     width: 60vw;
     scroll-snap-align: center;
+    position: relative;
   }
   .mobile-carousel-item[data-rank="root"] {
     width: 70vw;
   }
+  .mc-back {
+    position: fixed;
+    left: -12px;
+    top: 50%;
+    transform: translateY(-50%) rotate(-90deg);
+    transform-origin: center center;
+    border: none;
+    background: none;
+    color: var(--text-tertiary);
+    font-size: 11px;
+    font-weight: 300;
+    letter-spacing: 0.3px;
+    transition: opacity 0.2s ease;
+    white-space: nowrap;
+    cursor: pointer;
+    padding: 6px 0;
+    z-index: 10;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .mc-back .mc-back-arrow {
+    display: inline-block;
+    transform: rotate(90deg);
+    margin-right: 2px;
+  }
+  .mc-back:active { color: var(--text-primary); }
+
   .mobile-carousel-card {
     position: relative;
     background: var(--card-bg);
@@ -427,7 +454,7 @@
   .mobile-carousel-card:active:not(.selected):not(:has(.card-dots:active)) { box-shadow: var(--card-hover-shadow); }
   .mc-context {
     font-size: 11px; font-weight: 400; color: var(--text-tertiary);
-    text-align: center; margin-bottom: 11px;
+    text-align: center; margin-bottom: 16px;
   }
 
   .mobile-carousel-card .mc-art-wrap {

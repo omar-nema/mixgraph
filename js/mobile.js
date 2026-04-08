@@ -106,6 +106,15 @@ function showClusterMobile(cluster) {
     carousel.scrollTo({ left: 0, behavior: 'instant' });
   });
 
+  // Hide back button when user scrolls carousel
+  const backBtn = carousel.parentElement.querySelector('.mc-back');
+  if (backBtn) {
+    carousel.addEventListener('scroll', () => {
+      backBtn.style.opacity = carousel.scrollLeft > 10 ? '0' : '';
+      backBtn.style.pointerEvents = carousel.scrollLeft > 10 ? 'none' : '';
+    }, { passive: true });
+  }
+
   // Auto-load first track with audio into SC widget (also sets source pills)
   const firstWithAudio = allCards.find(n => n.scTrackUrl || n.setUrl);
   if (firstWithAudio) {
@@ -268,6 +277,17 @@ function makeCarouselCard(node) {
     </div>`;
 
   card.addEventListener('click', (e) => {
+    if (e.target.closest('.mc-close')) {
+      // Switch back to Dig mode
+      document.querySelectorAll('.mode-tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.mode-tab[data-mode="crates"]').forEach(t => t.classList.add('active'));
+      document.getElementById('tracks-view').classList.add('hidden');
+      document.getElementById('crates-view').classList.remove('hidden');
+      document.body.classList.add('crates-mode');
+      document.querySelectorAll('.crate-stack.fade-out').forEach(s => { s.classList.remove('fade-out'); s.style.opacity = ''; });
+      history.pushState(null, '', '/dig');
+      return;
+    }
     if (e.target.closest('.card-dots')) return;
     // Scroll item to center if not already centered
     const carousel = document.getElementById('mobile-carousel');
@@ -290,6 +310,24 @@ function makeCarouselCard(node) {
     label.className = 'mc-context';
     label.textContent = contextText;
     item.appendChild(label);
+  }
+
+  // Back arrow for root card (left of card)
+  if (node.rank === 'root') {
+    const backBtn = document.createElement('button');
+    backBtn.className = 'mc-back';
+    backBtn.setAttribute('aria-label', 'Back to Dig');
+    backBtn.innerHTML = '<span class="mc-back-arrow">\u2190</span> Back to Dig';
+    backBtn.addEventListener('click', () => {
+      document.querySelectorAll('.mode-tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.mode-tab[data-mode="crates"]').forEach(t => t.classList.add('active'));
+      document.getElementById('tracks-view').classList.add('hidden');
+      document.getElementById('crates-view').classList.remove('hidden');
+      document.body.classList.add('crates-mode');
+      document.querySelectorAll('.crate-stack.fade-out').forEach(s => { s.classList.remove('fade-out'); s.style.opacity = ''; });
+      history.pushState(null, '', '/dig');
+    });
+    item.appendChild(backBtn);
   }
 
   item.appendChild(card);
