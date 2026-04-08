@@ -940,10 +940,28 @@ document.addEventListener('DOMContentLoaded', async () => {
               return djs.some(d => seedDjs.includes(d));
             });
           }
-          const pool = [...deduped];
-          for (let i = pool.length - 1; i > 0; i--) {
-            const j = Math.floor(rng() * (i + 1));
-            [pool[i], pool[j]] = [pool[j], pool[i]];
+          // When there are many results, show artwork crates first for visual quality.
+          // Small result sets show everything equally so no results feel buried.
+          const ART_BIAS_THRESHOLD = CLUSTERS_PER_PAGE * 3;
+          const withArt = deduped.filter(c => c.artworks && c.artworks.length > 0);
+          const noArt = deduped.filter(c => !c.artworks || c.artworks.length === 0);
+          let pool;
+          if (withArt.length >= ART_BIAS_THRESHOLD) {
+            for (let i = withArt.length - 1; i > 0; i--) {
+              const j = Math.floor(rng() * (i + 1));
+              [withArt[i], withArt[j]] = [withArt[j], withArt[i]];
+            }
+            for (let i = noArt.length - 1; i > 0; i--) {
+              const j = Math.floor(rng() * (i + 1));
+              [noArt[i], noArt[j]] = [noArt[j], noArt[i]];
+            }
+            pool = [...withArt, ...noArt];
+          } else {
+            pool = [...deduped];
+            for (let i = pool.length - 1; i > 0; i--) {
+              const j = Math.floor(rng() * (i + 1));
+              [pool[i], pool[j]] = [pool[j], pool[i]];
+            }
           }
           cratesPoolCache[key] = pool;
           return pool;
