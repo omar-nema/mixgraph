@@ -85,16 +85,11 @@ python3 scripts/serve.py
 - SoundCloud widget API for individual tracks + DJ sets, Mixcloud widget as fallback
 - Graph layout is hand-rolled (no D3) — keep it that way unless I say otherwise
 
-## Mobile vs Desktop
-
-- **Always test both mobile and desktop after any visual or layout change.** Resize the browser or use devtools device mode to verify nothing broke on the other side.
-- **Desktop reproduction requires a real browser at >900px width.** When reproducing or verifying desktop issues, use Playwright or Chrome DevTools MCP — not the preview tool, which is too narrow for desktop layout.
-
 ## Testing frontend changes
 
-- **NEVER use the Claude Code preview tool for testing or previewing this app.** The preview viewport is too narrow for the desktop layout and gives misleading results. Always use **Chrome MCP** (Claude in Chrome) or **Playwright** instead — they render at real browser widths.
-- **Verify every frontend-facing change in a real browser after editing.** Load the local dev server in Chrome MCP or Playwright, check for console errors, and confirm the page renders correctly before presenting results to the user.
-- **Always load with `?noplay`** when testing in Chrome MCP or Playwright (e.g. `http://localhost:8000/?noplay`). This suppresses audio playback so random tracks don't blast during automated testing. The flag is checked in `js/audio.js` via `AUDIO_SUPPRESSED`.
+- **NEVER use the Claude Code preview tool.** It's too narrow for desktop layout and gives misleading results. Always use **Chrome MCP** or **Playwright** — they render at real browser widths.
+- **Verify every change in a real browser after editing.** Check for console errors, confirm the page renders correctly. Test both mobile and desktop after any visual or layout change.
+- **Always load with `?noplay`** (e.g. `http://localhost:8000/?noplay`). This suppresses audio playback so random tracks don't blast during automated testing.
 
 ## Git rules
 
@@ -122,17 +117,10 @@ python3 scripts/serve.py
 - The pipeline does NOT depend on an LLM — extraction is pattern-based (w/, with, presents, b2b, invites)
 - The frontend loads this mapping to power DJ search with clean names
 
-## Light and Dark mode
+## Color system
 
-- The app has two themes: light (default) and dark (`body.night`).
-- **All colors must work in both modes.** Use CSS custom properties (`var(--bg)`, `var(--card-bg)`, `var(--text-primary)`, etc.) instead of hardcoded hex values whenever possible.
-- If you must use a hardcoded color (e.g. for a specific accent), add a corresponding `body.night` override.
-- Dark mode overrides live in the `body.night` block near the top of the CSS — keep them grouped there.
-- **Test both modes after any visual change.** Toggle with the night mode button in the bottom-left corner.
-- The accent color is `var(--connection-highlight)` — it already adapts between modes (`#B5705A` light, `#d4896e` dark).
-
-## Color system — systematic, not hardcoded
-
+- Two themes: light (default) and dark (`body.night`). **All colors must work in both modes.** Use CSS custom properties, not hardcoded hex. If you must hardcode, add a `body.night` override. Dark mode overrides live in the `body.night` block near the top of CSS — keep them grouped. Test both modes after any visual change.
+- The accent color is `var(--connection-highlight)` — adapts between modes (`#B5705A` light, `#d4896e` dark).
 - **All surface colors derive from `--bg` and `--accent` via `color-mix()`.** Never introduce new hardcoded hex values for backgrounds, borders, or washes. Instead, mix against the existing root tokens.
 - The token hierarchy: `--bg` → `--card-bg`, `--card-border`, `--toolbar-btn-bg` (via `color-mix` with black/white). `--accent` → `--accent-wash`, `--accent-wash-hover`, `--accent-wash-active`, `--accent-wash-selected`, `--accent-wash-border` (via `color-mix` in oklch at increasing percentages).
 - **When elements should share the same background, use the same token** — don't create parallel colors that happen to look similar. If pills, buttons, and badges should match, they should all reference e.g. `var(--accent-wash)`, not three different color-mixes.
@@ -175,7 +163,4 @@ When adding experimental/debug features (font switchers, layout toggles, debug i
 
 ## Workflow habits
 
-- **Document decisions** — when a meaningful architectural decision or strategic change is made, update the relevant docs (docs/, or this file) so there's a record
-- **Keep things organized** — new files go in the right folder, not the root. Group related work together
-- **Periodic cleanup** — on new session startup, glance at the codebase for stale code, unused files, or outdated plans. Flag anything worth removing or consolidating
 - **Auto-commit meaningful work** — after completing a substantial change (new feature, significant refactor, new scraper pipeline, etc.), commit and push to GitHub. Skip commits for tiny tweaks, config edits, or mid-task WIP

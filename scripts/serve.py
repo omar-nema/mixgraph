@@ -3,7 +3,7 @@
 import http.server
 import os
 
-os.chdir(os.path.dirname(os.path.abspath(__file__)))
+os.chdir(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
 
 class SPAHandler(http.server.SimpleHTTPRequestHandler):
     def do_GET(self):

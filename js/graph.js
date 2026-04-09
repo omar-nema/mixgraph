@@ -265,7 +265,7 @@ function computeLayout() {
   function dimOf(n) { return cardDimFor(n); }
 
   const rootD = dimOf(root);
-  const pad = 12;
+  const pad = 36;
 
   // Split r1 into left/right, grouping by episode so tracks from
   // the same DJ set stay on the same side
@@ -324,7 +324,7 @@ function computeLayout() {
   const hGap = Math.max(30, availGap / 4); // distribute across 4 gaps
 
   const neededH = Math.max(sideHeight(leftR1), sideHeight(rightR1), rootD.h + 60);
-  const H = Math.max(vpH, neededH + 40);
+  const H = Math.max(vpH, neededH + 80);
   const W = Math.max(vpW, fixedW + hGap * 4 + 40);
 
   const container = document.getElementById('graph-container');
