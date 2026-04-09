@@ -113,13 +113,13 @@
   }
   #mobile-mode-tabs .mode-tab {
 
-    font-size: 14px;
+    font-size: 12px;
     font-weight: 400;
     color: var(--text-secondary);
     background: none;
     border: none;
     border-radius: calc(var(--card-radius) - 2px);
-    padding: 0 14px;
+    padding: 0px 20px;
     height: 100%;
     cursor: pointer;
     transition: none;
