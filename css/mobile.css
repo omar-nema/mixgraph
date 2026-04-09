@@ -49,6 +49,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
+    flex-wrap: wrap;
     position: fixed;
     top: 0;
     left: 0;
@@ -56,6 +57,44 @@
     z-index: 200;
     padding: calc(8px + env(safe-area-inset-top, 0px)) 8px 8px;
     background: var(--bg);
+  }
+
+  #mobile-filter-bar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    padding: 5px 4px 5px;
+    margin-top: 10px;
+    overflow: hidden;
+    max-height: 70px;
+    transition: max-height 0.25s ease, padding 0.25s ease, margin 0.25s ease, opacity 0.2s ease;
+  }
+  /* Hide filter bar in Shuffle mode */
+  body:not(.crates-mode) #mobile-filter-bar,
+  #mobile-filter-bar.collapsed {
+    max-height: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    margin-top: 0;
+    opacity: 0;
+    pointer-events: none;
+  }
+  /* Frosted glass header in Dig mode */
+  body.crates-mode #mobile-header {
+    background: color-mix(in srgb, var(--bg) 90%, transparent);
+    -webkit-backdrop-filter: blur(20px) saturate(1.4);
+    backdrop-filter: blur(20px) saturate(1.4);
+  }
+
+  /* Hide filter toggle in Shuffle mode */
+  body:not(.crates-mode) #mobile-filter-toggle { display: none; }
+
+  /* Header filter bar pills stretch to fill width */
+  #mobile-filter-bar .mobile-filter-pill {
+    flex: 1;
+    text-align: center;
   }
 
   /* Hide desktop-only elements */
@@ -81,7 +120,7 @@
   }
   #mobile-mode-tabs .mode-tab {
 
-    font-size: 12px;
+    font-size: 14px;
     font-weight: 400;
     color: var(--text-secondary);
     background: none;
@@ -154,7 +193,7 @@
   }
   body.night .mobile-filter-pill,
   body.night #mobile-help-btn,
-  body.night #mobile-header-share {
+  body.night #mobile-filter-toggle {
     background: var(--accent-wash);
     border-color: var(--accent-wash);
   }
@@ -314,7 +353,9 @@
   #mobile-help-btn:active { background: var(--card-border); }
   #mobile-help-btn.open { color: var(--text-primary); }
 
-  #mobile-header-share {
+  /* In Dig: show filter toggle, hide share. In Shuffle: show share, hide filter toggle */
+  body.crates-mode #mobile-header-share { display: none; }
+  body:not(.crates-mode) #mobile-header-share {
     display: flex;
     width: 32px;
     height: 32px;
@@ -333,6 +374,35 @@
   #mobile-header-share.copied .link { display: none; }
   #mobile-header-share.copied .check { display: block; }
   #mobile-header-share:not(.copied) .check { display: none; }
+  body.night #mobile-header-share {
+    background: var(--accent-wash);
+    border-color: var(--accent-wash);
+  }
+
+  #mobile-filter-toggle {
+    display: flex;
+    width: 32px;
+    height: 32px;
+    align-items: center;
+    justify-content: center;
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: var(--card-radius);
+    cursor: pointer;
+    color: var(--text-secondary);
+    padding: 0;
+    flex-shrink: 0;
+  }
+  #mobile-filter-toggle:active { background: var(--card-border); }
+  #mobile-filter-toggle.active {
+    color: var(--accent);
+    border-color: var(--accent-wash-border);
+    background: var(--accent-wash);
+  }
+  body.night #mobile-filter-toggle {
+    background: var(--accent-wash);
+    border-color: var(--accent-wash);
+  }
 
   #mobile-help-panel {
     display: none;

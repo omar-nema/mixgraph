@@ -240,10 +240,18 @@ async function initFilters() {
     updatePillState('pill-dj', null, 'dj-clear-btn', totalDj);
     updatePillState(null, null, 'genre-clear-btn', gc);
 
-    // Mobile pills
+    // Mobile pills (shuffle area)
     updatePillState('mobile-pill-genre', null, 'mobile-genre-clear-btn', gc);
     updatePillState('mobile-pill-artist', null, 'mobile-artist-clear-btn', totalArtist);
     updatePillState('mobile-pill-dj', null, 'mobile-dj-clear-btn', totalDj);
+
+    // Mobile header filter bar pills (Dig mode)
+    const barGenre = document.getElementById('mobile-bar-genre');
+    if (barGenre) barGenre.classList.toggle('active', gc > 0);
+    const barArtist = document.getElementById('mobile-bar-artist');
+    if (barArtist) barArtist.classList.toggle('active', totalArtist > 0);
+    const barDj = document.getElementById('mobile-bar-dj');
+    if (barDj) barDj.classList.toggle('active', totalDj > 0);
 
     // Desktop filter label above root card
     const filterLabel = document.getElementById('filter-label');

@@ -348,15 +348,79 @@ document.addEventListener('DOMContentLoaded', async () => {
   const mobileHelpPanel = document.getElementById('mobile-help-panel');
   mobileHelpBtn.addEventListener('click', () => {
     const isOpen = mobileHelpPanel.classList.toggle('visible');
-    mobileHelpBtn.textContent = isOpen ? '×' : '?';
     mobileHelpBtn.classList.toggle('open', isOpen);
   });
   const mobileHeaderShare = document.getElementById('mobile-header-share');
-  mobileHeaderShare.addEventListener('click', () => {
-    navigator.clipboard.writeText(window.location.href);
-    mobileHeaderShare.classList.add('copied');
-    setTimeout(() => mobileHeaderShare.classList.remove('copied'), 1500);
-  });
+  if (mobileHeaderShare) {
+    mobileHeaderShare.addEventListener('click', () => {
+      navigator.clipboard.writeText(window.location.href);
+      mobileHeaderShare.classList.add('copied');
+      setTimeout(() => mobileHeaderShare.classList.remove('copied'), 1500);
+    });
+  }
+  // Wire filter toggle button — collapsed by default, auto-opens when filters active
+  const filterToggle = document.getElementById('mobile-filter-toggle');
+  const mobileFilterBar = document.getElementById('mobile-filter-bar');
+  if (filterToggle && mobileFilterBar) {
+    mobileFilterBar.classList.add('collapsed');
+    filterToggle.addEventListener('click', () => {
+      mobileFilterBar.classList.toggle('collapsed');
+      filterToggle.classList.toggle('active', !mobileFilterBar.classList.contains('collapsed'));
+    });
+  }
+  // Wire mobile filter bar pills (Dig/Crates mode only)
+  const filterBarGenre = document.getElementById('mobile-bar-genre');
+  const filterBarArtist = document.getElementById('mobile-bar-artist');
+  const filterBarDj = document.getElementById('mobile-bar-dj');
+  if (filterBarGenre) {
+    const popoverBackdrop = document.getElementById('popover-backdrop');
+    const popovers = {
+      genre: document.getElementById('genre-popover'),
+      artist: document.getElementById('artist-popover'),
+      dj: document.getElementById('dj-popover'),
+    };
+    function closeBarPopovers(andReshuffle) {
+      const anyOpen = Object.values(popovers).some(p => p && p.classList.contains('open'));
+      Object.values(popovers).forEach(p => { if (p) p.classList.remove('open'); });
+      popoverBackdrop.classList.remove('open');
+      [filterBarGenre, filterBarArtist, filterBarDj].forEach(p => p.classList.remove('semi-open'));
+      if (andReshuffle && anyOpen && typeof filtersDirty !== 'undefined' && filtersDirty) {
+        filtersDirty = false;
+        if (typeof shuffle === 'function') shuffle();
+      }
+    }
+    function openBarPopover(name, pillEl) {
+      const popover = popovers[name];
+      if (!popover) return;
+      const already = popover.classList.contains('open');
+      closeBarPopovers(false);
+      if (already) {
+        if (typeof filtersDirty !== 'undefined' && filtersDirty) { filtersDirty = false; if (typeof shuffle === 'function') shuffle(); }
+        return;
+      }
+      const rect = pillEl.getBoundingClientRect();
+      popover.style.top = (rect.bottom + 8) + 'px';
+      popover.classList.add('open');
+      popoverBackdrop.classList.add('open');
+      pillEl.classList.add('semi-open');
+    }
+    filterBarGenre.addEventListener('click', function(e) {
+      e.stopPropagation();
+      openBarPopover('genre', this);
+      setTimeout(() => document.getElementById('genre-search')?.focus(), 100);
+    });
+    filterBarArtist.addEventListener('click', function(e) {
+      e.stopPropagation();
+      openBarPopover('artist', this);
+      setTimeout(() => document.getElementById('find-search')?.focus(), 100);
+    });
+    filterBarDj.addEventListener('click', function(e) {
+      e.stopPropagation();
+      openBarPopover('dj', this);
+      setTimeout(() => document.getElementById('dj-search')?.focus(), 100);
+    });
+  }
+
   helpOverlay.addEventListener('click', (e) => { if (e.target === helpOverlay) helpOverlay.classList.remove('open'); });
   helpOverlay.querySelector('.help-close').addEventListener('click', () => helpOverlay.classList.remove('open'));
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') helpOverlay.classList.remove('open'); });
@@ -1495,6 +1559,8 @@ document.addEventListener('DOMContentLoaded', async () => {
           cl.style.visibility = 'visible';
         }
         requestAnimationFrame(() => initCrates());
+        // Reset crates with current filters (may have changed in Shuffle)
+        if (cratesInitialized && window._cratesResetFn) window._cratesResetFn();
         showHelper(cratesHelperToast, 'b2b-crates-helper-dismissed');
         // Restore any faded-out crate stacks from a previous transition
         document.querySelectorAll('.crate-stack.fade-out').forEach(s => {
@@ -1530,6 +1596,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
       }
       if (mode === 'crates') tracksHelperToast.classList.remove('visible');
+      // Auto-open filter bar in Dig if filters are active
+      if (mode === 'crates' && mobileFilterBar) {
+        const hasFilters = genreFilters.length > 0 || searchFilters.length > 0 || djSearchFilters.length > 0 || clusterArtistFilters.length > 0 || clusterDjFilters.length > 0;
+        if (hasFilters) {
+          mobileFilterBar.classList.remove('collapsed');
+          if (filterToggle) filterToggle.classList.add('active');
+        }
+      }
     });
   });
 
