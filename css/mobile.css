@@ -81,13 +81,6 @@
     opacity: 0;
     pointer-events: none;
   }
-  /* Frosted glass header in Dig mode */
-  body.crates-mode #mobile-header {
-    background: color-mix(in srgb, var(--bg) 90%, transparent);
-    -webkit-backdrop-filter: blur(20px) saturate(1.4);
-    backdrop-filter: blur(20px) saturate(1.4);
-  }
-
   /* Hide filter toggle in Shuffle mode */
   body:not(.crates-mode) #mobile-filter-toggle { display: none; }
 
