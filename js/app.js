@@ -828,6 +828,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Canvas bounds (grow dynamically)
     let minCol = 0, maxCol = 0, minRow = 0, maxRow = 0;
+    let poolExhausted = false;  // true once an empty page is received (no more data)
 
     function renderStack(item, pageOffsetX, pageOffsetY) {
       const r = item.rect;
@@ -1114,6 +1115,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (pages[key]) return;
       if (clusters.length === 0) {
         pages[key] = { col, row, el: null, stacks: [], artLoaded: false, mounted: false, empty: true };
+        poolExhausted = true;
         return;
       }
       minCol = Math.min(minCol, col);
@@ -1291,6 +1293,34 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
     }
 
+    // Clamp pan so content stays visible when results are limited.
+    // Computes bounds lazily from the pages dict — zero interference with rendering.
+    function clampPan() {
+      if (!poolExhausted) return;
+      // Scan pages for content bounds
+      let cMinCol = Infinity, cMaxCol = -Infinity, cMinRow = Infinity, cMaxRow = -Infinity;
+      for (const p of Object.values(pages)) {
+        if (p.empty) continue;
+        cMinCol = Math.min(cMinCol, p.col);
+        cMaxCol = Math.max(cMaxCol, p.col);
+        cMinRow = Math.min(cMinRow, p.row);
+        cMaxRow = Math.max(cMaxRow, p.row);
+      }
+      if (cMinCol === Infinity) return; // no content pages
+      const viewW = vw / crateScale, viewH = vh / crateScale;
+      const cMinX = cMinCol * vw, cMaxX = (cMaxCol + 1) * vw;
+      const cMinY = cMinRow * vh, cMaxY = (cMaxRow + 1) * vh;
+      const margin = vw * 0.08;
+      const headerH = (document.getElementById('filter-row')?.offsetHeight || 0)
+                    + (document.getElementById('mode-tabs')?.offsetHeight || 0);
+      const topMargin = margin + headerH / crateScale;
+      // Don't pan past content edges (+ margin)
+      targetPanX = Math.min(targetPanX, -cMinX + margin);
+      targetPanX = Math.max(targetPanX, -(cMaxX - viewW) - margin);
+      targetPanY = Math.min(targetPanY, -cMinY + topMargin);
+      targetPanY = Math.max(targetPanY, -(cMaxY - viewH) - margin);
+    }
+
     // Pan state
     let crateScale = isMobileView() ? 0.75 : 0.8;
     let panX = 0, panY = 0;
@@ -1326,6 +1356,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
       if (didDrag) {
         targetPanX = panStartX + dx; targetPanY = panStartY + dy;
+        clampPan();
         requestPanFrame();
       }
     };
@@ -1342,6 +1373,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       const dy = Math.abs(e.deltaY) < 1 ? 0 : e.deltaY;
       if (dx === 0 && dy === 0) return;
       targetPanX -= dx; targetPanY -= dy;
+      clampPan();
       requestPanFrame();
     }, { passive: true });
 
@@ -1412,6 +1444,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           lastTouchX = cx; lastTouchY = cy; lastTouchTime = now;
           targetPanX = touchPanStartX + dx;
           targetPanY = touchPanStartY + dy;
+          clampPan();
           requestPanFrame();
         }
       }
@@ -1434,6 +1467,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       panX += velX;
       panY += velY;
       targetPanX = panX; targetPanY = panY;
+      clampPan();
+      panX = targetPanX; panY = targetPanY;
       applyTransform();
       scheduleUpdateVisible();
       momentumId = requestAnimationFrame(momentumStep);
@@ -1490,6 +1525,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         delete pages[k];
       }
       minCol = 0; maxCol = 0; minRow = 0; maxRow = 0;
+      poolExhausted = false;
       panX = 0; panY = 0; targetPanX = 0; targetPanY = 0;
       crateScale = isMobileView() ? 0.75 : 0.8; targetScale = crateScale;
       applyTransform();
