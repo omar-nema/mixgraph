@@ -421,6 +421,28 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
+  // Wire popover backdrop once — works for both Dig-bar pills and Shuffle-area pills.
+  // (Previously this was wired per-shuffle inside showClusterMobile, which meant Dig mode
+  // had no close handler until you'd entered Shuffle, and also leaked listeners per cluster.)
+  const sharedBackdrop = document.getElementById('popover-backdrop');
+  if (sharedBackdrop) {
+    sharedBackdrop.addEventListener('click', () => {
+      const popoverEls = [
+        document.getElementById('genre-popover'),
+        document.getElementById('artist-popover'),
+        document.getElementById('dj-popover'),
+      ].filter(Boolean);
+      const anyOpen = popoverEls.some(p => p.classList.contains('open'));
+      popoverEls.forEach(p => p.classList.remove('open'));
+      sharedBackdrop.classList.remove('open');
+      document.querySelectorAll('.mobile-filter-pill.semi-open').forEach(p => p.classList.remove('semi-open'));
+      if (anyOpen && typeof filtersDirty !== 'undefined' && filtersDirty) {
+        filtersDirty = false;
+        if (typeof shuffle === 'function') shuffle();
+      }
+    });
+  }
+
   helpOverlay.addEventListener('click', (e) => { if (e.target === helpOverlay) helpOverlay.classList.remove('open'); });
   helpOverlay.querySelector('.help-close').addEventListener('click', () => helpOverlay.classList.remove('open'));
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') helpOverlay.classList.remove('open'); });

@@ -70,7 +70,7 @@ function showClusterMobile(cluster) {
     popoverBackdrop.classList.add('open');
     if (pillEl) pillEl.classList.add('semi-open');
   }
-  popoverBackdrop.addEventListener('click', () => closePopovers(true));
+  // Backdrop click handler is wired once at init in app.js (see #popover-backdrop).
   document.getElementById('mobile-pill-genre').addEventListener('click', function() {
     openPopover('genre', this);
     setTimeout(() => document.getElementById('genre-search').focus(), 100);
