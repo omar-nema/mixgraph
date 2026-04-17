@@ -425,10 +425,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   helpOverlay.querySelector('.help-close').addEventListener('click', () => helpOverlay.classList.remove('open'));
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') helpOverlay.classList.remove('open'); });
 
-  // Wire theme toggle
+  // Wire theme toggle — follow system preference unless user has manually chosen
   const themeBtn = document.getElementById('theme-toggle');
   const savedTheme = localStorage.getItem('b2b-theme');
-  const startNight = savedTheme ? savedTheme === 'night' : true;
+  const systemDark = window.matchMedia('(prefers-color-scheme: dark)');
+  const startNight = savedTheme ? savedTheme === 'night' : systemDark.matches;
   function applyTheme(isNight) {
     document.body.classList.toggle('night', isNight);
     document.documentElement.classList.toggle('night', isNight);
@@ -441,6 +442,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     const isNight = !document.body.classList.contains('night');
     applyTheme(isNight);
     localStorage.setItem('b2b-theme', isNight ? 'night' : 'day');
+  });
+  // Follow system theme changes when user hasn't manually overridden
+  systemDark.addEventListener('change', (e) => {
+    if (!localStorage.getItem('b2b-theme')) applyTheme(e.matches);
   });
 
   // ── Crates → Tracks fly-out transition ──
