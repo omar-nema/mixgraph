@@ -2020,16 +2020,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       window.open(ctxData.set, '_blank', 'noopener');
     } else if (action === 'filter-dj' && ctxData.dj) {
       filterCtrl.addDjFilter({ display: ctxData.dj });
-      filtersDirty = false;
-      shuffle();
     } else if (action === 'filter-artist' && ctxData.artist) {
       filterCtrl.addSearchFilter({ display: ctxData.artist });
-      filtersDirty = false;
-      shuffle();
     } else if (action === 'filter-genre' && ctxData.genre) {
       filterCtrl.toggleGenre(ctxData.genre);
-      filtersDirty = false;
-      shuffle();
     }
 
     closeCtxMenu();

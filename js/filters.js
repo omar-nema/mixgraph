@@ -80,93 +80,112 @@ async function initFilters() {
   }
 
   // ── Filter state management ──
-  function modifyFilter(arr, action, renderFn) {
-    action(arr);
-    filtersDirty = true; filterGeneration++;
+  //
+  // Every filter mutation funnels through applyFilterChange. It runs the
+  // full post-change pipeline (rebuild derived genre list, render all chip
+  // surfaces, update pills, reshuffle if needed) so individual call sites
+  // only contain the actual state change.
+  //
+  // Reshuffle rule: in tracks mode, only reshuffle if no currently-visible
+  // node matches the new filter set. In crates mode, always reset the grid.
+
+  function genreFilterNames(entry) {
+    if (entry.isParent) return GENRE_TAXONOMY[entry.display] || [entry.display];
+    return [entry.display];
+  }
+
+  // Rebuild the flat genreFilters array from genreSearchFilters +
+  // manual pill toggles (stored separately so parent-chip expansion and
+  // individual pill toggles can coexist without drift).
+  function rebuildGenreFilters() {
+    const next = new Set();
+    for (const f of genreSearchFilters) (f.names || []).forEach(n => next.add(n));
+    for (const n of manualGenreToggles) next.add(n);
+    // Mutate in place so existing consumers keep working
+    genreFilters.length = 0;
+    next.forEach(n => genreFilters.push(n));
+  }
+
+  // Node match — mirrors worker/index.js filter logic (AND across categories, OR within).
+  function nodeMatchesFilters(node) {
+    if (!node) return false;
+    if (genreFilters.length) {
+      const ng = node.genres || [];
+      if (!genreFilters.some(g => ng.includes(g))) return false;
+    }
+    const artistWords = [...searchFilters, ...clusterArtistFilters].map(f => f.display.toLowerCase());
+    if (artistWords.length) {
+      const na = (node.artist ? splitArtists(node.artist) : []).map(a => a.toLowerCase());
+      if (!artistWords.some(a => na.includes(a))) return false;
+    }
+    const djWords = [...djSearchFilters, ...clusterDjFilters].map(f => f.display.toLowerCase());
+    if (djWords.length) {
+      const nd = (node.djs || []).map(d => (d.name || '').toLowerCase());
+      if (!djWords.some(d => nd.includes(d))) return false;
+    }
+    return true;
+  }
+
+  function anyVisibleNodeMatchesFilters() {
+    if (!nodes || !nodes.length) return true; // nothing on screen yet → don't reshuffle
+    return nodes.some(nodeMatchesFilters);
+  }
+
+  function applyFilterChange(mutate, { deferReshuffle = false } = {}) {
+    mutate();
+    filtersDirty = true;
     shuffleHistory.clear();
-    renderFn();
+
+    // Derived + rendered surfaces (run them all every time; idempotent).
+    rebuildGenreFilters();
+    syncGenrePillHighlights();
+    renderAllChips();
+    if (window._renderSearchBarChips) window._renderSearchBarChips();
     updateFilterUI();
     updateClusterPills();
-    if (window._renderSearchBarChips) window._renderSearchBarChips();
-    if (document.body.classList.contains('crates-mode') && window._cratesResetFn) {
-      window._cratesResetFn();
+
+    if (document.body.classList.contains('crates-mode')) {
+      if (window._cratesResetFn) window._cratesResetFn();
+      return;
     }
-    if (!document.body.classList.contains('crates-mode')) shuffle();
+    if (deferReshuffle) return;
+
+    // Tracks mode: only reshuffle if nothing on screen matches the new filter set.
+    if (!anyVisibleNodeMatchesFilters()) {
+      filtersDirty = false;
+      shuffle();
+    }
   }
 
   function addSearchFilter(entry) {
     if (searchFilters.some(f => f.display === entry.display)) return;
     trackEvent('filter_artist');
-    modifyFilter(searchFilters, a => a.push({ display: entry.display }), renderFindChips);
+    applyFilterChange(() => searchFilters.push({ display: entry.display }));
   }
 
   function removeSearchFilter(index) {
-    modifyFilter(searchFilters, a => a.splice(index, 1), renderFindChips);
+    applyFilterChange(() => searchFilters.splice(index, 1));
   }
 
   function addDjFilter(entry) {
     if (djSearchFilters.some(f => f.display === entry.display)) return;
     trackEvent('filter_dj');
-    modifyFilter(djSearchFilters, a => a.push({ display: entry.display }), renderDjChips);
+    applyFilterChange(() => djSearchFilters.push({ display: entry.display }));
   }
 
   function removeDjFilter(index) {
-    modifyFilter(djSearchFilters, a => a.splice(index, 1), renderDjChips);
-  }
-
-  // Get the genre names to add to genreFilters for a search entry
-  function genreFilterNames(entry) {
-    if (entry.isParent) {
-      // Parent selected → add all children (the names nodes actually have)
-      return GENRE_TAXONOMY[entry.display] || [entry.display];
-    }
-    // Child selected → add just that name
-    return [entry.display];
+    applyFilterChange(() => djSearchFilters.splice(index, 1));
   }
 
   function addGenreSearchFilter(entry) {
     if (genreSearchFilters.some(f => f.display === entry.display)) return;
     trackEvent('filter_genre');
     const names = genreFilterNames(entry);
-    genreSearchFilters.push({ display: entry.display, names });
-    for (const name of names) {
-      if (!genreFilters.includes(name)) genreFilters.push(name);
-    }
-    filtersDirty = true; filterGeneration++;
-    shuffleHistory.clear();
-    syncGenrePillHighlights();
-    renderGenreChips();
-    updateFilterUI();
-    if (document.body.classList.contains('crates-mode') && window._cratesResetFn) {
-      window._cratesResetFn();
-    }
+    applyFilterChange(() => genreSearchFilters.push({ display: entry.display, names }));
   }
 
   function removeGenreSearchFilter(index) {
-    const removed = genreSearchFilters.splice(index, 1)[0];
-    if (removed) {
-      // Collect all names still referenced by remaining chips
-      const stillNeeded = new Set();
-      for (const f of genreSearchFilters) f.names.forEach(n => stillNeeded.add(n));
-      // Remove names that are no longer needed
-      for (const name of removed.names) {
-        if (!stillNeeded.has(name)) {
-          const gIdx = genreFilters.indexOf(name);
-          if (gIdx >= 0) genreFilters.splice(gIdx, 1);
-        }
-      }
-    }
-    filtersDirty = true; filterGeneration++;
-    shuffleHistory.clear();
-    syncGenrePillHighlights();
-    renderGenreChips();
-    updateFilterUI();
-    updateClusterPills();
-    if (window._renderSearchBarChips) window._renderSearchBarChips();
-    if (document.body.classList.contains('crates-mode') && window._cratesResetFn) {
-      window._cratesResetFn();
-    }
-    if (!document.body.classList.contains('crates-mode')) shuffle();
+    applyFilterChange(() => { genreSearchFilters.splice(index, 1); });
   }
 
   function syncGenrePillHighlights() {
@@ -175,43 +194,37 @@ async function initFilters() {
     });
   }
 
+  // Toggle a single genre via a pill click.
+  // Option (c) from audit: if the name is only present because of a parent chip,
+  // remove the whole parent chip (so visible chips always reflect active filters).
   function toggleGenre(name) {
-    const idx = genreFilters.indexOf(name);
-    if (idx >= 0) {
-      genreFilters.splice(idx, 1);
-      // Also remove any search chips whose names included this genre
-      genreSearchFilters = genreSearchFilters.filter(f => !f.names.includes(name));
-      renderGenreChips();
-    } else {
+    applyFilterChange(() => {
+      const hadManual = manualGenreToggles.has(name);
+      if (hadManual) {
+        manualGenreToggles.delete(name);
+        return;
+      }
+      // Covered by a parent chip? Remove that parent chip entirely.
+      const parentChip = genreSearchFilters.find(f => (f.names || []).includes(name));
+      if (parentChip) {
+        const idx = genreSearchFilters.indexOf(parentChip);
+        if (idx >= 0) genreSearchFilters.splice(idx, 1);
+        return;
+      }
       trackEvent('filter_genre');
-      genreFilters.push(name);
-    }
-    filtersDirty = true; filterGeneration++;
-    shuffleHistory.clear();
-    syncGenrePillHighlights();
-    updateFilterUI();
-    if (document.body.classList.contains('crates-mode') && window._cratesResetFn) {
-      window._cratesResetFn();
-    }
+      manualGenreToggles.add(name);
+    });
   }
 
   function clearAllFilters() {
-    searchFilters = [];
-    djSearchFilters = [];
-    clusterArtistFilters = [];
-    clusterDjFilters = [];
-    genreFilters = [];
-    genreSearchFilters = [];
-    filtersDirty = true; filterGeneration++;
-    shuffleHistory.clear();
-    document.querySelectorAll('.genre-pill.selected').forEach(p => p.classList.remove('selected'));
-    renderAllChips();
-    if (window._renderSearchBarChips) window._renderSearchBarChips();
-    updateFilterUI();
-    updateClusterPills();
-    if (document.body.classList.contains('crates-mode') && window._cratesResetFn) {
-      window._cratesResetFn();
-    }
+    applyFilterChange(() => {
+      searchFilters.length = 0;
+      djSearchFilters.length = 0;
+      clusterArtistFilters.length = 0;
+      clusterDjFilters.length = 0;
+      genreSearchFilters.length = 0;
+      manualGenreToggles.clear();
+    });
   }
 
   // Shared helper: update a pill's active state, count, and clear button
@@ -361,12 +374,14 @@ async function initFilters() {
     popover.style.left = left + 'px';
   }
 
-  // Close all popovers
+  // Close all popovers (desktop AND mobile — both pill classes)
   function closeAllPopovers() {
     genrePopover.classList.remove('open');
     artistPopover.classList.remove('open');
     djPopover.classList.remove('open');
-    document.querySelectorAll('.filter-pill.semi-open').forEach(p => p.classList.remove('semi-open'));
+    const backdrop = document.getElementById('popover-backdrop');
+    if (backdrop) backdrop.classList.remove('open');
+    document.querySelectorAll('.filter-pill.semi-open, .mobile-filter-pill.semi-open').forEach(p => p.classList.remove('semi-open'));
     closeFindAc();
     closeDjAc();
     closeGenreAc();
@@ -420,11 +435,13 @@ async function initFilters() {
     }
   });
 
-  // Re-shuffle when any popover closes (filters apply on close)
+  // Re-shuffle when any popover closes (filters apply on close).
+  // Same "stay if any visible node matches" rule as the funnel.
   function reshuffleIfFiltered() {
     if (!filtersDirty) return;
     filtersDirty = false;
-    shuffle();
+    if (document.body.classList.contains('crates-mode')) return;
+    if (!anyVisibleNodeMatchesFilters()) shuffle();
   }
 
 
@@ -448,36 +465,18 @@ async function initFilters() {
     }
   });
 
-  // Clear filter handlers (shared across desktop + mobile)
+  // Clear filter handlers (shared across desktop + mobile). All go through the funnel.
   function clearGenreFilters(e) {
     e.stopPropagation();
-    genreFilters = [];
-    genreSearchFilters = [];
-    filtersDirty = true; filterGeneration++;
-    shuffleHistory.clear();
-    document.querySelectorAll('.genre-pill.selected').forEach(p => p.classList.remove('selected'));
-    renderGenreChips();
-    updateFilterUI();
+    applyFilterChange(() => { genreSearchFilters.length = 0; manualGenreToggles.clear(); });
   }
   function clearArtistFilters(e) {
     e.stopPropagation();
-    searchFilters = [];
-    clusterArtistFilters = [];
-    filtersDirty = true; filterGeneration++;
-    shuffleHistory.clear();
-    renderFindChips();
-    updateFilterUI();
-    updateClusterPills();
+    applyFilterChange(() => { searchFilters.length = 0; clusterArtistFilters.length = 0; });
   }
   function clearDjFilters(e) {
     e.stopPropagation();
-    djSearchFilters = [];
-    clusterDjFilters = [];
-    filtersDirty = true; filterGeneration++;
-    shuffleHistory.clear();
-    renderDjChips();
-    updateFilterUI();
-    updateClusterPills();
+    applyFilterChange(() => { djSearchFilters.length = 0; clusterDjFilters.length = 0; });
   }
 
   // Wire clear buttons
@@ -497,9 +496,7 @@ async function initFilters() {
     if (type === 'genre') clearGenreFilters(e);
     else if (type === 'artist') clearArtistFilters(e);
     else if (type === 'dj') clearDjFilters(e);
-    filtersDirty = false;
     closeAllPopovers();
-    shuffle();
   }, true);
 
   // chips-input click-to-focus is handled by createAc()
@@ -687,43 +684,22 @@ async function initFilters() {
     }
 
     function clearAllSearchChips() {
-      searchFilters.length = 0;
-      djSearchFilters.length = 0;
-      genreSearchFilters.length = 0;
-      renderFindChips();
-      renderDjChips();
-      syncGenrePillHighlights();
-      renderGenreChips();
-      renderSearchBarChips();
       clearTimeout(uniDebounce);
       closeUnifiedAc();
       filterSearchInput.value = '';
-      shuffleHistory.clear();
-      updateFilterUI();
-      updateClusterPills();
-      if (document.body.classList.contains('crates-mode') && window._cratesResetFn) {
-        window._cratesResetFn();
-      }
-      applyUnifiedSearchFilters();
+      applyFilterChange(() => {
+        searchFilters.length = 0;
+        djSearchFilters.length = 0;
+        genreSearchFilters.length = 0;
+      });
     }
 
     function removeLastSearchChip() {
-      if (genreSearchFilters.length) {
-        genreSearchFilters.pop();
-        syncGenrePillHighlights();
-        renderGenreChips();
-      } else if (djSearchFilters.length) {
-        djSearchFilters.pop();
-        renderDjChips();
-      } else if (searchFilters.length) {
-        searchFilters.pop();
-        renderFindChips();
-      } else return;
-      renderSearchBarChips();
-      shuffleHistory.clear();
-      updateFilterUI();
-      updateClusterPills();
-      applyUnifiedSearchFilters();
+      applyFilterChange(() => {
+        if (genreSearchFilters.length) genreSearchFilters.pop();
+        else if (djSearchFilters.length) djSearchFilters.pop();
+        else if (searchFilters.length) searchFilters.pop();
+      });
     }
 
     filterSearchClear.addEventListener('click', (e) => {
@@ -829,19 +805,11 @@ async function initFilters() {
 
   // ── Cluster context pills ──
   function toggleClusterFilter(filtersArr, entry) {
-    const idx = filtersArr.findIndex(f => f.display === entry.display);
-    if (idx >= 0) {
-      filtersArr.splice(idx, 1);
-    } else {
-      filtersArr.push({ display: entry.display, trackIds: entry.trackIds });
-    }
-    filtersDirty = true; filterGeneration++;
-    shuffleHistory.clear();
-    updateFilterUI();
-    updateClusterPills();
-    if (document.body.classList.contains('crates-mode') && window._cratesResetFn) {
-      window._cratesResetFn();
-    }
+    applyFilterChange(() => {
+      const idx = filtersArr.findIndex(f => f.display === entry.display);
+      if (idx >= 0) filtersArr.splice(idx, 1);
+      else filtersArr.push({ display: entry.display, trackIds: entry.trackIds });
+    });
   }
 
   function updateClusterPills() {
