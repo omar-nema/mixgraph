@@ -90,6 +90,7 @@ python3 scripts/serve.py
 - **NEVER use the Claude Code preview tool.** It's too narrow for desktop layout and gives misleading results. Always use **Chrome MCP** or **Playwright** — they render at real browser widths.
 - **Verify every change in a real browser after editing.** Check for console errors, confirm the page renders correctly. Test both mobile and desktop after any visual or layout change.
 - **Always load with `?noplay`** (e.g. `http://localhost:8000/?noplay`). This suppresses audio playback so random tracks don't blast during automated testing.
+- **Dev loop: static SPA only, hit live Cloudflare API.** Don't spin up `npm run server` (local API on :3001) just to poke at the UI. The frontend defaults to the production Worker — running the local API slows things down and isn't what I'm using. Only start it when explicitly debugging Worker behavior or running the test suite.
 
 ## Git rules
 
