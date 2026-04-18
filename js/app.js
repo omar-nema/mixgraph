@@ -1012,8 +1012,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             const arts = params.artists.map(a => a.toLowerCase().trim());
             deduped = deduped.filter(c => {
               const raw = c.a || c.id.split(':::')[0] || '';
-              const credits = raw.toLowerCase().split(/,\s*/).map(s => s.trim());
-              return arts.some(a => credits.some(cr => cr === a));
+              // Use splitArtists so "feat"/"ft"/"x"/"&"/parenthesized credits
+              // match the same way the worker's candidate-level filter does.
+              const credits = splitArtists(raw).map(s => s.toLowerCase().trim());
+              return arts.some(a => credits.includes(a));
             });
           }
           if (params.djs) {
