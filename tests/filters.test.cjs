@@ -176,19 +176,27 @@ async function testStayOnRootMatchingArtist(browser) {
 }
 
 async function testReshuffleOffScreenArtist(browser) {
-  currentName = 'A2. Add artist filter NOT in cluster → reshuffle';
+  currentName = 'A2. Add artist filter NOT in cluster → exactly one reshuffle';
   console.log(`\n[${currentName}]`);
   const { ctx, page } = await makePage(browser);
   try {
     await loadTracksMode(page);
+    // Count API shuffle calls that fire AFTER this point
+    const shuffleCalls = [];
+    page.on('request', req => {
+      if (req.url().includes('/api/shuffle')) shuffleCalls.push(new URL(req.url()).search);
+    });
     const before = await readClusterState(page);
     const target = await pickArtistNotInCluster(page, before);
     if (!target) { fail('Could not find a candidate artist not in current cluster'); return; }
+    const callsBefore = shuffleCalls.length;
     await addArtistViaSearchBar(page, target);
-    await page.waitForTimeout(700);
+    await page.waitForTimeout(1200);
     const after = await readClusterState(page);
+    const newCalls = shuffleCalls.length - callsBefore;
     assertTrue(after.clusterId !== before.clusterId, `clusterId changed (${before.clusterId} → ${after.clusterId})`);
     assertTrue(after.pillArtistActive, 'pill-artist.active');
+    assertEq(newCalls, 1, `exactly one /api/shuffle call (got ${newCalls})`);
   } finally { await ctx.close(); }
 }
 

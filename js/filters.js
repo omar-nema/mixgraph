@@ -638,15 +638,6 @@ async function initFilters() {
   if (filterSearchInput && filterSearchAc) {
     let uniItems = [], uniActiveIdx = -1, uniDebounce = null;
 
-    function applyUnifiedSearchFilters() {
-      filtersDirty = false;
-      if (document.body.classList.contains('crates-mode')) {
-        if (window._cratesResetFn) window._cratesResetFn();
-        return;
-      }
-      shuffle();
-    }
-
     const searchChipsContainer = document.getElementById('filter-search-chips');
 
     window._renderSearchBarChips = renderSearchBarChips;
@@ -744,8 +735,9 @@ async function initFilters() {
           div.innerHTML = `<span class="ac-name">${escHtml(label)}</span><span class="ac-type">${type}</span>`;
           div.addEventListener('click', (e) => {
             e.stopPropagation();
+            // addSearchBarChip -> addSearchFilter/addDjFilter/addGenreSearchFilter
+            // all route through applyFilterChange, which handles the reshuffle.
             addSearchBarChip(type, entry);
-            applyUnifiedSearchFilters();
           });
           div.addEventListener('mouseenter', () => {
             uniItems.forEach(el => el.classList.remove('active'));
