@@ -1,15 +1,17 @@
 /* ═══════════════════════════════════════════
    Design Tokens
    ═══════════════════════════════════════════ */
-html { background: #f5f5f7; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+html { background: #f3f3f8; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 :root {
   /* Background — change --bg (here + body.night) to re-theme surfaces */
-  --bg: #f5f5f7;
+  --bg: #f3f3f8;
   --toolbar-height: 0px;
+  --filter-row-h: 38px;
 
   /* Surface derivatives (auto-computed from --bg) */
   --card-bg: color-mix(in srgb, white 50%, var(--bg));
   --card-border: color-mix(in srgb, black 15%, var(--bg));
+  --card-border-subtle: color-mix(in srgb, black 7%, var(--bg));
   --connection-stroke: color-mix(in srgb, black 25%, var(--bg));
   --toolbar-btn-bg: color-mix(in srgb, black 4%, var(--bg));
   --surface-elevated: color-mix(in srgb, white 30%, var(--bg));
@@ -71,6 +73,7 @@ body.night {
   /* Surface derivatives (same structure, dark direction) */
   --card-bg: color-mix(in srgb, white 9%, var(--bg));
   --card-border: color-mix(in srgb, white 12%, var(--bg));
+  --card-border-subtle: color-mix(in srgb, white 6%, var(--bg));
   --connection-stroke: color-mix(in srgb, white 20%, var(--bg));
   --toolbar-btn-bg: color-mix(in srgb, white 4%, var(--bg));
   --surface-elevated: color-mix(in srgb, white 14%, var(--bg));
@@ -535,7 +538,7 @@ body.night .mode-tab.active { color: var(--connection-highlight); background: no
   padding: 1px 8px;
   border-radius: 9px;
   background: var(--card-bg);
-  border: 1px solid var(--card-border);
+  border: 1px solid var(--card-border-subtle);
   color: var(--text-tertiary);
   cursor: pointer;
   transition: background 0.15s ease;
@@ -1182,9 +1185,9 @@ a.track-title:hover { text-decoration-color: var(--text-secondary); }
   background: var(--card-bg);
   border: 1px solid var(--card-border);
   border-radius: 5px;
-  padding: 6px 16px;
+  padding: 0 16px;
   transition: border-color 0.25s ease, box-shadow 0.3s ease, background 0.25s ease;
-  min-height:42px;
+  min-height: var(--filter-row-h);
 }
 #filter-search-chips {
   display: contents;
@@ -1257,7 +1260,9 @@ a.track-title:hover { text-decoration-color: var(--text-secondary); }
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 16px;
+  height: var(--filter-row-h);
+  min-height: var(--filter-row-h);
+  padding: 0 16px;
   cursor: pointer;
   font-size: 16px;
   color: var(--text-primary);
@@ -1287,7 +1292,8 @@ body.crates-mode { overflow: hidden; }
   background: var(--card-bg);
   border: 1px solid var(--card-border);
   border-radius: 20px;
-  padding: 10px 16px;
+  height: var(--filter-row-h);
+  padding: 0 16px;
   cursor: pointer;
   transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
   white-space: nowrap;
@@ -1346,7 +1352,7 @@ body.crates-mode .filter-dot { opacity: 0; max-width: 0; padding: 0; margin: 0; 
   background: var(--accent);
   border-color: var(--accent);
   color: white;
-  padding: 10px 16px;
+  padding: 0 16px;
   max-width: 150px;
 }
 .filter-shuffle:hover {
