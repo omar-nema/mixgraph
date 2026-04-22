@@ -35,6 +35,7 @@ function apiShuffle(filters = {}) {
   if (filters.genres && filters.genres.length) params.genres = filters.genres.join(',');
   if (filters.artists && filters.artists.length) params.artists = filters.artists.join(',');
   if (filters.djs && filters.djs.length) params.djs = filters.djs.join(',');
+  if (filters.title) params.title = filters.title;
   if (filters.exclude && filters.exclude.length) params.exclude = filters.exclude.join(',');
   if (filters.r1) params.r1 = filters.r1;
   if (filters.r2) params.r2 = filters.r2;
@@ -55,6 +56,10 @@ function apiSearchArtists(q, limit = 20) {
 
 function apiSearchDjs(q, limit = 20) {
   return apiFetch('/api/search/djs', { q, limit });
+}
+
+function apiSearchTracks(q, limit = 20) {
+  return apiFetch('/api/search/tracks', { q, limit });
 }
 
 function apiGetGenres() {

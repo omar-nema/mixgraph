@@ -92,6 +92,34 @@ python3 scripts/serve.py
 - **Always load with `?noplay`** (e.g. `http://localhost:8000/?noplay`). This suppresses audio playback so random tracks don't blast during automated testing.
 - **Dev loop: static SPA only, hit live Cloudflare API.** Don't spin up `npm run server` (local API on :3001) just to poke at the UI. The frontend defaults to the production Worker — running the local API slows things down and isn't what I'm using. Only start it when explicitly debugging Worker behavior or running the test suite.
 
+## Tests
+
+Four test files in `tests/`. All are plain `node tests/foo.test.cjs` scripts — no framework, no runner. Shared helpers in `tests/_helpers.cjs`.
+
+**Run the whole thing with `npm test`** before committing anything substantial. It boots the API server and a static server if they're not running, then runs three suites in ~2 minutes.
+
+If you only touched one area, run the relevant suite instead:
+
+- **Backend work** (scrapers, pipeline, shared, server, worker) → `npm run test:api`
+  Hits the API and cross-checks results against the scraped episode JSONs. Fast.
+
+- **Frontend work** (js/, css/, index.html) → `npm run test:ui`
+  Playwright drives the real page. Covers shuffle, playback, filters, Dig.
+
+- **Audio playback changes specifically** → `node tests/ui-flows.test.cjs`
+  The playback test plays 3 tracks in sequence and checks the SoundCloud iframe actually updates.
+
+- **Filter chip / popover bugs** → `node tests/filters.test.cjs`
+  The stuff that breaks when you touch `filters.js` — chip sync across surfaces, genre parent/child, mobile popover.
+
+- **Dig perf regressions** → `node tests/crates-perf.test.cjs`
+  Only before Dig-mode changes. Slow and noisy — don't run it otherwise.
+
+**Gotchas:**
+- Dig tests (D1–D3 in `ui-flows`) auto-skip against the local server because `/api/crates-index` is Worker-only. To actually test Dig, point at production: `API=https://b2b-api.omarwnema.workers.dev node tests/ui-flows.test.cjs`.
+- `tests/mobile-layout.spec.js` uses the official `@playwright/test` runner and isn't part of `npm test`. Run it with `npx playwright test tests/mobile-layout.spec.js` when you change mobile CSS.
+- Tests are the regression net. They don't replace the "verify in browser after every edit" rule above — they catch things you didn't think to look at.
+
 ## Git rules
 
 - **Never commit `web-app/output/combined_graph.json`** — it's 100MB+ and exceeds GitHub's file size limit. It's gitignored. Don't try to add it.

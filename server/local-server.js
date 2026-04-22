@@ -24,10 +24,10 @@ console.log(`Loaded in ${Date.now() - t0}ms — ${Object.keys(graphNodes).length
 
 // ── Pre-compute derived data ──
 const { candidates, candidateWeights, idxMap } = buildCandidates(graphNodes, audioCache);
-const { artistListAlpha, djListAlpha } = buildIndexes(graphNodes, candidates, djNameMap);
+const { artistListAlpha, djListAlpha, trackListAlpha } = buildIndexes(graphNodes, candidates, djNameMap);
 const genreList = buildGenreList(graphNodes);
 const displayGenres = genreList.slice(0, 30);
-console.log(`${candidates.length} candidates, ${artistListAlpha.length} artists, ${djListAlpha.length} DJs, ${genreList.length} genres`);
+console.log(`${candidates.length} candidates, ${artistListAlpha.length} artists, ${djListAlpha.length} DJs, ${trackListAlpha.length} tracks, ${genreList.length} genres`);
 
 // ── Server ──
 const app = express();
@@ -60,6 +60,7 @@ app.get('/api/shuffle', (req, res) => {
     genres: csvParam(req.query.genres),
     artists: csvParam(req.query.artists),
     djs: csvParam(req.query.djs),
+    title: req.query.title || undefined,
   };
   // Clean up empty arrays
   if (filters.genres.length === 0) delete filters.genres;
@@ -78,7 +79,7 @@ app.get('/api/shuffle', (req, res) => {
   let unseen = pool.filter(id => !exclude.has(id));
   if (unseen.length === 0) unseen = pool;
 
-  const hasArtistDjFilter = !!(filters.artists || filters.djs);
+  const hasArtistDjFilter = !!(filters.artists || filters.djs || filters.title);
   const rootId = weightedPickFromPool(unseen, candidateWeights, idxMap, hasArtistDjFilter);
   const cluster = selectCluster(graphNodes, audioCache, rootId, r1, r2, djNameMap);
   cluster.meta.poolSize = pool.length;
@@ -122,6 +123,13 @@ app.get('/api/search/djs', (req, res) => {
   res.json(searchList(djListAlpha, q, limit));
 });
 
+// GET /api/search/tracks
+app.get('/api/search/tracks', (req, res) => {
+  const q = req.query.q || '';
+  const limit = parseInt(req.query.limit) || 20;
+  res.json(searchList(trackListAlpha, q, limit));
+});
+
 // GET /api/genres
 app.get('/api/genres', (req, res) => {
   res.json(displayGenres);
@@ -156,5 +164,5 @@ app.get('/api/crates', (req, res) => {
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`\nAPI server running at http://localhost:${PORT}`);
-  console.log('Endpoints: /api/shuffle, /api/cluster/:id, /api/search/artists, /api/search/djs, /api/genres, /api/crates');
+  console.log('Endpoints: /api/shuffle, /api/cluster/:id, /api/search/artists, /api/search/djs, /api/search/tracks, /api/genres, /api/crates');
 });

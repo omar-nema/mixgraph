@@ -237,6 +237,13 @@ export default {
         return jsonResponse(results);
       }
 
+      // GET /api/search/tracks
+      if (url.pathname === '/api/search/tracks') {
+        const index = await env.GRAPH_KV.get('track-index', 'json');
+        const results = searchList(index || [], q.get('q') || '', parseInt(q.get('limit')) || 20);
+        return jsonResponse(results);
+      }
+
       // GET /api/shuffle
       if (url.pathname === '/api/shuffle') {
         const allCandidates = await env.GRAPH_KV.get('candidates', 'json');
@@ -245,17 +252,20 @@ export default {
         const genres = csvParam(q.get('genres'));
         const artists = csvParam(q.get('artists'));
         const djs = csvParam(q.get('djs'));
+        const title = q.get('title') || '';
         const source = q.get('source');
         const exclude = new Set(csvParam(q.get('exclude')));
 
+        const titleLower = title.toLowerCase();
         let pool = allCandidates;
-        if (genres.length > 0 || artists.length > 0 || djs.length > 0 || (source && source !== 'none')) {
+        if (genres.length > 0 || artists.length > 0 || djs.length > 0 || title || (source && source !== 'none')) {
           pool = allCandidates.filter(c => {
             if (source && source !== 'none') {
               if (source === 'soundcloud' && !c.st) return false;
               if (source === 'soundcloud_set' && (c.st || c.s !== 'soundcloud_set')) return false;
               if (source === 'lotradio' && (c.st || c.ss !== 'soundcloud')) return false;
             }
+            if (title && c.t !== titleLower) return false;
             if (genres.length > 0 && !genres.some(g => c.g.includes(g))) return false;
             if (artists.length > 0 && !artists.some(a => c.a.includes(a.toLowerCase()))) return false;
             if (djs.length > 0) {
@@ -275,7 +285,7 @@ export default {
         if (unseen.length === 0) unseen = pool;
 
         // Weighted random pick
-        const hasArtistDjFilter = artists.length > 0 || djs.length > 0;
+        const hasArtistDjFilter = artists.length > 0 || djs.length > 0 || !!title;
         let picked;
         if (hasArtistDjFilter) {
           picked = unseen[Math.floor(Math.random() * unseen.length)];

@@ -248,11 +248,16 @@ function matchesSourceFilter(audioCache, nodeId, filter) {
 }
 
 export function getFilteredPool(graphNodes, audioCache, candidates, filters = {}, djNameMap = {}) {
-  const { source, artists, djs, genres } = filters;
+  const { source, artists, djs, genres, title } = filters;
 
   let pool = source
     ? candidates.filter(id => matchesSourceFilter(audioCache, id, source))
     : [...candidates];
+
+  if (title) {
+    const titleLower = title.toLowerCase();
+    pool = pool.filter(id => (graphNodes[id].title || '').toLowerCase() === titleLower);
+  }
 
   // Artist/DJ name filtering
   if ((artists && artists.length > 0) || (djs && djs.length > 0)) {
@@ -374,7 +379,21 @@ export function buildIndexes(graphNodes, candidates, djNameMap = {}) {
     .sort((a, b) => b.trackCount - a.trackCount)
     .sort((a, b) => a.display.localeCompare(b.display));
 
-  return { artistListAlpha, djListAlpha };
+  // Track (song) index — keyed by (title, artist) so autocomplete can disambiguate
+  const trackIdx = {};
+  for (const [id, node] of Object.entries(graphNodes)) {
+    if (!candidateSet.has(id)) continue;
+    const title = (node.title || '').trim();
+    const artist = (node.artist || '').trim();
+    if (!title) continue;
+    const key = `${title.toLowerCase()}\t${artist.toLowerCase()}`;
+    if (!trackIdx[key]) trackIdx[key] = { display: title, artist, count: 0 };
+    trackIdx[key].count++;
+  }
+  const trackListAlpha = Object.values(trackIdx)
+    .sort((a, b) => a.display.localeCompare(b.display));
+
+  return { artistListAlpha, djListAlpha, trackListAlpha };
 }
 
 export function buildGenreList(graphNodes) {

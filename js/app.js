@@ -224,6 +224,7 @@ function buildFilterParams() {
     genres: genreFilters.length ? genreFilters : undefined,
     artists: artists.length ? artists : undefined,
     djs: djs.length ? djs : undefined,
+    title: trackSearchFilter || undefined,
     exclude: shuffleHistory.size ? [...shuffleHistory] : undefined,
     r1: maxR1,
     r2: r2PerR1,

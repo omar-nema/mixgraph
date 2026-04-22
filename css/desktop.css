@@ -10,7 +10,7 @@ html { background: #f3f3f8; -webkit-text-size-adjust: 100%; text-size-adjust: 10
 
   /* Surface derivatives (auto-computed from --bg) */
   --card-bg: color-mix(in srgb, white 50%, var(--bg));
-  --card-border: color-mix(in srgb, black 15%, var(--bg));
+  --card-border: color-mix(in srgb, black 10%, var(--bg));
   --card-border-subtle: color-mix(in srgb, black 7%, var(--bg));
   --connection-stroke: color-mix(in srgb, black 25%, var(--bg));
   --toolbar-btn-bg: color-mix(in srgb, black 4%, var(--bg));
@@ -1344,7 +1344,7 @@ body.crates-mode { overflow: hidden; }
   white-space: nowrap;
 }
 body.crates-mode .filter-shuffle,
-body.crates-mode .filter-dot { opacity: 0; max-width: 0; padding: 0; margin: 0; pointer-events: none; }
+body.crates-mode .filter-dot { opacity: 0; max-width: 0; padding: 0; margin: 0 0 0 -8px; pointer-events: none; }
 .filter-shuffle,
 .filter-shuffle:hover,
 .filter-shuffle:active,
@@ -1569,6 +1569,18 @@ body.night #card-context-menu {
   gap: 6px;
   margin-top: 14px;
 }
+#genre-popover.expanded {
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+}
+#genre-popover.expanded #genre-pills {
+  overflow-y: auto;
+  flex: 1 1 auto;
+  min-height: 0;
+  padding-right: 4px;
+  align-content: flex-start;
+}
 .genre-pill {
   font-size: 14px;
   font-weight: 400;
@@ -1588,6 +1600,17 @@ body.night #card-context-menu {
   background: var(--connection-highlight);
   border-color: var(--connection-highlight);
   color: #fff;
+}
+.genre-pill.genre-more-pill,
+.genre-pill.genre-more-pill:hover {
+  background: none;
+  border-color: transparent;
+  padding: 6px 12px;
+  color: var(--text-tertiary);
+  font-weight: 500;
+}
+.genre-pill.genre-more-pill:hover {
+  color: var(--text-primary);
 }
 
 /* Cluster context pills */

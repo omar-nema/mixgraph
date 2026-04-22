@@ -287,16 +287,37 @@ async function initFilters() {
   }
 
   // ── Render genre pills ──
+  let genrePillsExpanded = false;
+  function allGenreNames() {
+    const names = new Set(displayGenres.map(g => g.name));
+    for (const entry of GENRE_SEARCH_INDEX) {
+      if (!entry.isParent) names.add(entry.display);
+    }
+    return [...names].sort((a, b) => a.localeCompare(b));
+  }
   function renderGenrePills(container) {
     container.innerHTML = '';
-    for (const g of displayGenres) {
+    const names = genrePillsExpanded
+      ? allGenreNames()
+      : displayGenres.map(g => g.name);
+    for (const name of names) {
       const pill = document.createElement('button');
-      pill.className = 'genre-pill' + (genreFilters.includes(g.name) ? ' selected' : '');
-      pill.textContent = g.name;
-      pill.dataset.genre = g.name;
-      pill.addEventListener('click', () => toggleGenre(g.name));
+      pill.className = 'genre-pill' + (genreFilters.includes(name) ? ' selected' : '');
+      pill.textContent = name;
+      pill.dataset.genre = name;
+      pill.addEventListener('click', () => toggleGenre(name));
       container.appendChild(pill);
     }
+    const toggle = document.createElement('button');
+    toggle.className = 'genre-pill genre-more-pill';
+    toggle.textContent = genrePillsExpanded ? 'Less' : 'More';
+    toggle.addEventListener('click', (e) => {
+      e.stopPropagation();
+      genrePillsExpanded = !genrePillsExpanded;
+      genrePopover.classList.toggle('expanded', genrePillsExpanded);
+      renderGenrePills(container);
+    });
+    container.appendChild(toggle);
   }
   renderGenrePills(document.getElementById('genre-pills'));
 
@@ -376,6 +397,11 @@ async function initFilters() {
 
   // Close all popovers (desktop AND mobile — both pill classes)
   function closeAllPopovers() {
+    if (genrePillsExpanded) {
+      genrePillsExpanded = false;
+      genrePopover.classList.remove('expanded');
+      renderGenrePills(document.getElementById('genre-pills'));
+    }
     genrePopover.classList.remove('open');
     artistPopover.classList.remove('open');
     djPopover.classList.remove('open');
@@ -659,12 +685,23 @@ async function initFilters() {
         searchChipsContainer.appendChild(chip);
       }
       const hasChips = allChips.length > 0;
+      const hasTrackFilter = !!trackSearchFilter;
       filterSearchWrap.classList.toggle('has-chips', hasChips);
-      filterSearchClear.style.display = hasChips ? 'flex' : 'none';
-      filterSearchInput.placeholder = hasChips ? '' : 'Search by artist, DJ, or genre';
+      filterSearchClear.style.display = (hasChips || hasTrackFilter) ? 'flex' : 'none';
+      filterSearchInput.placeholder = (hasChips || hasTrackFilter) ? '' : 'Search by song, artist, DJ, or genre';
+    }
+
+    function selectTrackFromSearch(entry) {
+      trackSearchFilter = entry.display.toLowerCase();
+      filterSearchInput.value = entry.display;
+      closeUnifiedAc();
+      filterSearchClear.style.display = 'flex';
+      filterSearchInput.blur();
+      shuffle();
     }
 
     function addSearchBarChip(type, entry) {
+      trackSearchFilter = null;
       if (type === 'artist') addSearchFilter(entry);
       else if (type === 'dj') addDjFilter(entry);
       else if (type === 'genre') addGenreSearchFilter(entry);
@@ -678,6 +715,7 @@ async function initFilters() {
       clearTimeout(uniDebounce);
       closeUnifiedAc();
       filterSearchInput.value = '';
+      trackSearchFilter = null;
       applyFilterChange(() => {
         searchFilters.length = 0;
         djSearchFilters.length = 0;
@@ -710,17 +748,19 @@ async function initFilters() {
       const q = query.trim();
       if (!q) { closeUnifiedAc(); return; }
       try {
-        const [artists, djs, genres] = await Promise.all([
+        const [artists, djs, genres, tracks] = await Promise.all([
           apiSearchArtists(q, 5),
           apiSearchDjs(q, 5),
           Promise.resolve(searchGenresLocal(q, 8)),
+          apiSearchTracks(q, 5).catch(() => []),
         ]);
         const all = [];
+        for (const t of tracks) all.push({ entry: t, type: 'song', label: `${t.display} — ${t.artist}` });
         for (const g of genres) all.push({ entry: g, type: 'genre', label: g.isParent ? g.display : `${g.display} (${g.parent})` });
         for (const a of artists) all.push({ entry: a, type: 'artist', label: a.display });
         for (const d of djs) all.push({ entry: d, type: 'dj', label: d.display });
         if (all.length === 0) {
-          filterSearchAc.innerHTML = '<div class="ac-item ac-no-results">No results, try different artist, DJ or genre</div>';
+          filterSearchAc.innerHTML = '<div class="ac-item ac-no-results">No results, try different song, artist, DJ or genre</div>';
           filterSearchAc.classList.add('open');
           uniItems = []; uniActiveIdx = -1;
           return;
@@ -735,9 +775,11 @@ async function initFilters() {
           div.innerHTML = `<span class="ac-name">${escHtml(label)}</span><span class="ac-type">${type}</span>`;
           div.addEventListener('click', (e) => {
             e.stopPropagation();
-            // addSearchBarChip -> addSearchFilter/addDjFilter/addGenreSearchFilter
-            // all route through applyFilterChange, which handles the reshuffle.
-            addSearchBarChip(type, entry);
+            if (type === 'song') {
+              selectTrackFromSearch(entry);
+            } else {
+              addSearchBarChip(type, entry);
+            }
           });
           div.addEventListener('mouseenter', () => {
             uniItems.forEach(el => el.classList.remove('active'));
@@ -757,6 +799,10 @@ async function initFilters() {
         uniDebounce = setTimeout(() => showUnifiedAc(filterSearchInput.value), 150);
       } else {
         closeUnifiedAc();
+        if (trackSearchFilter) {
+          trackSearchFilter = null;
+          filterSearchClear.style.display = (searchFilters.length || djSearchFilters.length || genreSearchFilters.length) ? 'flex' : 'none';
+        }
       }
     });
     filterSearchInput.addEventListener('focus', () => {

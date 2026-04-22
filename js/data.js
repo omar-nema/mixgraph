@@ -11,6 +11,7 @@ let clusterArtistFilters = []; // [{ display }] — artist filters (from cluster
 let clusterDjFilters = [];     // [{ display }] — DJ filters (from cluster pills)
 let genreFilters = [];   // ['Soul', 'Jazz', ...] — DERIVED from genreSearchFilters + manualGenreToggles by filters.js
 let genreSearchFilters = []; // [{display, names}] — genre search chips (parent chips carry expanded child names)
+let trackSearchFilter = null; // lowercase title string — silent song search filter (no chip)
 let manualGenreToggles = new Set(); // names toggled directly via the genre pills (not via chips)
 let filtersDirty = false; // true when filters changed inside an open popover
 let shuffleHistory = new Set();  // track seen root IDs to avoid repeats

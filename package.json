@@ -5,7 +5,10 @@
   "private": true,
   "scripts": {
     "server": "node server/local-server.js",
-    "smoke": "node shared/smoke-test.js"
+    "smoke": "node shared/smoke-test.js",
+    "test": "bash tests/run-all.sh",
+    "test:api": "bash tests/run-all.sh api",
+    "test:ui": "bash tests/run-all.sh ui"
   },
   "dependencies": {
     "cors": "^2.8.5",

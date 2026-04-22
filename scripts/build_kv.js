@@ -22,7 +22,7 @@ console.log(`Loaded in ${Date.now() - t0}ms — ${Object.keys(graphNodes).length
 
 // Pre-compute derived data
 const { candidates, candidateWeights } = buildCandidates(graphNodes, audioCache);
-const { artistListAlpha, djListAlpha } = buildIndexes(graphNodes, candidates, djNameMap);
+const { artistListAlpha, djListAlpha, trackListAlpha } = buildIndexes(graphNodes, candidates, djNameMap);
 const genreList = buildGenreList(graphNodes);
 const displayGenres = genreList.slice(0, 30);
 
@@ -58,6 +58,7 @@ const enrichedCandidates = candidates.map((id, i) => {
     st: cached.scTrackUrl ? 1 : 0,     // has SC track (for source filter)
     ss: (cached.setUrl && cached.setOffsetSec) ? (cached.setSource || null) : null, // set source (strip if no offset)
     a: (node.artist || '').toLowerCase(), // artist (lowercase for filtering)
+    t: (node.title || '').toLowerCase(), // title (lowercase for song search filter)
     e: (node.edges || []).length,       // edge count (for crates 4+ filter)
     d: [...djNames],                    // DJ names (lowercase)
   };
@@ -72,6 +73,7 @@ entries.push({ key: 'crates-seeds', value: JSON.stringify(cratesSeeds) });
 entries.push({ key: 'genres', value: JSON.stringify(displayGenres) });
 entries.push({ key: 'artist-index', value: JSON.stringify(artistListAlpha) });
 entries.push({ key: 'dj-index', value: JSON.stringify(djListAlpha) });
+entries.push({ key: 'track-index', value: JSON.stringify(trackListAlpha) });
 entries.push({ key: 'dj-name-map', value: JSON.stringify(djNameMap) });
 
 const candSizeMB = (Buffer.byteLength(JSON.stringify(enrichedCandidates)) / 1024 / 1024).toFixed(1);
