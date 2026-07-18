@@ -539,6 +539,7 @@
     left: 0;
     right: 0;
     display: flex;
+    height: 15%;               /* ~15% of the square album art */
     background: rgba(0, 0, 0, 0.34);
     opacity: 0;
     transform: translateY(-100%);
@@ -553,7 +554,7 @@
   }
   .mobile-carousel-card .src-opt {
     font-size: 10px;
-    padding: 7px 9px;
+    padding: 0 9px;
     color: rgba(255, 255, 255, 0.78);
   }
   .mobile-carousel-card .src-opt .src-ic { width: 11px; height: 11px; }
