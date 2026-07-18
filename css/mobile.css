@@ -558,7 +558,21 @@
     color: rgba(255, 255, 255, 0.78);
   }
   .mobile-carousel-card .src-opt .src-ic { width: 11px; height: 11px; }
-  .mobile-carousel-card.selected { border: 2px solid var(--connection-highlight); }
+  .mobile-carousel-card {
+    transition: box-shadow 0.35s ease, border-color 0.35s ease;
+  }
+  /* Selected but not playing: subtle accent outline only. */
+  .mobile-carousel-card.selected {
+    border-color: color-mix(in srgb, var(--connection-highlight) 45%, var(--card-border));
+  }
+  /* Playing: full accent border + glow, driven by the SC widget's real play/pause
+     state (.playing — see selectMobileTrack). Only shows while audio is audible. */
+  .mobile-carousel-card.playing {
+    border-color: var(--connection-highlight);
+    box-shadow:
+      0 4px 22px -6px color-mix(in srgb, var(--connection-highlight) 40%, transparent),
+      0 10px 44px -8px color-mix(in srgb, var(--connection-highlight) 22%, transparent);
+  }
   .mobile-carousel-card.loading .mc-art-wrap::after {
     content: '';
     position: absolute; inset: 0;

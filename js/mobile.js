@@ -268,26 +268,31 @@ function selectMobileTrack(nodeId) {
   stopMobilePlayPoll();
   scWidget.unbind(SC.Widget.Events.READY);
   scWidget.unbind(SC.Widget.Events.PLAY);
+  scWidget.unbind(SC.Widget.Events.PAUSE);
 
   const url = useMix ? node.setUrl : node.scTrackUrl;
   // For sets, jump past the intro (e.g. NTS sting) when the track starts at 0:00.
   const offsetSec = useMix ? (node.setOffsetSec || 7) : 0;
+  let didSeek = false;
 
   scWidget.bind(SC.Widget.Events.READY, () => {
     scWidgetReady = true;
     if (card) card.classList.remove('loading');
-    // Bind the pulse to the widget's actual play/pause state.
+    // Poll the widget's real play/pause state (mobile PAUSE events are flaky).
     startMobilePlayPoll(card);
   });
 
-  // On mobile Safari, seekTo doesn't work until the user presses play.
-  // Seek after PLAY event fires instead of after READY.
-  if (offsetSec) {
-    scWidget.bind(SC.Widget.Events.PLAY, () => {
-      setTimeout(() => scWidget.seekTo(offsetSec * 1000), 500);
-      scWidget.unbind(SC.Widget.Events.PLAY);
-    });
-  }
+  // Sync the .playing treatment (border + glow, title marquee) to the SC widget's
+  // own PLAY/PAUSE events so it flips the instant audio starts/stops. The 350ms
+  // poll above is a fallback for mobile Safari's unreliable PAUSE event.
+  scWidget.bind(SC.Widget.Events.PLAY, () => {
+    if (card && card.classList.contains('selected')) card.classList.add('playing');
+    // On mobile Safari, seekTo only works once the user presses play — seek here.
+    if (offsetSec && !didSeek) { didSeek = true; setTimeout(() => scWidget.seekTo(offsetSec * 1000), 500); }
+  });
+  scWidget.bind(SC.Widget.Events.PAUSE, () => {
+    if (card) card.classList.remove('playing');
+  });
 
   scWidget.load(url, { auto_play: true, show_artwork: false, visual: false, show_teaser: false, sharing: false, buying: false, show_user: true, color: 'B5705A' });
 }
