@@ -93,7 +93,7 @@ export function enrichFromCache(audioCache, clusterNodes) {
       node.artUrl = cached.artUrl || null;
       node.setUrl = cached.setUrl || null;
       node.setSource = cached.setSource || null;
-      node.setOffsetSec = cached.setOffsetSec || null;
+      node.setOffsetSec = cached.setOffsetSec ?? null; // keep 0 (real 0:00 offset)
       node.setDj = cached.setDj || null;
       found++;
     } else {
@@ -194,11 +194,12 @@ export function buildCandidates(graphNodes, audioCache) {
   const mcNodes = new Set(
     Object.keys(audioCache).filter(nid => audioCache[nid].source === 'mixcloud_set')
   );
-  // Unplayable = no SC track and no set with offset (after build_kv strips offsetless sets)
+  // Unplayable = no SC track and no set with a known offset. A 0:00 offset counts
+  // as playable (the frontend nudges past the intro), so test against null, not falsy.
   const unplayable = new Set(
     Object.keys(audioCache).filter(nid => {
       const c = audioCache[nid];
-      return !c.scTrackUrl && !(c.setUrl && c.setOffsetSec);
+      return !c.scTrackUrl && !(c.setUrl && c.setOffsetSec != null);
     })
   );
   const ids = Object.keys(graphNodes).filter(nid => {

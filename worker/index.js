@@ -99,7 +99,7 @@ function enrichNodeFromKV(kvNode, graphId, djNameMap = {}) {
     artUrl: kvNode.artUrl || null,
     setUrl: kvNode.setUrl || null,
     setSource: kvNode.setSource || null,
-    setOffsetSec: kvNode.setOffsetSec || null,
+    setOffsetSec: kvNode.setOffsetSec ?? null, // keep 0 (real 0:00 offset)
     setDj: kvNode.setDj || null,
     genres: kvNode.genres || [],
   };

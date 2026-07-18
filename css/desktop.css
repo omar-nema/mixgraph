@@ -1028,7 +1028,7 @@ a.track-title { color: inherit; text-decoration: none; }
   left: 0;
   right: 0;
   display: flex;
-  background: rgba(0, 0, 0, 0.34);
+  background: rgba(0, 0, 0, 0.72);
   border-radius: 0;
   opacity: 0;
   transform: translateY(-100%);
@@ -1069,7 +1069,7 @@ a.track-title { color: inherit; text-decoration: none; }
 .node-card[data-rank="root"] .src-opt .src-ic { width: 13px; height: 13px; }
 .src-opt:hover:not(.active):not(.disabled) { color: #fff; }
 .src-opt.active {
-  background: rgba(0, 0, 0, 0.55);
+  background: rgba(0, 0, 0, 0.85);
   color: #fff;
 }
 .src-opt.disabled {

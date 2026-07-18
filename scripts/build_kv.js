@@ -56,7 +56,7 @@ const enrichedCandidates = candidates.map((id, i) => {
     g: node.genres || [],              // genres
     s: cached.source || 'not_found',   // source
     st: cached.scTrackUrl ? 1 : 0,     // has SC track (for source filter)
-    ss: (cached.setUrl && cached.setOffsetSec) ? (cached.setSource || null) : null, // set source (strip if no offset)
+    ss: (cached.setUrl && cached.setOffsetSec != null) ? (cached.setSource || null) : null, // set source (strip if offset unknown; 0 is a valid 0:00 offset)
     a: (node.artist || '').toLowerCase(), // artist (lowercase for filtering)
     t: (node.title || '').toLowerCase(), // title (lowercase for song search filter)
     e: (node.edges || []).length,       // edge count (for crates 4+ filter)
@@ -139,19 +139,20 @@ for (const [id, node] of Object.entries(graphNodes)) {
     artist: node.artist,
     genres: node.genres || [],
     edges: node.edges || [],
-    // Audio fields — strip set audio if no offset (unplayable without timestamp)
+    // Audio fields — strip set audio only if offset is unknown (null). A 0:00
+    // offset is a real timestamp; the frontend nudges it past the set intro.
     source: (() => {
       const s = cached.source || 'not_found';
-      if ((s === 'soundcloud_set' || s === 'mixcloud_set') && !cached.setOffsetSec)
+      if ((s === 'soundcloud_set' || s === 'mixcloud_set') && cached.setOffsetSec == null)
         return cached.scTrackUrl ? 'soundcloud' : 'not_found';
       return s;
     })(),
     scTrackUrl: cached.scTrackUrl || null,
     artUrl: cached.artUrl || null,
-    setUrl: (cached.setUrl && cached.setOffsetSec) ? cached.setUrl : null,
-    setSource: (cached.setUrl && cached.setOffsetSec) ? (cached.setSource || null) : null,
-    setOffsetSec: cached.setOffsetSec || null,
-    setDj: (cached.setUrl && cached.setOffsetSec) ? (cached.setDj || null) : null,
+    setUrl: (cached.setUrl && cached.setOffsetSec != null) ? cached.setUrl : null,
+    setSource: (cached.setUrl && cached.setOffsetSec != null) ? (cached.setSource || null) : null,
+    setOffsetSec: cached.setOffsetSec ?? null,
+    setDj: (cached.setUrl && cached.setOffsetSec != null) ? (cached.setDj || null) : null,
   };
   const kvKey = `node:${id}`;
   // KV key limit is 512 bytes — skip nodes with keys that are too long

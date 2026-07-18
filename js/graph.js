@@ -219,7 +219,8 @@ function applyMarquee(line) {
   // Distance to scroll = first copy width + gap = where the duplicate begins.
   const shift = Math.round(dup.getBoundingClientRect().left - inner.getBoundingClientRect().left);
   line.style.setProperty('--marquee-shift', `-${shift}px`);
-  line.style.setProperty('--marquee-duration', Math.max(6, Math.round(shift / 45 * 10) / 10) + 's');
+  // ~22.5px/s (half the previous 45px/s) so long titles scroll gently.
+  line.style.setProperty('--marquee-duration', Math.max(12, Math.round(shift / 22.5 * 10) / 10) + 's');
   line.classList.add('has-marquee');
 }
 
