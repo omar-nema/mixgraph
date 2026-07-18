@@ -72,7 +72,7 @@ html { background: #f3f3f8; -webkit-text-size-adjust: 100%; text-size-adjust: 10
 
   /* Font — Matter VF, XH ½SemiMono variant baked into the font file.
      Only the weight axis (300–700) is variable now. */
-  --font: 'Matter VF', 'Space Grotesk', sans-serif;
+  --font: 'Matter VF', system-ui, sans-serif;
 }
 
 /* ═══════════════════════════════════════════
