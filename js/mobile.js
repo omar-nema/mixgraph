@@ -202,9 +202,9 @@ function updateMobileSources(graphId) {
   }
 }
 
-// Polls the SC widget's real play/pause state so a card's pulse is bound to
-// what's actually audible. The SC widget's PAUSE event is unreliable on mobile,
-// so we can't drive .playing off events alone.
+// Polls the SC widget's real play/pause state so .playing (which gates the
+// title/artist marquee) tracks what's actually audible. The SC widget's PAUSE
+// event is unreliable on mobile, so we can't drive .playing off events alone.
 let mobilePlayPoll = null;
 function stopMobilePlayPoll() {
   if (mobilePlayPoll) { clearInterval(mobilePlayPoll); mobilePlayPoll = null; }
@@ -244,14 +244,12 @@ function selectMobileTrack(nodeId) {
   stopMobilePlayPoll();
   document.querySelectorAll('.mobile-carousel-card.selected, .mobile-carousel-card.playing').forEach(c => {
     c.classList.remove('selected', 'loading', 'playing');
-    clearGlow(c);
   });
 
   const card = document.querySelector(`.mobile-carousel-card[data-node-id="${nodeId}"]`);
   if (card) {
     card.classList.add('selected', 'loading');
     card.dataset.selectedSource = source || '';
-    applyGlow(card);   // seed the glow palette used by the .playing pulse
   }
 
   // Mixcloud sets can't load in the SC widget — route them to the MC player.

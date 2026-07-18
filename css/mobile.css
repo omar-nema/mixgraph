@@ -552,27 +552,12 @@
     pointer-events: auto;
   }
   .mobile-carousel-card .src-opt {
-    font-size: 10px;
-    padding: 6px 9px;
+    font-size: 9px;
+    padding: 4px 9px;
     color: rgba(255, 255, 255, 0.78);
   }
   .mobile-carousel-card .src-opt .src-ic { width: 11px; height: 11px; }
   .mobile-carousel-card.selected { border: 2px solid var(--connection-highlight); }
-  /* Pulse + glow only while the SC/MC widget is actually playing (.playing),
-     not merely selected — matches the desktop .node-card.playing treatment. */
-  .mobile-carousel-card.playing {
-    border-color: var(--glow-dark, var(--connection-highlight));
-    box-shadow:
-      0 4px 24px -4px color-mix(in srgb, var(--glow-a, var(--connection-highlight)) 35%, transparent),
-      0 8px 40px -4px color-mix(in srgb, var(--glow-b, var(--connection-highlight)) 20%, transparent);
-    transition: box-shadow 0.8s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.8s cubic-bezier(0.4, 0, 0.2, 1);
-  }
-  .mobile-carousel-card.playing .mc-art-wrap {
-    animation: breathe 3s ease-in-out infinite;
-  }
-  .mobile-carousel-card.playing .mc-art-wrap:has(.no-art) {
-    animation: none;
-  }
   .mobile-carousel-card.loading .mc-art-wrap::after {
     content: '';
     position: absolute; inset: 0;
@@ -580,10 +565,6 @@
     background-size: 200% 100%;
     animation: card-shimmer 2.5s ease-in-out infinite;
     pointer-events: none; z-index: 10;
-  }
-  @keyframes breathe {
-    0%, 100% { transform: scale(1); }
-    50% { transform: scale(1.013); }
   }
 
   .mobile-carousel-card .mc-title {
