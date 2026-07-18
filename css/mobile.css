@@ -552,8 +552,8 @@
     pointer-events: auto;
   }
   .mobile-carousel-card .src-opt {
-    font-size: 9px;
-    padding: 5px 9px;
+    font-size: 10px;
+    padding: 7px 9px;
     color: rgba(255, 255, 255, 0.78);
   }
   .mobile-carousel-card .src-opt .src-ic { width: 11px; height: 11px; }
