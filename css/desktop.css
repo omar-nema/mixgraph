@@ -1035,6 +1035,8 @@ a.track-title { color: inherit; text-decoration: none; }
   right: 0;
   display: flex;
   background: rgba(0, 0, 0, 0.72);
+  -webkit-backdrop-filter: blur(10px) saturate(1.3);
+  backdrop-filter: blur(10px) saturate(1.3);
   border-radius: 0;
   opacity: 0;
   transform: translateY(-100%);
