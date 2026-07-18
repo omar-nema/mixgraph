@@ -206,10 +206,23 @@
     background: var(--connection-highlight);
     border: 1px solid var(--connection-highlight);
     border-radius: 5px;
-    padding: 6px 12px;
+    padding: 0 12px;
     cursor: pointer;
     justify-content: center;
     transition: background 0.15s ease, transform 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  /* Pills and shuffle button share one fixed height so they always line up */
+  .mobile-shuffle-inner .mobile-filter-pill,
+  #mobile-shuffle-area .mobile-shuffle {
+    height: 34px;
+    box-sizing: border-box;
+  }
+  .mobile-shuffle-inner .mobile-filter-pill {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding-top: 0;
+    padding-bottom: 0;
   }
   #mobile-shuffle-area .mobile-shuffle:active { background: var(--accent-bold); }
 
@@ -400,11 +413,11 @@
   #mobile-help-panel {
     display: none;
     position: fixed;
-    top: calc(48px + env(safe-area-inset-top, 0px));
+    top: calc(58px + env(safe-area-inset-top, 0px));
     right: 8px;
     z-index: 310;
     width: calc(100vw - 16px);
-    max-height: calc(100vh - 64px - env(safe-area-inset-top, 0px));
+    max-height: calc(100vh - 74px - env(safe-area-inset-top, 0px));
     overflow-y: auto;
     background: color-mix(in srgb, var(--bg) 92%, transparent);
     -webkit-backdrop-filter: blur(20px) saturate(1.4);
@@ -804,32 +817,48 @@
    ═══════════════════════════════════════════ */
 @media (min-width: 420px) and (max-width: 768px) {
   /* Mode tabs (Track / Mix) */
-  #mobile-mode-tabs { height: 36px; }
+  #mobile-mode-tabs { height: 40px; }
   #mobile-mode-tabs .mode-tab {
-    font-size: 13px;
-    padding: 0px 22px;
+    font-size: 14px;
+    padding: 0px 24px;
   }
 
   /* Header icon buttons — keep help/share aligned with the taller tabs */
   #mobile-help-btn,
   body:not(.crates-mode) #mobile-header-share,
   #mobile-filter-toggle {
-    width: 36px;
-    height: 36px;
+    width: 40px;
+    height: 40px;
   }
-  #mobile-help-btn { font-size: 18px; }
+  #mobile-help-btn { font-size: 20px; }
 
-  /* Shuffle button */
+  /* Shuffle button + filter pills — bigger font, taller, still matched height */
+  .mobile-shuffle-inner .mobile-filter-pill,
   #mobile-shuffle-area .mobile-shuffle {
-    font-size: 15px;
-    padding: 8px 14px;
+    height: 40px;
   }
+  #mobile-shuffle-area .mobile-shuffle { font-size: 16px; }
+  .mobile-shuffle-inner .mobile-filter-pill { font-size: 15px; }
 
   /* Source pills row */
   .mobile-source-label,
   .mobile-source-pills, .mobile-genre-pills,
   .mobile-source-pill, .mobile-genre-pill,
   .mobile-source-sep {
-    font-size: 14px;
+    font-size: 15px;
   }
+
+  /* Carousel card track / artist names */
+  .mobile-carousel-card .mc-title { font-size: 16px; }
+  .mobile-carousel-card .mc-artist { font-size: 14px; }
+
+  /* Smaller card labels — "if you like this track, swipe", DJ line, back link */
+  .mobile-carousel-card .mc-context,
+  .mobile-carousel-card .mc-dj,
+  .mc-back { font-size: 12px; }
+
+  /* Dig page — crate card text +2px */
+  .crate-info .ci-title { font-size: 15px; }
+  .crate-info .ci-artist { font-size: 13px; }
+  .crate-info .ci-count { font-size: 11px; }
 }
