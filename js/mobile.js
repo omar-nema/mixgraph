@@ -321,6 +321,7 @@ function makeCarouselCard(node) {
     <div class="mc-art-wrap">
       ${mobileArtHtml(node)}
       ${renderSourceToggle(node)}
+      ${hasAudio ? `<span class="source-badge">${EQ_BARS_HTML}</span>` : ''}
     </div>
     <div class="mc-info-row">
       <div class="mc-info-text">

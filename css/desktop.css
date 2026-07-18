@@ -999,28 +999,34 @@ a.track-title { color: inherit; text-decoration: none; }
   width: 2.5px;
   background: #fff;
   border-radius: 1.5px;
-  height: 2px;
+  height: var(--eq-max, 11px);
+  transform: scaleY(0.2);
+  transform-origin: bottom center;
+  will-change: transform;
 }
 .node-card.playing .source-badge {
   opacity: 1;
 }
+/* Equalizer: animate transform (GPU-composited) instead of height so it stays
+   smooth. Per-bar --eq-max / --eq-dur / negative delay give each bar its own
+   size + cadence and start it mid-cycle, so the group looks organic instantly.
+   Shared by desktop (.node-card) and mobile (.mobile-carousel-card). */
 .node-card.playing .source-badge .eq-bar {
-  animation: eq-bounce var(--eq-dur, 0.8s) cubic-bezier(0.4, 0, 0.2, 1) infinite alternate;
+  animation: eq-bounce var(--eq-dur, 0.9s) ease-in-out infinite;
 }
-.node-card.playing .source-badge .eq-bar:nth-child(1) { --eq-dur: 0.43s; animation-delay: 0s; }
-.node-card.playing .source-badge .eq-bar:nth-child(2) { --eq-dur: 0.56s; animation-delay: 0.12s; }
-.node-card.playing .source-badge .eq-bar:nth-child(3) { --eq-dur: 0.38s; animation-delay: 0.07s; }
-.node-card.playing .source-badge .eq-bar:nth-child(4) { --eq-dur: 0.52s; animation-delay: 0.2s; }
-.node-card.playing .source-badge .eq-bar:nth-child(5) { --eq-dur: 0.34s; animation-delay: 0.15s; }
 @keyframes eq-bounce {
-  0%   { height: 2px; }
-  100% { height: var(--eq-max, 11px); }
+  0%   { transform: scaleY(0.22); }
+  22%  { transform: scaleY(0.85); }
+  44%  { transform: scaleY(0.38); }
+  66%  { transform: scaleY(1); }
+  82%  { transform: scaleY(0.5); }
+  100% { transform: scaleY(0.28); }
 }
-.source-badge .eq-bar:nth-child(1) { --eq-max: 8px; }
-.source-badge .eq-bar:nth-child(2) { --eq-max: 14px; }
-.source-badge .eq-bar:nth-child(3) { --eq-max: 6px; }
-.source-badge .eq-bar:nth-child(4) { --eq-max: 12px; }
-.source-badge .eq-bar:nth-child(5) { --eq-max: 10px; }
+.source-badge .eq-bar:nth-child(1) { --eq-max: 8px;  --eq-dur: 0.9s;  animation-delay: 0s; }
+.source-badge .eq-bar:nth-child(2) { --eq-max: 14px; --eq-dur: 1.15s; animation-delay: -0.35s; }
+.source-badge .eq-bar:nth-child(3) { --eq-max: 6px;  --eq-dur: 0.8s;  animation-delay: -0.6s; }
+.source-badge .eq-bar:nth-child(4) { --eq-max: 12px; --eq-dur: 1.05s; animation-delay: -0.15s; }
+.source-badge .eq-bar:nth-child(5) { --eq-max: 10px; --eq-dur: 0.75s; animation-delay: -0.5s; }
 /* "track" / "mix" source toggle — full-width bar across the top of the art */
 .source-toggle {
   position: absolute;

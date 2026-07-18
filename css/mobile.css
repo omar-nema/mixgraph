@@ -557,7 +557,7 @@
     padding: 0 9px;
     color: rgba(255, 255, 255, 0.78);
   }
-  .mobile-carousel-card .src-opt .src-ic { width: 11px; height: 11px; }
+  .mobile-carousel-card .src-opt .src-ic { display: none; }
   .mobile-carousel-card {
     transition: box-shadow 0.35s ease, border-color 0.35s ease;
   }
@@ -572,6 +572,17 @@
     box-shadow:
       0 4px 22px -6px color-mix(in srgb, var(--connection-highlight) 40%, transparent),
       0 10px 44px -8px color-mix(in srgb, var(--connection-highlight) 22%, transparent);
+  }
+  /* Equalizer badge on the art — reuses the shared .source-badge / eq-bounce
+     styles from desktop.css; only shown while actually playing. */
+  .mobile-carousel-card .source-badge {
+    bottom: 8px;
+    right: 8px;
+    z-index: 6;
+  }
+  .mobile-carousel-card.playing .source-badge { opacity: 1; }
+  .mobile-carousel-card.playing .source-badge .eq-bar {
+    animation: eq-bounce var(--eq-dur, 0.9s) ease-in-out infinite;
   }
   .mobile-carousel-card.loading .mc-art-wrap::after {
     content: '';
@@ -783,4 +794,42 @@
   .card-dots .x-line { opacity: 0; transition: opacity 0.2s ease; }
   .card-dots.dots-open .dot { opacity: 0; }
   .card-dots.dots-open .x-line { opacity: 1; }
+}
+
+/* ═══════════════════════════════════════════
+   Large phones only — iPhone 12/13/14 Pro Max & up (≥ 420px wide)
+   Bumps Shuffle-layout buttons + their fonts a touch larger.
+   420px sits between the 12 Pro (390px) and 12 Pro Max (428px),
+   so the smaller phones are untouched.
+   ═══════════════════════════════════════════ */
+@media (min-width: 420px) and (max-width: 768px) {
+  /* Mode tabs (Track / Mix) */
+  #mobile-mode-tabs { height: 36px; }
+  #mobile-mode-tabs .mode-tab {
+    font-size: 13px;
+    padding: 0px 22px;
+  }
+
+  /* Header icon buttons — keep help/share aligned with the taller tabs */
+  #mobile-help-btn,
+  body:not(.crates-mode) #mobile-header-share,
+  #mobile-filter-toggle {
+    width: 36px;
+    height: 36px;
+  }
+  #mobile-help-btn { font-size: 18px; }
+
+  /* Shuffle button */
+  #mobile-shuffle-area .mobile-shuffle {
+    font-size: 15px;
+    padding: 8px 14px;
+  }
+
+  /* Source pills row */
+  .mobile-source-label,
+  .mobile-source-pills, .mobile-genre-pills,
+  .mobile-source-pill, .mobile-genre-pill,
+  .mobile-source-sep {
+    font-size: 14px;
+  }
 }
