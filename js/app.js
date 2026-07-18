@@ -1762,6 +1762,22 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('dev-panel').classList.toggle('open');
   });
 
+  // ── Font variant switcher (Matter VF: XHGT + MONO axes) ──
+  const fontVariant = document.getElementById('font-variant');
+  if (fontVariant) {
+    const applyFontVariant = (val) => {
+      const [xhgt, mono] = val.split(',');
+      document.documentElement.style.setProperty('--font-xhgt', xhgt);
+      document.documentElement.style.setProperty('--font-mono', mono);
+    };
+    const savedFont = localStorage.getItem('b2b-font-variant');
+    if (savedFont) { fontVariant.value = savedFont; applyFontVariant(savedFont); }
+    fontVariant.addEventListener('change', (e) => {
+      applyFontVariant(e.target.value);
+      localStorage.setItem('b2b-font-variant', e.target.value);
+    });
+  }
+
   // ── Gradient art knobs ──
   const ftTurb = document.getElementById('ft-turb');
   const ftDisplace = document.getElementById('ft-displace');

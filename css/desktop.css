@@ -1,4 +1,17 @@
 /* ═══════════════════════════════════════════
+   Fonts — Matter Collection VF (TRIAL)
+   One variable font; the dev-panel "font" dropdown switches sub-family
+   by driving the XHGT (x-height) + MONO (mono-ness) axes via CSS vars.
+   ═══════════════════════════════════════════ */
+@font-face {
+  font-family: 'Matter VF';
+  src: url('../fonts/MatterCollectionVF-TRIAL.woff2') format('woff2-variations');
+  font-weight: 100 1000;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* ═══════════════════════════════════════════
    Design Tokens
    ═══════════════════════════════════════════ */
 html { background: #f3f3f8; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
@@ -56,8 +69,11 @@ html { background: #f3f3f8; -webkit-text-size-adjust: 100%; text-size-adjust: 10
   --card-shadow: 0 1px 4px rgba(42, 37, 32, 0.04);
   --card-hover-shadow: 0 4px 20px rgba(42, 37, 32, 0.08);
 
-  /* Font */
-  --font: 'Space Grotesk', sans-serif;
+  /* Font — Matter VF. Sub-family = combination of these two axes.
+     Default is Matter XH ½SemiMono (XHGT 100, MONO 30). Switched via dev panel. */
+  --font: 'Matter VF', 'Space Grotesk', sans-serif;
+  --font-xhgt: 100;
+  --font-mono: 30;
 }
 
 /* ═══════════════════════════════════════════
@@ -180,11 +196,17 @@ body.night #dev-panel { background: #1a1a1a; border-color: #333; }
 }
 button, input, select, textarea {
   font-family: inherit;
+  /* Form controls don't inherit font-variation-settings by default (UA resets
+     it to normal), so the Matter axes are lost on buttons/inputs and their
+     child spans. Force inheritance so every control renders the chosen variant. */
+  font-variation-settings: inherit;
 }
 
 body {
   background: var(--bg);
   font-family: var(--font);
+  font-weight: 400;
+  font-variation-settings: 'XHGT' var(--font-xhgt), 'MONO' var(--font-mono);
   color: var(--text-primary);
   margin: 0;
   padding: 7px 10px 10px;
