@@ -107,7 +107,7 @@
     border: none;
     border-radius: var(--card-radius);
     padding: 2px;
-    height: 32px;
+    height: 29px;
     box-sizing: border-box;
     align-items: center;
   }
@@ -214,7 +214,7 @@
   /* Pills and shuffle button share one fixed height so they always line up */
   .mobile-shuffle-inner .mobile-filter-pill,
   #mobile-shuffle-area .mobile-shuffle {
-    height: 34px;
+    height: 31px;
     box-sizing: border-box;
   }
   .mobile-shuffle-inner .mobile-filter-pill {
@@ -343,7 +343,7 @@
   #mobile-help-btn {
     display: flex;
     width: 32px;
-    height: 32px;
+    height: 29px;
     align-items: center;
     justify-content: center;
     background: var(--card-bg);
@@ -364,7 +364,7 @@
   body:not(.crates-mode) #mobile-header-share {
     display: flex;
     width: 32px;
-    height: 32px;
+    height: 29px;
     align-items: center;
     justify-content: center;
     background: var(--card-bg);
@@ -817,7 +817,7 @@
    ═══════════════════════════════════════════ */
 @media (min-width: 420px) and (max-width: 768px) {
   /* Mode tabs (Track / Mix) */
-  #mobile-mode-tabs { height: 40px; }
+  #mobile-mode-tabs { height: 37px; }
   #mobile-mode-tabs .mode-tab {
     font-size: 14px;
     padding: 0px 24px;
@@ -828,14 +828,14 @@
   body:not(.crates-mode) #mobile-header-share,
   #mobile-filter-toggle {
     width: 40px;
-    height: 40px;
+    height: 37px;
   }
   #mobile-help-btn { font-size: 20px; }
 
   /* Shuffle button + filter pills — bigger font, taller, still matched height */
   .mobile-shuffle-inner .mobile-filter-pill,
   #mobile-shuffle-area .mobile-shuffle {
-    height: 40px;
+    height: 37px;
   }
   #mobile-shuffle-area .mobile-shuffle { font-size: 16px; }
   .mobile-shuffle-inner .mobile-filter-pill { font-size: 15px; }
