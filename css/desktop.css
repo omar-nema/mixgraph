@@ -1,12 +1,13 @@
 /* ═══════════════════════════════════════════
-   Fonts — Matter Collection VF (TRIAL)
-   One variable font; the dev-panel "font" dropdown switches sub-family
-   by driving the XHGT (x-height) + MONO (mono-ness) axes via CSS vars.
+   Fonts — Matter VF (TRIAL), subset
+   Instanced to the "XH ½SemiMono" variant (XHGT 100, MONO 30, slnt 0) and
+   subset to Latin + Latin-Ext. Only the weight axis (300–700) remains
+   variable. ~100KB vs 449KB for the full multi-axis collection.
    ═══════════════════════════════════════════ */
 @font-face {
   font-family: 'Matter VF';
-  src: url('../fonts/MatterCollectionVF-TRIAL.woff2') format('woff2-variations');
-  font-weight: 100 1000;
+  src: url('../fonts/MatterVF-XH-SemiMono.woff2') format('woff2-variations');
+  font-weight: 300 700;
   font-style: normal;
   font-display: swap;
 }
@@ -52,14 +53,14 @@ html { background: #f3f3f8; -webkit-text-size-adjust: 100%; text-size-adjust: 10
   --connection-width: 1.5;
 
   /* Card sizes */
-  --card-root-width: 280px;
-  --card-r1-width: 180px;
-  --card-r2-width: 155px;
+  --card-root-width: 252px;
+  --card-r1-width: 169px;
+  --card-r2-width: 169px;
 
   /* Art sizes */
-  --art-root: 254px;
-  --art-r1: 150px;
-  --art-r2: 125px;
+  --art-root: 229px;
+  --art-r1: 142px;
+  --art-r2: 142px;
 
   /* Radius */
   --card-radius: 12px;
@@ -69,11 +70,9 @@ html { background: #f3f3f8; -webkit-text-size-adjust: 100%; text-size-adjust: 10
   --card-shadow: 0 1px 4px rgba(42, 37, 32, 0.04);
   --card-hover-shadow: 0 4px 20px rgba(42, 37, 32, 0.08);
 
-  /* Font — Matter VF. Sub-family = combination of these two axes.
-     Default is Matter XH ½SemiMono (XHGT 100, MONO 30). Switched via dev panel. */
+  /* Font — Matter VF, XH ½SemiMono variant baked into the font file.
+     Only the weight axis (300–700) is variable now. */
   --font: 'Matter VF', 'Space Grotesk', sans-serif;
-  --font-xhgt: 100;
-  --font-mono: 30;
 }
 
 /* ═══════════════════════════════════════════
@@ -135,7 +134,7 @@ body.night .mode-tab.active { background: none; color: var(--connection-highligh
 body.night #mode-tabs { background: none; }
 body.night #mobile-mode-tabs { background: var(--toolbar-btn-bg); }
 body.night #mc-player { background: var(--bg); }
-body.night .help-diagram { background: var(--toolbar-btn-bg); }
+body.night .help-diagram { background: transparent; }
 body.night .help-diagram rect[fill="#faf7f4"] { fill: var(--card-bg); }
 body.night .help-diagram rect[fill="#e8e2db"] { fill: var(--surface-elevated); }
 body.night .help-diagram rect[fill="#FAF7F4"] { fill: var(--card-bg); }
@@ -196,17 +195,12 @@ body.night #dev-panel { background: #1a1a1a; border-color: #333; }
 }
 button, input, select, textarea {
   font-family: inherit;
-  /* Form controls don't inherit font-variation-settings by default (UA resets
-     it to normal), so the Matter axes are lost on buttons/inputs and their
-     child spans. Force inheritance so every control renders the chosen variant. */
-  font-variation-settings: inherit;
 }
 
 body {
   background: var(--bg);
   font-family: var(--font);
   font-weight: 400;
-  font-variation-settings: 'XHGT' var(--font-xhgt), 'MONO' var(--font-mono);
   color: var(--text-primary);
   margin: 0;
   padding: 7px 10px 10px;
@@ -344,7 +338,7 @@ body.night .card-footer button:active { background: rgba(255,255,255,0.1); }
 body.night .mode-tab:not(.active):hover { background: none; }
 .mode-tab.active {
   color: var(--connection-highlight);
-  font-weight: 500;
+  font-weight: 400;
   border-bottom: 2px solid transparent;
   background: none;
   box-shadow: none;
@@ -528,7 +522,7 @@ body.night .mode-tab.active { color: var(--connection-highlight); background: no
   overflow: hidden;
   position: relative;
   display: flex;
-  justify-content: center;
+  justify-content: flex-start;
   z-index: 1;
   max-width: 1750px;
   margin: 0 auto;
@@ -602,7 +596,7 @@ body.night .genre-tooltip {
 
 #graph-container {
   position: relative;
-  transform-origin: center top;
+  transform-origin: left top;
   transition: transform 0.3s ease;
 }
 
@@ -621,7 +615,7 @@ body.night .genre-tooltip {
 }
 #filter-clear {
   font-size: 12px;
-  font-weight: 500;
+  font-weight: 400;
   color: var(--connection-highlight);
   background: none;
   border: none;
@@ -659,7 +653,7 @@ body.night .genre-tooltip {
   border: 1px solid var(--card-border);
   border-radius: var(--card-radius);
   box-shadow: var(--card-shadow);
-  padding: 13px;
+  padding: 12px;
   cursor: default;
   transition: box-shadow 0.25s ease;
   overflow: hidden;
@@ -715,23 +709,54 @@ body.night .genre-tooltip {
   height: var(--art-r2);
 }
 
-/* Text — 2-line clamp with tooltip for overflow */
+/* Text — all three card lines are a single line with ellipsis. The play-time
+   marquee reveals any that are cut off (see setupCardMarquees). */
 .node-card .track-title,
 .node-card .artist-name,
 .node-card .dj-line {
+  display: block;
+  white-space: nowrap;
   overflow: hidden;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-}
-.node-card .dj-line.expanded {
-  -webkit-line-clamp: unset;
+  text-overflow: ellipsis;
 }
 
 .node-card .track-title {
   font-weight: 700;
   line-height: 1.3;
   margin-bottom: 4px;
+}
+
+/* ── Line marquee ──
+   At rest each line is a single line with ellipsis. When the card is playing
+   (and a line is cut off — .has-marquee set by setupCardMarquees), a duplicate
+   copy is appended after a gap and the pair scrolls continuously, so the text
+   wraps around Spotify-style rather than ping-ponging. */
+.node-card.playing .track-title.has-marquee,
+.node-card.playing .artist-name.has-marquee,
+.node-card.playing .dj-line.has-marquee {
+  text-overflow: clip;
+}
+.node-card.playing .track-title.has-marquee .tt-inner,
+.node-card.playing .artist-name.has-marquee .tt-inner,
+.node-card.playing .dj-line.has-marquee .tt-inner {
+  display: inline-block;
+  white-space: nowrap;
+  will-change: transform;
+  animation: marquee-wrap var(--marquee-duration, 8s) linear infinite;
+}
+/* gap between the two copies (only rendered while marqueeing) */
+.tt-dup {
+  margin-left: 3rem;
+  pointer-events: none;
+}
+@keyframes marquee-wrap {
+  0%, 10% { transform: translateX(0); }
+  100%    { transform: translateX(var(--marquee-shift, 0px)); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .node-card.playing .track-title.has-marquee .tt-inner,
+  .node-card.playing .artist-name.has-marquee .tt-inner,
+  .node-card.playing .dj-line.has-marquee .tt-inner { animation: none; }
 }
 .node-card .artist-name {
   font-weight: 300;
@@ -762,6 +787,7 @@ body.night .genre-tooltip {
 }
 .track-ctx-trigger {
   width: fit-content;
+  max-width: 100%;
 }
 .artist-ctx-trigger:hover,
 .track-ctx-trigger:hover,
@@ -770,49 +796,39 @@ body.night .genre-tooltip {
   background: var(--accent-wash);
 }
 
-.node-card[data-rank="root"] .track-title { font-size: 22px; }
-.node-card[data-rank="root"] .artist-name { font-size: 18px; }
-.node-card[data-rank="1"] .track-title { font-size: 17px; }
-.node-card[data-rank="1"] .artist-name { font-size: 14px; }
-.node-card[data-rank="2"] .track-title { font-size: 16px; }
-.node-card[data-rank="2"] .artist-name { font-size: 14px; }
+.node-card[data-rank="root"] .track-title { font-size: 20px; }
+.node-card[data-rank="root"] .artist-name { font-size: 16px; }
+.node-card[data-rank="1"] .track-title { font-size: 15px; }
+.node-card[data-rank="1"] .artist-name { font-size: 13px; }
+.node-card[data-rank="2"] .track-title { font-size: 15px; }
+.node-card[data-rank="2"] .artist-name { font-size: 13px; }
 
 .node-card .dj-line {
   font-weight: 300;
   color: var(--text-tertiary);
   line-height: 1.3;
 }
-.node-card[data-rank="root"] .dj-line { font-size: 18px; }
-.node-card[data-rank="1"] .dj-line { font-size: 14px; }
+.node-card[data-rank="root"] .dj-line { font-size: 16px; }
+.node-card[data-rank="1"] .dj-line { font-size: 13px; }
 .node-card[data-rank="2"] .dj-line { font-size: 13px; }
 
-a.track-title,
 .dj-line a {
   text-decoration: underline;
   text-underline-offset: 2px;
   text-decoration-color: var(--card-border);
   transition: color 0.15s ease, text-decoration-color 0.15s ease;
 }
-a.track-title { color: inherit; }
+a.track-title { color: inherit; text-decoration: none; }
+.node-card .track-title:hover {
+  text-decoration: underline;
+  text-decoration-color: var(--text-secondary);
+  text-underline-offset: 2px;
+}
 .dj-line a { color: var(--text-tertiary); }
-a.track-title:hover { text-decoration-color: var(--text-secondary); }
 .dj-line a:hover {
   color: var(--text-primary);
   text-decoration-color: var(--text-secondary);
 }
-.dj-more {
-  font-size: inherit;
-  font-weight: 300;
-  color: var(--text-tertiary);
-  background: none;
-  border: none;
-  padding: 0;
-  cursor: pointer;
-}
-.dj-more:hover {
-  color: var(--text-primary);
-}
-
 /* ═══════════════════════════════════════════
    Connection Paths
    ═══════════════════════════════════════════ */
@@ -849,6 +865,9 @@ a.track-title:hover { text-decoration-color: var(--text-secondary); }
 
 .art-wrap .album-art {
   margin-bottom: 0;
+  /* art-wrap already clips with overflow:hidden + radius; a radius on the image
+     too rasterizes 1px off and leaks a hairline of art past the square toggle */
+  border-radius: 0;
 }
 
 .play-btn {
@@ -872,16 +891,23 @@ a.track-title:hover { text-decoration-color: var(--text-secondary); }
   opacity: 1;
 }
 
+/* Frosted circular background to match the source toggle */
 .play-btn svg {
-  width: 32px;
-  height: 32px;
+  width: 40px;
+  height: 40px;
   fill: #fff;
-  filter: drop-shadow(0 1px 4px rgba(0,0,0,0.3));
-  transition: transform 0.15s ease;
+  padding: 13px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.32);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.22);
+  transition: transform 0.15s ease, background 0.15s ease;
 }
 
 .play-btn:hover svg {
-  transform: scale(1.1);
+  transform: scale(1.06);
+  background: rgba(0, 0, 0, 0.46);
 }
 
 .node-card.playing {
@@ -954,7 +980,7 @@ a.track-title:hover { text-decoration-color: var(--text-secondary); }
 /* Source badge (SoundCloud logo) */
 .source-badge {
   position: absolute;
-  top: 6px;
+  bottom: 12px;
   right: 6px;
   display: flex;
   align-items: flex-end;
@@ -995,28 +1021,93 @@ a.track-title:hover { text-decoration-color: var(--text-secondary); }
 .source-badge .eq-bar:nth-child(3) { --eq-max: 6px; }
 .source-badge .eq-bar:nth-child(4) { --eq-max: 12px; }
 .source-badge .eq-bar:nth-child(5) { --eq-max: 10px; }
-/* "from set" label at top of art */
-.from-set-label {
+/* "track" / "mix" source toggle — full-width bar across the top of the art */
+.source-toggle {
   position: absolute;
-  top: 6px;
+  top: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  background: rgba(0, 0, 0, 0.34);
+  border-radius: 0;
+  opacity: 0;
+  transform: translateY(-100%);
+  pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  z-index: 5;
+}
+.art-wrap:hover .source-toggle,
+.node-card.playing .source-toggle {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+.src-opt {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.72);
+  font-family: inherit;
+  font-size: 9px;
+  font-weight: 400;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  padding: 6px 8px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.src-opt .src-ic {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+}
+.node-card[data-rank="root"] .src-opt .src-ic { width: 13px; height: 13px; }
+.src-opt:hover:not(.active):not(.disabled) { color: #fff; }
+.src-opt.active {
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+}
+.src-opt.disabled {
+  color: rgba(255, 255, 255, 0.4);
+  cursor: default;
+}
+/* 1-line explanation when a disabled option is hovered. Anchored to the toggle
+   (which is centered on the art) so it never clips against overflow:hidden. */
+.source-toggle::after {
+  content: attr(data-disabled-tip);
+  position: absolute;
+  top: calc(100% + 7px);
   left: 50%;
   transform: translateX(-50%);
-  font-size: 9px;
-  color: #fff;
-  background: rgba(0, 0, 0, 0.55);
+  max-width: 148px;
+  width: max-content;
+  background: rgba(0, 0, 0, 0.82);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
-  border-radius: 4px;
-  padding: 2px 6px;
-  white-space: nowrap;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 400;
+  line-height: 1.3;
+  text-align: center;
+  letter-spacing: 0;
+  padding: 5px 8px;
+  border-radius: 6px;
+  white-space: normal;
   opacity: 0;
   pointer-events: none;
-  transition: opacity 0.3s ease;
-  z-index: 4;
+  transition: opacity 0.15s ease;
+  z-index: 10;
 }
-.node-card.playing[data-source="set"] .from-set-label {
-  opacity: 1;
-}
+.source-toggle:has(.src-opt.disabled:hover)::after { opacity: 1; }
+/* Larger cards get a slightly taller bar */
+.node-card[data-rank="root"] .src-opt { font-size: 11px; padding: 9px 12px; }
+.node-card[data-rank="1"] .src-opt,
+.node-card[data-rank="2"] .src-opt { font-size: 9px; padding: 7px 10px; }
 
 /* No-artwork badge */
 .album-art.no-art::after {
@@ -1173,7 +1264,7 @@ a.track-title:hover { text-decoration-color: var(--text-secondary); }
 }
 #filter-row .filter-label {
   font-size: 16px;
-  font-weight: 500;
+  font-weight: 400;
   color: var(--text-secondary);
   flex-shrink: 0;
 }
@@ -1298,7 +1389,7 @@ a.track-title:hover { text-decoration-color: var(--text-secondary); }
 }
 #filter-search-ac .ac-type {
   font-size: 11px;
-  font-weight: 500;
+  font-weight: 400;
   text-transform: uppercase;
   letter-spacing: 0.5px;
   color: var(--text-tertiary);
@@ -1431,7 +1522,7 @@ body.night .filter-popover { background: var(--surface-elevated); box-shadow: 0 
 
 .popover-clear {
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 400;
   color: var(--text-primary);
   background: none;
   border: none;
@@ -1629,7 +1720,7 @@ body.night #card-context-menu {
   border-color: transparent;
   padding: 6px 12px;
   color: var(--text-tertiary);
-  font-weight: 500;
+  font-weight: 400;
 }
 .genre-pill.genre-more-pill:hover {
   color: var(--text-primary);
@@ -1719,7 +1810,7 @@ body.night #card-context-menu {
 }
 #help-modal h2 {
   font-size: 22px;
-  font-weight: 500;
+  font-weight: 400;
   color: var(--text-primary);
   margin-bottom: 16px;
 }
@@ -1740,9 +1831,11 @@ body.night #card-context-menu {
   padding: 1px 6px;
 }
 .help-diagram {
-  width: 130%;
-  margin-top: 20px;
-  margin-left: -15%;
+  display: block;
+  width: auto;
+  height: min(42vh, 440px);
+  max-width: 100%;
+  margin: 20px auto 0;
   border-radius: 10px;
 }
 
@@ -2133,7 +2226,7 @@ body.night #card-context-menu {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.ac-item .ac-parent { font-weight: 500; }
+.ac-item .ac-parent { font-weight: 400; }
 .ac-no-results { color: var(--text-secondary); pointer-events: none; cursor: default; }
 
 /* Active artist filter indicator */

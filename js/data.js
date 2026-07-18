@@ -21,14 +21,15 @@ let edges = [];
 let nodeMap = {};
 let currentCluster = null;
 let onClusterShown = null;  // hook called after showCluster renders
+let selectedAudioSources = {};  // nodeId -> 'track' | 'mix' (user's per-card source choice)
 
-const cardWidths = { 'root': 280, '1': 180, '2': 155 };
+const cardWidths = { 'root': 252, '1': 169, '2': 169 };
 // Measured heights per node id, populated after first render pass
 let measuredHeights = {};
 function cardDimFor(node) {
   return { w: cardWidths[node.rank], h: measuredHeights[node.id] || fallbackH(node.rank) };
 }
-function fallbackH(rank) { return rank === 'root' ? 310 : rank === '1' ? 260 : 240; }
+function fallbackH(rank) { return rank === 'root' ? 279 : 230; }
 
 // ═══════════════════════════════════════════
 // SVG icons
@@ -36,6 +37,10 @@ function fallbackH(rank) { return rank === 'root' ? 310 : rank === '1' ? 260 : 2
 const PLAY_SVG = '<svg viewBox="0 0 24 24"><polygon points="6,3 20,12 6,21"/></svg>';
 const PAUSE_SVG = '<svg viewBox="0 0 24 24"><rect x="5" y="3" width="4" height="18"/><rect x="15" y="3" width="4" height="18"/></svg>';
 const EQ_BARS_HTML = '<span class="eq-bar"></span><span class="eq-bar"></span><span class="eq-bar"></span><span class="eq-bar"></span><span class="eq-bar"></span>';
+// Source-toggle icons: a single music note (track) and a vinyl disc (DJ mix)
+const TRACK_ICON = '<svg class="src-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3" fill="currentColor" stroke="none"/><circle cx="18" cy="16" r="3" fill="currentColor" stroke="none"/></svg>';
+// Vinyl record — mirrors the back2back favicon (disc, label ring, hole, glint)
+const MIX_ICON = '<svg class="src-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4.3"/><circle cx="12" cy="12" r="1.1" fill="currentColor" stroke="none"/><line x1="18.4" y1="5.6" x2="15.2" y2="8.8"/></svg>';
 
 // ═══════════════════════════════════════════
 // Glow palettes
@@ -74,6 +79,110 @@ function clearGlow(card) {
   card.style.removeProperty('--glow-a');
   card.style.removeProperty('--glow-b');
   card.style.removeProperty('--glow-dark');
+}
+
+// ═══════════════════════════════════════════
+// "from track" / "from mix" source selector
+// ═══════════════════════════════════════════
+// Every enriched node can have an isolated track (scTrackUrl) and/or the DJ
+// set it appeared in (setUrl at setOffsetSec). This toggle lets the user pick
+// which one plays. Default is the isolated track when both exist.
+const MIX_UNAVAILABLE_TOOLTIP = "This song is only available as its own track";
+
+// Tooltip shown when "from track" is disabled — names the DJ set the song lives in.
+function trackUnavailableTooltip(node) {
+  const djNames = (node.djs || []).map(d => d.name).filter(Boolean);
+  const djLabel = djNames.length ? djNames.join(' & ') : (node.setDj || '');
+  return djLabel
+    ? `This song is available only mixed through ${djLabel}’s set`
+    : 'This song is available only mixed through a DJ set';
+}
+
+function getDefaultAudioSource(node) {
+  if (node && node.scTrackUrl) return 'track';
+  if (node && node.setUrl) return 'mix';
+  return null;
+}
+
+// Resolve the effective source for a node, falling back if the stored choice
+// points at a source the node doesn't actually have.
+function getSelectedAudioSource(nodeId) {
+  const node = nodeMap[nodeId];
+  if (!node) return null;
+  const sel = selectedAudioSources[nodeId];
+  if (sel === 'track' && node.scTrackUrl) return 'track';
+  if (sel === 'mix' && node.setUrl) return 'mix';
+  const def = getDefaultAudioSource(node);
+  if (def) selectedAudioSources[nodeId] = def;
+  return def;
+}
+
+function setSelectedAudioSource(nodeId, source) {
+  const node = nodeMap[nodeId];
+  if (!node) return null;
+  if (source === 'track' && !node.scTrackUrl) return getSelectedAudioSource(nodeId);
+  if (source === 'mix' && !node.setUrl) return getSelectedAudioSource(nodeId);
+  selectedAudioSources[nodeId] = source;
+  syncSourceToggleUI(nodeId);
+  return source;
+}
+
+// Keep every rendered toggle for this node in sync with the stored choice.
+function syncSourceToggleUI(nodeId) {
+  const selected = getSelectedAudioSource(nodeId);
+  document.querySelectorAll('.source-toggle').forEach(toggle => {
+    if (toggle.dataset.nodeId !== String(nodeId)) return;
+    toggle.dataset.selected = selected || '';
+    toggle.querySelectorAll('.src-opt').forEach(btn => {
+      const active = btn.dataset.source === selected;
+      btn.classList.toggle('active', active);
+      btn.setAttribute('aria-pressed', active ? 'true' : 'false');
+    });
+  });
+}
+
+function renderSourceToggle(node) {
+  if (!node || !(node.scTrackUrl || node.setUrl)) return '';
+  const selected = selectedAudioSources[node.id] || getDefaultAudioSource(node);
+  selectedAudioSources[node.id] = selected;
+  const trackTip = trackUnavailableTooltip(node);
+  const opt = (src, label, available) => {
+    const active = selected === src;
+    const tip = available ? '' : (src === 'track' ? trackTip : MIX_UNAVAILABLE_TOOLTIP);
+    const icon = src === 'track' ? TRACK_ICON : MIX_ICON;
+    return `<button type="button" class="src-opt${active ? ' active' : ''}${available ? '' : ' disabled'}"`
+      + ` data-source="${src}" aria-pressed="${active ? 'true' : 'false'}" aria-disabled="${available ? 'false' : 'true'}"`
+      + (tip ? ` data-tip="${tip}"` : '') + `>${icon}<span class="src-label">${label}</span></button>`;
+  };
+  const disabledTip = !node.scTrackUrl ? trackTip : (!node.setUrl ? MIX_UNAVAILABLE_TOOLTIP : '');
+  return `<div class="source-toggle" data-node-id="${node.id}" data-selected="${selected}"${disabledTip ? ` data-disabled-tip="${disabledTip}"` : ''} role="group" aria-label="Play from track or mix">`
+    + opt('track', 'track', !!node.scTrackUrl)
+    + opt('mix', 'mix', !!node.setUrl)
+    + `</div>`;
+}
+
+// Wire clicks on a freshly-rendered toggle. Switching source while the track is
+// live restarts playback from the newly chosen source (mixes at their timestamp).
+function initSourceToggle(card, node) {
+  const toggle = card.querySelector('.source-toggle');
+  if (!toggle) return;
+  toggle.querySelectorAll('.src-opt').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (btn.getAttribute('aria-disabled') === 'true') return;
+      const prev = getSelectedAudioSource(node.id);
+      const next = setSelectedAudioSource(node.id, btn.dataset.source);
+      if (!next || next === prev) return;
+      if (isMobileView()) {
+        if (card.classList.contains('selected')) selectMobileTrack(node.id);
+      } else if (currentlyPlayingId === node.id) {
+        stopCurrentPlayback();
+        trackEvent('play');
+        playSelectedAudioSource(node.id);
+      }
+    });
+  });
 }
 
 // ═══════════════════════════════════════════

@@ -101,9 +101,10 @@ function showClusterMobile(cluster) {
     carousel.appendChild(item);
   });
 
-  // Scroll to root (first card)
+  // Scroll to root (first card), then flag titles that need to marquee
   requestAnimationFrame(() => {
     carousel.scrollTo({ left: 0, behavior: 'instant' });
+    carousel.querySelectorAll('.mobile-carousel-card').forEach(setupMobileCardMarquees);
   });
 
   // Hide back button when user scrolls carousel
@@ -209,6 +210,9 @@ function selectMobileTrack(nodeId) {
   const hasAudio = !!(node.scTrackUrl || node.setUrl);
   if (!hasAudio) return;
 
+  const source = getSelectedAudioSource(nodeId);
+  const useMix = source === 'mix';
+
   trackEvent('play');
 
   // Update source pills for this track
@@ -222,6 +226,15 @@ function selectMobileTrack(nodeId) {
   const card = document.querySelector(`.mobile-carousel-card[data-node-id="${nodeId}"]`);
   if (card) {
     card.classList.add('selected', 'loading');
+    card.dataset.selectedSource = source || '';
+  }
+
+  // Mixcloud sets can't load in the SC widget — route them to the MC player.
+  if (useMix && node.setSource === 'mixcloud') {
+    if (card) card.classList.remove('loading');
+    stopCurrentPlayback();
+    playMixcloud(nodeId, node.setUrl, node.setOffsetSec);
+    return;
   }
 
   // Load into SC widget
@@ -231,9 +244,9 @@ function selectMobileTrack(nodeId) {
   scWidgetReady = false;
   scWidget.unbind(SC.Widget.Events.READY);
 
-  // Prefer individual track, fall back to set
-  const url = node.scTrackUrl || node.setUrl;
-  const offsetSec = !node.scTrackUrl && node.setOffsetSec ? node.setOffsetSec : 0;
+  const url = useMix ? node.setUrl : node.scTrackUrl;
+  // For sets, jump past the intro (e.g. NTS sting) when the track starts at 0:00.
+  const offsetSec = useMix ? (node.setOffsetSec || 7) : 0;
 
   scWidget.bind(SC.Widget.Events.READY, () => {
     scWidgetReady = true;
@@ -253,6 +266,15 @@ function selectMobileTrack(nodeId) {
   scWidget.load(url, { auto_play: true, show_artwork: false, visual: false, show_teaser: false, sharing: false, buying: false, show_user: true, color: 'B5705A' });
 }
 
+// Mobile titles are already single-line + ellipsis. If cut off, record the
+// scroll distance so CSS can marquee it while the card is selected (playing).
+function setupMobileCardMarquees(card) {
+  ['.mc-title', '.mc-artist'].forEach(sel => {
+    const line = card.querySelector(sel);
+    if (line) applyMarquee(line);   // shared wrap-around helper (graph.js)
+  });
+}
+
 function makeCarouselCard(node) {
   const item = document.createElement('div');
   item.className = 'mobile-carousel-item';
@@ -267,14 +289,17 @@ function makeCarouselCard(node) {
   card.innerHTML = `
     <div class="mc-art-wrap">
       ${mobileArtHtml(node)}
+      ${renderSourceToggle(node)}
     </div>
     <div class="mc-info-row">
       <div class="mc-info-text">
-        <div class="mc-title">${node.title}</div>
-        <div class="mc-artist">${node.artist}</div>
+        <div class="mc-title"><span class="tt-inner">${node.title}</span></div>
+        <div class="mc-artist"><span class="tt-inner">${node.artist}</span></div>
       </div>
       <button class="card-dots" aria-label="More options" data-artist="${node.artist}" data-dj="${(node.djs && node.djs.length) ? node.djs[0].name : ''}" data-set-url="${node.setUrl || (node.djs && node.djs.length ? node.djs[0].episodeUrl || '' : '')}" data-track-url="${node.scTrackUrl || ''}"><svg viewBox="0 0 24 24" fill="currentColor"><circle class="dot dot-top" cx="12" cy="5" r="1.5"/><circle class="dot dot-mid" cx="12" cy="12" r="1.5"/><circle class="dot dot-bot" cx="12" cy="19" r="1.5"/><line class="x-line" x1="8" y1="8" x2="16" y2="16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line class="x-line" x1="16" y1="8" x2="8" y2="16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
     </div>`;
+
+  initSourceToggle(card, node);
 
   card.addEventListener('click', (e) => {
     if (e.target.closest('.mc-close')) {
@@ -288,7 +313,7 @@ function makeCarouselCard(node) {
       history.pushState(null, '', '/dig');
       return;
     }
-    if (e.target.closest('.card-dots')) return;
+    if (e.target.closest('.card-dots, .source-toggle')) return;
     // Scroll item to center if not already centered
     const carousel = document.getElementById('mobile-carousel');
     const itemCenter = item.offsetLeft + item.offsetWidth / 2;

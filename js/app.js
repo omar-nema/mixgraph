@@ -1,5 +1,6 @@
 function showCluster(cluster) {
   currentCluster = cluster;
+  selectedAudioSources = {};
   if (isMobileView()) {
     showClusterMobile(cluster);
     return;
@@ -22,32 +23,6 @@ function showCluster(cluster) {
   // Pass 1: place cards at 0,0 so DOM can measure heights
   nodes.forEach(n => { n.x = -9999; n.y = -9999; });
   renderCards();
-
-  // Detect DJ line overflow — truncate with inline "(more)" that expands
-  document.querySelectorAll('.dj-line').forEach(line => {
-    if (line.scrollHeight <= line.clientHeight + 1) return;
-    const fullHTML = line.innerHTML;
-    const moreBtn = document.createElement('button');
-    moreBtn.className = 'dj-more';
-    moreBtn.textContent = '(more)';
-    moreBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      line.innerHTML = fullHTML;
-      line.classList.add('expanded');
-    });
-    // Use plain text truncation with binary search to fit "… (more)" in 2 lines
-    const fullText = line.textContent;
-    let lo = 0, hi = fullText.length;
-    while (lo < hi) {
-      const mid = (lo + hi + 1) >> 1;
-      line.textContent = fullText.slice(0, mid) + '… ';
-      line.appendChild(moreBtn.cloneNode(true));
-      if (line.scrollHeight <= line.clientHeight + 1) lo = mid;
-      else hi = mid - 1;
-    }
-    line.textContent = fullText.slice(0, lo) + '… ';
-    line.appendChild(moreBtn);
-  });
 
   // Wire shuffle button (recreated each render inside root card)
   const shuffleBtn = document.getElementById('shuffle-btn');
@@ -74,7 +49,10 @@ function showCluster(cluster) {
   measuredHeights = {};
   nodes.forEach(n => {
     const el = document.querySelector(`.node-card[data-node-id="${n.id}"]`);
-    if (el) measuredHeights[n.id] = el.offsetHeight;
+    if (el) {
+      measuredHeights[n.id] = el.offsetHeight;
+      setupCardMarquees(el);
+    }
   });
 
   // Pass 2: compute layout with real heights, reposition
@@ -92,25 +70,8 @@ function showCluster(cluster) {
   renderConnections();
   setupHovers();
 
-  // Zoom-to-fit: scale graph container to fit within viewport
-  const container = document.getElementById('graph-container');
-  const viewport = document.getElementById('graph-viewport');
-  const contentW = parseFloat(container.style.width) || 1200;
-  const contentH = parseFloat(container.style.height) || 900;
-  const vpW = viewport.clientWidth;
-  const vpH = viewport.clientHeight;
-  const insetX = vpW > 800 ? 80 : 0;
-  const insetY = 20;
-  const scaleX = (vpW - insetX) / contentW;
-  const scaleY = (vpH - insetY) / contentH;
-  const scale = Math.min(1, scaleX, scaleY);
-  container.style.transform = `scale(${scale})`;
-  container.style.width = contentW + 'px';
-
-  // Center vertically within viewport
-  const scaledH = contentH * scale;
-  const topOffset = Math.max(0, (vpH - scaledH) / 2);
-  container.style.marginTop = topOffset + 'px';
+  // Zoom-to-fit: scale + center the whole network within the viewport
+  fitGraphToViewport();
 
   // Desktop genre pills — primary track's genres, capped at 4
   const desktopGenres = document.getElementById('desktop-genres');
@@ -1761,22 +1722,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('dev-toggle').addEventListener('click', () => {
     document.getElementById('dev-panel').classList.toggle('open');
   });
-
-  // ── Font variant switcher (Matter VF: XHGT + MONO axes) ──
-  const fontVariant = document.getElementById('font-variant');
-  if (fontVariant) {
-    const applyFontVariant = (val) => {
-      const [xhgt, mono] = val.split(',');
-      document.documentElement.style.setProperty('--font-xhgt', xhgt);
-      document.documentElement.style.setProperty('--font-mono', mono);
-    };
-    const savedFont = localStorage.getItem('b2b-font-variant');
-    if (savedFont) { fontVariant.value = savedFont; applyFontVariant(savedFont); }
-    fontVariant.addEventListener('change', (e) => {
-      applyFontVariant(e.target.value);
-      localStorage.setItem('b2b-font-variant', e.target.value);
-    });
-  }
 
   // ── Gradient art knobs ──
   const ftTurb = document.getElementById('ft-turb');

@@ -128,7 +128,7 @@ function renderCards() {
           ? `<a href="${href}" target="_blank" rel="noopener" data-dj="${d.name}" data-artist="${node.artist}" data-set-url="${d.episodeUrl || ''}">${d.name}</a>`
           : `<span data-dj="${d.name}" data-artist="${node.artist}" class="dj-ctx-trigger">${d.name}</span>`;
       }).join(', ');
-      djLine = `<span class="dj-line">Mixed by ${links}</span>`;
+      djLine = `<span class="dj-line"><span class="tt-inner">Mixed by ${links}</span></span>`;
     }
 
     let trackLink = node.scTrackUrl || node.setUrl || null;
@@ -139,8 +139,8 @@ function renderCards() {
     }
     const titleData = `data-artist="${node.artist}" data-dj="${allDjs.length ? allDjs[0].name : ''}" data-set-url="${allDjs.length ? (allDjs[0].episodeUrl || '') : ''}" data-track-url="${trackLink || ''}"`;
     const titleTag = trackLink
-      ? `<a href="${trackLink}" class="track-title track-ctx-trigger" target="_blank" rel="noopener" ${titleData}>${node.title}</a>`
-      : `<span class="track-title track-ctx-trigger" ${titleData}>${node.title}</span>`;
+      ? `<a href="${trackLink}" class="track-title track-ctx-trigger" target="_blank" rel="noopener" ${titleData}><span class="tt-inner">${node.title}</span></a>`
+      : `<span class="track-title track-ctx-trigger" ${titleData}><span class="tt-inner">${node.title}</span></span>`;
 
     const cardToolbar = node.rank === 'root' ? `
       <div class="card-toolbar">
@@ -167,15 +167,17 @@ function renderCards() {
         ${imgTag}
         ${playBtn}
         ${sourceBadge}
-        <span class="from-set-label">from set</span>
+        ${renderSourceToggle(node)}
         <div class="progress-bar"><div class="bar-track"><div class="bar-fill"></div></div></div>
       </div>
       ${titleTag}
-      <span class="artist-name"><span class="artist-ctx-trigger" data-artist="${node.artist}" data-dj="${allDjs.length ? allDjs[0].name : ''}" data-set-url="${allDjs.length ? (allDjs[0].episodeUrl || '') : ''}">${node.artist}</span></span>
+      <span class="artist-name"><span class="tt-inner"><span class="artist-ctx-trigger" data-artist="${node.artist}" data-dj="${allDjs.length ? allDjs[0].name : ''}" data-set-url="${allDjs.length ? (allDjs[0].episodeUrl || '') : ''}">${node.artist}</span></span></span>
       <button class="card-dots" aria-label="More options" data-artist="${node.artist}" data-dj="${allDjs.length ? allDjs[0].name : ''}" data-set-url="${allDjs.length ? (allDjs[0].episodeUrl || '') : ''}" data-track-url="${trackLink || ''}"><svg viewBox="0 0 24 24" fill="currentColor"><circle class="dot dot-top" cx="12" cy="5" r="1.5"/><circle class="dot dot-mid" cx="12" cy="12" r="1.5"/><circle class="dot dot-bot" cx="12" cy="19" r="1.5"/><line class="x-line" x1="8" y1="8" x2="16" y2="16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line class="x-line" x1="16" y1="8" x2="8" y2="16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
       ${djLine}
       ${showMoreFooter}
     `;
+
+    initSourceToggle(card, node);
 
     // Tooltips for overflow text
     card.querySelectorAll('.track-title, .artist-name, .dj-line').forEach(el => {
@@ -194,6 +196,38 @@ function renderCards() {
 
     card.addEventListener('animationend', () => card.classList.add('settled'), { once: true });
     layer.appendChild(card);
+  });
+}
+
+// If a single line (title/artist/dj) overflows, mark it and set up a seamless
+// wrap-around marquee: a duplicate copy of the content is appended after a gap,
+// and CSS scrolls the pair by exactly one copy+gap so the text loops around
+// (Spotify-style) instead of ping-ponging. Shared by desktop + mobile.
+function applyMarquee(line) {
+  const inner = line.querySelector('.tt-inner');
+  if (!inner) return;
+  line.classList.remove('has-marquee');
+  line.style.removeProperty('--marquee-shift');
+  line.style.removeProperty('--marquee-duration');
+  inner.querySelector('.tt-dup')?.remove();
+  if (line.scrollWidth - line.clientWidth <= 2) return;   // fits — no marquee
+  const dup = document.createElement('span');
+  dup.className = 'tt-dup';
+  dup.setAttribute('aria-hidden', 'true');
+  dup.innerHTML = inner.innerHTML;                        // second copy
+  inner.appendChild(dup);
+  // Distance to scroll = first copy width + gap = where the duplicate begins.
+  const shift = Math.round(dup.getBoundingClientRect().left - inner.getBoundingClientRect().left);
+  line.style.setProperty('--marquee-shift', `-${shift}px`);
+  line.style.setProperty('--marquee-duration', Math.max(6, Math.round(shift / 45 * 10) / 10) + 's');
+  line.classList.add('has-marquee');
+}
+
+// Set up wrap-around marquees on all three of a card's lines.
+function setupCardMarquees(card) {
+  ['.track-title', '.artist-name', '.dj-line'].forEach(sel => {
+    const line = card.querySelector(sel);
+    if (line) applyMarquee(line);
   });
 }
 
@@ -406,6 +440,42 @@ function computeLayout() {
   container.style.width = maxRight + 'px';
 }
 
+// Scale + center the graph container so the entire network fits the viewport.
+// Called after every layout (initial render AND resize) — the whole graph must
+// always be visible, shrinking as needed.
+function fitGraphToViewport() {
+  const container = document.getElementById('graph-container');
+  const viewport = document.getElementById('graph-viewport');
+  if (!container || !viewport) return;
+
+  const contentW = parseFloat(container.style.width) || 1200;
+  const contentH = parseFloat(container.style.height) || 900;
+  const vpW = viewport.clientWidth;
+  const vpH = viewport.clientHeight;
+  const insetX = vpW > 800 ? 80 : 0;
+  const insetY = 20;
+  const scale = Math.min(1, (vpW - insetX) / contentW, (vpH - insetY) / contentH);
+  container.style.transform = `scale(${scale})`;
+  container.style.width = contentW + 'px';
+
+  // Center vertically within viewport
+  const scaledH = contentH * scale;
+  container.style.marginTop = Math.max(0, (vpH - scaledH) / 2) + 'px';
+
+  // Center horizontally — done explicitly (not via flex) because the unscaled
+  // container is often wider than the viewport, which makes flexbox pin it left.
+  // Center the actual card bounding box (not the raw container width) so the
+  // left/right margins stay symmetric even when the layout pads unevenly.
+  let minCardX = Infinity, maxCardX = -Infinity;
+  nodes.forEach(n => {
+    const d = cardDimFor(n);
+    minCardX = Math.min(minCardX, n.x);
+    maxCardX = Math.max(maxCardX, n.x + d.w);
+  });
+  if (!isFinite(minCardX)) { minCardX = 0; maxCardX = contentW; }
+  container.style.marginLeft = Math.max(0, (vpW - (minCardX + maxCardX) * scale) / 2) + 'px';
+}
+
 // ═══════════════════════════════════════════
 // Clear & show cluster
 // ═══════════════════════════════════════════
@@ -422,6 +492,7 @@ function clearGraph() {
   const container = document.getElementById('graph-container');
   container.style.transform = '';
   container.style.marginTop = '';
+  container.style.marginLeft = '';
 }
 
 function logCluster(cluster) {
@@ -492,5 +563,7 @@ window.addEventListener('resize', () => {
     const svg = document.getElementById('connections-layer');
     if (svg) svg.innerHTML = '';
     renderConnections();
+    // Re-fit: the whole network must stay visible at the new viewport size
+    fitGraphToViewport();
   }, 200);
 });

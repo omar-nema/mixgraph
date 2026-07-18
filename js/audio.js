@@ -43,7 +43,7 @@ function startPlayTimeout(nodeId, fallbackToSet) {
         currentBackend = null;
         if (fallbackToSet) {
           const node = nodeMap[nodeId];
-          if (node && node.setUrl) playSet(nodeId);
+          if (node && node.setUrl) { setSelectedAudioSource(nodeId, 'mix'); playSet(nodeId); }
         }
       }
     }, 5000);
@@ -259,29 +259,40 @@ function setupScWidget(nodeId, card, offsetSec, onError) {
   scWidgetReady = false;
   scWidget.unbind(SC.Widget.Events.READY);
   scWidget.unbind(SC.Widget.Events.PLAY);
+  scWidget.unbind(SC.Widget.Events.PLAY_PROGRESS);
   scWidget.unbind(SC.Widget.Events.FINISH);
   scWidget.unbind(SC.Widget.Events.ERROR);
 
-  let pendingSeekMs = offsetSec ? offsetSec * 1000 : 0;
+  const seekMs = offsetSec ? offsetSec * 1000 : 0;
+  let seekLanded = !seekMs;
   scWidget.bind(SC.Widget.Events.READY, () => {
     scWidget.unbind(SC.Widget.Events.READY); // one-shot: prevent re-fire on iframe restore
     scWidgetReady = true;
+    if (seekMs) { try { scWidget.seekTo(seekMs); } catch (e) {} }
     try { scWidget.play(); } catch (e) {}
   });
   scWidget.bind(SC.Widget.Events.PLAY, () => {
     clearPlayTimeout();
     showScPlayer();
-    if (card) { hideLoading(card); card.classList.add('playing'); applyGlow(card); }
+    if (seekMs && !seekLanded) { try { scWidget.seekTo(seekMs); } catch (e) {} }
+    if (card) {
+      hideLoading(card);
+      card.classList.add('playing');
+      applyGlow(card);
+      // Button state is authoritative from the actual PLAY event — otherwise a
+      // source switch (track → mix) can leave "play" showing while audio plays.
+      const btn = card.querySelector('.play-btn');
+      if (btn) btn.innerHTML = PAUSE_SVG;
+    }
     startProgressPolling();
   });
-  // PLAY_PROGRESS fires once audio is actually streaming — safe to seek
-  scWidget.unbind(SC.Widget.Events.PLAY_PROGRESS);
-  scWidget.bind(SC.Widget.Events.PLAY_PROGRESS, () => {
-    if (!pendingSeekMs) return;
-    const target = pendingSeekMs;
-    pendingSeekMs = 0;
-    scWidget.unbind(SC.Widget.Events.PLAY_PROGRESS);
-    scWidget.seekTo(target);
+  // Keep reasserting the seek until playback actually lands near the target, so
+  // a set never audibly plays from 0:00 before jumping to the track's timestamp.
+  scWidget.bind(SC.Widget.Events.PLAY_PROGRESS, (e) => {
+    if (seekLanded) return;
+    const pos = e && typeof e.currentPosition === 'number' ? e.currentPosition : 0;
+    if (pos >= seekMs - 2500) { seekLanded = true; return; }
+    scWidget.seekTo(seekMs);
   });
   scWidget.bind(SC.Widget.Events.FINISH, onPlaybackEnded);
   scWidget.bind(SC.Widget.Events.ERROR, onError);
@@ -291,7 +302,7 @@ function playSC(nodeId, trackUrl) {
   if (AUDIO_SUPPRESSED) return;
   if (!initSCWidget()) {
     const node = nodeMap[nodeId];
-    if (node && node.setUrl) { playSet(nodeId); }
+    if (node && node.setUrl) { setSelectedAudioSource(nodeId, 'mix'); playSet(nodeId); }
     return;
   }
 
@@ -306,7 +317,7 @@ function playSC(nodeId, trackUrl) {
     currentlyPlayingId = null;
     currentBackend = null;
     const node = nodeMap[nodeId];
-    if (node && node.setUrl) { playSet(nodeId); }
+    if (node && node.setUrl) { setSelectedAudioSource(nodeId, 'mix'); playSet(nodeId); }
   });
 
   showScPlayer();
@@ -319,6 +330,10 @@ function playSC(nodeId, trackUrl) {
 function playSCSet(nodeId, setUrl, offsetSec) {
   if (AUDIO_SUPPRESSED) return;
   if (!initSCWidget()) return;
+
+  // Tracks that start at 0:00 begin with the set's intro (e.g. the NTS sting).
+  // Nudge past it so playback opens on the actual music.
+  offsetSec = offsetSec || 7;
 
   const { card } = prepareCardForPlayback(nodeId, 'set');
   currentlyPlayingId = nodeId;
@@ -347,6 +362,8 @@ function hideMcPlayer() {
 
 function playMixcloud(nodeId, mixcloudUrl, offsetSec) {
   if (AUDIO_SUPPRESSED) return;
+  // Skip the set intro (e.g. the NTS sting) for tracks that start at 0:00.
+  offsetSec = offsetSec || 7;
   const { card, btn } = prepareCardForPlayback(nodeId, 'set');
   currentlyPlayingId = nodeId;
   currentBackend = 'mc';
@@ -408,6 +425,16 @@ function findCardForNode(nodeId) {
       || document.querySelector(`.mobile-carousel-card[data-node-id="${nodeId}"]`);
 }
 
+// Play a node honoring the user's "from track" / "from mix" choice.
+function playSelectedAudioSource(nodeId) {
+  const node = nodeMap[nodeId];
+  if (!node) return;
+  const source = getSelectedAudioSource(nodeId);
+  if (source === 'mix' && node.setUrl) { playSet(nodeId); return; }
+  if (node.scTrackUrl) { playSC(nodeId, node.scTrackUrl); return; }
+  if (node.setUrl) { playSet(nodeId); }
+}
+
 function togglePlay(nodeId) {
   const node = nodeMap[nodeId];
   if (!node) return;
@@ -443,10 +470,5 @@ function togglePlay(nodeId) {
   // Different track — stop current, start new
   trackEvent('play');
   stopCurrentPlayback();
-
-  if (node.scTrackUrl) {
-    playSC(nodeId, node.scTrackUrl);
-  } else if (node.setUrl) {
-    playSet(nodeId);
-  }
+  playSelectedAudioSource(nodeId);
 }
