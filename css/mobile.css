@@ -539,7 +539,7 @@
     left: 0;
     right: 0;
     display: flex;
-    background: rgba(0, 0, 0, 0.72);
+    background: rgba(0, 0, 0, 0.34);
     opacity: 0;
     transform: translateY(-100%);
     pointer-events: none;
@@ -553,7 +553,7 @@
   }
   .mobile-carousel-card .src-opt {
     font-size: 9px;
-    padding: 4px 9px;
+    padding: 5px 9px;
     color: rgba(255, 255, 255, 0.78);
   }
   .mobile-carousel-card .src-opt .src-ic { width: 11px; height: 11px; }
