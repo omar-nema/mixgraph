@@ -1022,11 +1022,11 @@ a.track-title { color: inherit; text-decoration: none; }
   82%  { transform: scaleY(0.5); }
   100% { transform: scaleY(0.28); }
 }
-.source-badge .eq-bar:nth-child(1) { --eq-max: 8px;  --eq-dur: 0.9s;  animation-delay: 0s; }
-.source-badge .eq-bar:nth-child(2) { --eq-max: 14px; --eq-dur: 1.15s; animation-delay: -0.35s; }
-.source-badge .eq-bar:nth-child(3) { --eq-max: 6px;  --eq-dur: 0.8s;  animation-delay: -0.6s; }
-.source-badge .eq-bar:nth-child(4) { --eq-max: 12px; --eq-dur: 1.05s; animation-delay: -0.15s; }
-.source-badge .eq-bar:nth-child(5) { --eq-max: 10px; --eq-dur: 0.75s; animation-delay: -0.5s; }
+.source-badge .eq-bar:nth-child(1) { --eq-max: 8px;  --eq-dur: 1.4s;  animation-delay: 0s; }
+.source-badge .eq-bar:nth-child(2) { --eq-max: 14px; --eq-dur: 1.75s; animation-delay: -0.55s; }
+.source-badge .eq-bar:nth-child(3) { --eq-max: 6px;  --eq-dur: 1.25s; animation-delay: -0.9s; }
+.source-badge .eq-bar:nth-child(4) { --eq-max: 12px; --eq-dur: 1.6s;  animation-delay: -0.25s; }
+.source-badge .eq-bar:nth-child(5) { --eq-max: 10px; --eq-dur: 1.15s; animation-delay: -0.8s; }
 /* "track" / "mix" source toggle — full-width bar across the top of the art */
 .source-toggle {
   position: absolute;
