@@ -1083,6 +1083,7 @@ a.track-title { color: inherit; text-decoration: none; }
 .src-opt.disabled {
   color: rgba(255, 255, 255, 0.4);
   cursor: default;
+  background: none;
 }
 /* 1-line explanation when a disabled option is hovered. Anchored to the toggle
    (which is centered on the art) so it never clips against overflow:hidden. */

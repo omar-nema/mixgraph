@@ -573,6 +573,11 @@
     color: rgba(255, 255, 255, 0.78);
   }
   .mobile-carousel-card .src-opt .src-ic { display: none; }
+  .mobile-carousel-card .src-opt.disabled .src-ic {
+    display: inline-flex;
+    width: 11px;
+    height: 11px;
+  }
   .mobile-carousel-card {
     transition: box-shadow 0.35s ease, border-color 0.35s ease;
   }

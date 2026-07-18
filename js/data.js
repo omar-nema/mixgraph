@@ -41,6 +41,8 @@ const EQ_BARS_HTML = '<span class="eq-bar"></span><span class="eq-bar"></span><s
 const TRACK_ICON = '<svg class="src-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3" fill="currentColor" stroke="none"/><circle cx="18" cy="16" r="3" fill="currentColor" stroke="none"/></svg>';
 // Vinyl record — mirrors the back2back favicon (disc, label ring, hole, glint)
 const MIX_ICON = '<svg class="src-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4.3"/><circle cx="12" cy="12" r="1.1" fill="currentColor" stroke="none"/><line x1="18.4" y1="5.6" x2="15.2" y2="8.8"/></svg>';
+// Deny/block icon shown in place of the track or mix icon when that source isn't available
+const BLOCKED_ICON = '<svg class="src-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><line x1="5.5" y1="18.5" x2="18.5" y2="5.5"/></svg>';
 
 // ═══════════════════════════════════════════
 // Glow palettes
@@ -149,7 +151,7 @@ function renderSourceToggle(node) {
   const opt = (src, label, available) => {
     const active = selected === src;
     const tip = available ? '' : (src === 'track' ? trackTip : MIX_UNAVAILABLE_TOOLTIP);
-    const icon = src === 'track' ? TRACK_ICON : MIX_ICON;
+    const icon = !available ? BLOCKED_ICON : (src === 'track' ? TRACK_ICON : MIX_ICON);
     return `<button type="button" class="src-opt${active ? ' active' : ''}${available ? '' : ' disabled'}"`
       + ` data-source="${src}" aria-pressed="${active ? 'true' : 'false'}" aria-disabled="${available ? 'false' : 'true'}"`
       + (tip ? ` data-tip="${tip}"` : '') + `>${icon}<span class="src-label">${label}</span></button>`;
