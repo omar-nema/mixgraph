@@ -202,6 +202,28 @@ function updateMobileSources(graphId) {
   }
 }
 
+// Polls the SC widget's real play/pause state so a card's pulse is bound to
+// what's actually audible. The SC widget's PAUSE event is unreliable on mobile,
+// so we can't drive .playing off events alone.
+let mobilePlayPoll = null;
+function stopMobilePlayPoll() {
+  if (mobilePlayPoll) { clearInterval(mobilePlayPoll); mobilePlayPoll = null; }
+}
+function startMobilePlayPoll(card) {
+  stopMobilePlayPoll();
+  if (!card) return;
+  mobilePlayPoll = setInterval(() => {
+    // Card gone or superseded by another selection → stop tracking it.
+    if (!card.isConnected || !card.classList.contains('selected') || !scWidget) {
+      stopMobilePlayPoll();
+      return;
+    }
+    scWidget.isPaused(paused => {
+      card.classList.toggle('playing', !paused);
+    });
+  }, 350);
+}
+
 // Mobile: select a card to load it into the SC widget. No play/pause
 // on the card itself — user taps play in the SC widget below.
 function selectMobileTrack(nodeId) {
@@ -219,14 +241,17 @@ function selectMobileTrack(nodeId) {
   updateMobileSources(node.graphId);
 
   // Deselect previous
-  document.querySelectorAll('.mobile-carousel-card.selected').forEach(c => {
-    c.classList.remove('selected', 'loading');
+  stopMobilePlayPoll();
+  document.querySelectorAll('.mobile-carousel-card.selected, .mobile-carousel-card.playing').forEach(c => {
+    c.classList.remove('selected', 'loading', 'playing');
+    clearGlow(c);
   });
 
   const card = document.querySelector(`.mobile-carousel-card[data-node-id="${nodeId}"]`);
   if (card) {
     card.classList.add('selected', 'loading');
     card.dataset.selectedSource = source || '';
+    applyGlow(card);   // seed the glow palette used by the .playing pulse
   }
 
   // Mixcloud sets can't load in the SC widget — route them to the MC player.
@@ -242,7 +267,9 @@ function selectMobileTrack(nodeId) {
   showScPlayer();
 
   scWidgetReady = false;
+  stopMobilePlayPoll();
   scWidget.unbind(SC.Widget.Events.READY);
+  scWidget.unbind(SC.Widget.Events.PLAY);
 
   const url = useMix ? node.setUrl : node.scTrackUrl;
   // For sets, jump past the intro (e.g. NTS sting) when the track starts at 0:00.
@@ -251,12 +278,13 @@ function selectMobileTrack(nodeId) {
   scWidget.bind(SC.Widget.Events.READY, () => {
     scWidgetReady = true;
     if (card) card.classList.remove('loading');
+    // Bind the pulse to the widget's actual play/pause state.
+    startMobilePlayPoll(card);
   });
 
   // On mobile Safari, seekTo doesn't work until the user presses play.
   // Seek after PLAY event fires instead of after READY.
   if (offsetSec) {
-    scWidget.unbind(SC.Widget.Events.PLAY);
     scWidget.bind(SC.Widget.Events.PLAY, () => {
       setTimeout(() => scWidget.seekTo(offsetSec * 1000), 500);
       scWidget.unbind(SC.Widget.Events.PLAY);

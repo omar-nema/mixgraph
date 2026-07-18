@@ -539,7 +539,7 @@
     left: 0;
     right: 0;
     display: flex;
-    background: rgba(0, 0, 0, 0.34);
+    background: rgba(0, 0, 0, 0.72);
     opacity: 0;
     transform: translateY(-100%);
     pointer-events: none;
@@ -552,16 +552,25 @@
     pointer-events: auto;
   }
   .mobile-carousel-card .src-opt {
-    font-size: 12px;
-    padding: 10px 13px;
+    font-size: 10px;
+    padding: 6px 9px;
     color: rgba(255, 255, 255, 0.78);
   }
-  .mobile-carousel-card .src-opt .src-ic { width: 14px; height: 14px; }
+  .mobile-carousel-card .src-opt .src-ic { width: 11px; height: 11px; }
   .mobile-carousel-card.selected { border: 2px solid var(--connection-highlight); }
-  .mobile-carousel-card.selected .mc-art-wrap {
+  /* Pulse + glow only while the SC/MC widget is actually playing (.playing),
+     not merely selected — matches the desktop .node-card.playing treatment. */
+  .mobile-carousel-card.playing {
+    border-color: var(--glow-dark, var(--connection-highlight));
+    box-shadow:
+      0 4px 24px -4px color-mix(in srgb, var(--glow-a, var(--connection-highlight)) 35%, transparent),
+      0 8px 40px -4px color-mix(in srgb, var(--glow-b, var(--connection-highlight)) 20%, transparent);
+    transition: box-shadow 0.8s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .mobile-carousel-card.playing .mc-art-wrap {
     animation: breathe 3s ease-in-out infinite;
   }
-  .mobile-carousel-card.selected .mc-art-wrap:has(.no-art) {
+  .mobile-carousel-card.playing .mc-art-wrap:has(.no-art) {
     animation: none;
   }
   .mobile-carousel-card.loading .mc-art-wrap::after {
@@ -581,22 +590,23 @@
     font-size: 15px; font-weight: 700; line-height: 1.25; margin-bottom: 3px;
     overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
   }
-  /* Marquee the selected (playing) card's title/artist if cut off — matches the
-     desktop behavior; uses the shared title-marquee keyframes in desktop.css. */
-  .mobile-carousel-card.selected .mc-title.has-marquee,
-  .mobile-carousel-card.selected .mc-artist.has-marquee {
+  /* Marquee the playing card's title/artist if cut off — bound to actual
+     playback (.playing), like the pulse; uses the shared title-marquee
+     keyframes in desktop.css. */
+  .mobile-carousel-card.playing .mc-title.has-marquee,
+  .mobile-carousel-card.playing .mc-artist.has-marquee {
     text-overflow: clip;
   }
-  .mobile-carousel-card.selected .mc-title.has-marquee .tt-inner,
-  .mobile-carousel-card.selected .mc-artist.has-marquee .tt-inner {
+  .mobile-carousel-card.playing .mc-title.has-marquee .tt-inner,
+  .mobile-carousel-card.playing .mc-artist.has-marquee .tt-inner {
     display: inline-block;
     white-space: nowrap;
     will-change: transform;
     animation: marquee-wrap var(--marquee-duration, 8s) linear infinite;
   }
   @media (prefers-reduced-motion: reduce) {
-    .mobile-carousel-card.selected .mc-title.has-marquee .tt-inner,
-    .mobile-carousel-card.selected .mc-artist.has-marquee .tt-inner { animation: none; }
+    .mobile-carousel-card.playing .mc-title.has-marquee .tt-inner,
+    .mobile-carousel-card.playing .mc-artist.has-marquee .tt-inner { animation: none; }
   }
   .mobile-carousel-card .mc-artist {
     font-size: 13px; font-weight: 300; color: var(--text-secondary); line-height: 1.3;
