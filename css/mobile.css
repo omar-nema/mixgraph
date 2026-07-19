@@ -300,6 +300,10 @@
     overflow-y: auto;
   }
   .filter-popover .genre-pill { font-size: 12px; padding: 6px 14px; }
+  /* Genre labels read as strong/primary black in light mode instead of the
+     muted navy the mobile --text-primary override otherwise gives them.
+     Selected pills keep their white-on-accent text. */
+  body:not(.night) .filter-popover .genre-pill:not(.selected) { color: #000; }
   /* Footer toggle: restore breathing room the compact pill padding strips out,
      and match the mobile popover's 14px padding for a clean edge-to-edge bleed. */
   .filter-popover .genre-pill.genre-more-pill {
