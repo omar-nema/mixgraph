@@ -300,6 +300,15 @@
     overflow-y: auto;
   }
   .filter-popover .genre-pill { font-size: 12px; padding: 6px 14px; }
+  /* Footer toggle: restore breathing room the compact pill padding strips out,
+     and match the mobile popover's 14px padding for a clean edge-to-edge bleed. */
+  .filter-popover .genre-pill.genre-more-pill {
+    font-size: 14px;
+    min-height: 48px;
+    padding: 14px 5px;
+    margin: 12px -14px -14px;
+    width: calc(100% + 28px);
+  }
 
   /* Filter popovers: allow autocomplete to overflow */
   #artist-popover, #dj-popover {
