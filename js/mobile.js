@@ -48,6 +48,7 @@ function showClusterMobile(cluster) {
     const anyOpen = Object.values(popovers).some(p => p && p.classList.contains('open'));
     Object.values(popovers).forEach(p => { if (p) p.classList.remove('open'); });
     popoverBackdrop.classList.remove('open');
+    if (window._collapseGenrePills) window._collapseGenrePills();
     document.querySelectorAll('.mobile-filter-pill').forEach(p => p.classList.remove('semi-open'));
     if (andReshuffle && anyOpen && filtersDirty) {
       filtersDirty = false;

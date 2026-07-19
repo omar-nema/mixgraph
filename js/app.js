@@ -347,6 +347,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       const anyOpen = Object.values(popovers).some(p => p && p.classList.contains('open'));
       Object.values(popovers).forEach(p => { if (p) p.classList.remove('open'); });
       popoverBackdrop.classList.remove('open');
+      if (window._collapseGenrePills) window._collapseGenrePills();
       [filterBarGenre, filterBarArtist, filterBarDj].forEach(p => p.classList.remove('semi-open'));
       if (andReshuffle && anyOpen && typeof filtersDirty !== 'undefined' && filtersDirty) {
         filtersDirty = false;
@@ -406,6 +407,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (e) e.preventDefault();
       popoverEls.forEach(p => p.classList.remove('open'));
       sharedBackdrop.classList.remove('open');
+      if (window._collapseGenrePills) window._collapseGenrePills();
       document.querySelectorAll('.mobile-filter-pill.semi-open').forEach(p => p.classList.remove('semi-open'));
       // Drop focus so the keyboard retracts with the popover.
       if (document.activeElement && typeof document.activeElement.blur === 'function') document.activeElement.blur();

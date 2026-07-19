@@ -300,7 +300,21 @@ async function initFilters() {
     const names = genrePillsExpanded
       ? allGenreNames()
       : displayGenres.map(g => g.name);
+    // In the expanded (alphabetical) list, break the pills into A/B/C… groups
+    // with a letter sublabel so the long list stays scannable.
+    let lastLetter = null;
     for (const name of names) {
+      if (genrePillsExpanded) {
+        const c = (name[0] || '').toUpperCase();
+        const letter = /[A-Z]/.test(c) ? c : '#';
+        if (letter !== lastLetter) {
+          lastLetter = letter;
+          const hdr = document.createElement('div');
+          hdr.className = 'genre-letter-group';
+          hdr.textContent = letter;
+          container.appendChild(hdr);
+        }
+      }
       const pill = document.createElement('button');
       pill.className = 'genre-pill' + (genreFilters.includes(name) ? ' selected' : '');
       pill.textContent = name;
@@ -320,6 +334,15 @@ async function initFilters() {
     container.appendChild(toggle);
   }
   renderGenrePills(document.getElementById('genre-pills'));
+  // Reset the "More" expansion (flag + class + re-render). Exposed so the mobile
+  // close paths in app.js can keep the expanded state in sync when they close the
+  // popover — otherwise .expanded lingers and forces the popover to stay visible.
+  window._collapseGenrePills = function () {
+    if (!genrePillsExpanded) return;
+    genrePillsExpanded = false;
+    genrePopover.classList.remove('expanded');
+    renderGenrePills(document.getElementById('genre-pills'));
+  };
 
   // ── Render chips (shared for desktop + mobile, artist + DJ) ──
   function renderChips(containerId, inputId, filters, removeFn, placeholder) {
