@@ -677,6 +677,12 @@
   #mobile-sources {
     flex-shrink: 0;
     padding: 0 16px;
+    /* Reserve the populated one-line height even when a track has no DJ
+       sources. Otherwise this collapses 35px -> 0 between cards, and the
+       vertically-centered #mobile-tracks column shifts the filter pills +
+       carousel up/down — a visible jitter when switching cards. */
+    min-height: 35px;
+    box-sizing: border-box;
   }
   .mobile-source-row {
     overflow-x: auto;
