@@ -336,6 +336,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   const filterBarGenre = document.getElementById('mobile-bar-genre');
   const filterBarArtist = document.getElementById('mobile-bar-artist');
   const filterBarDj = document.getElementById('mobile-bar-dj');
+  // Timestamp of the last popover open, so a close event that's really just the
+  // tail end of the same long-press (iOS can re-target the release at the newly
+  // shown backdrop, which now covers the pill) gets ignored instead of instantly
+  // closing what the press just opened.
+  let lastBarPopoverOpenAt = 0;
   if (filterBarGenre) {
     const popoverBackdrop = document.getElementById('popover-backdrop');
     const popovers = {
@@ -368,6 +373,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       popover.classList.add('open');
       popoverBackdrop.classList.add('open');
       pillEl.classList.add('semi-open');
+      lastBarPopoverOpenAt = Date.now();
     }
     filterBarGenre.addEventListener('click', function(e) {
       e.stopPropagation();
@@ -404,6 +410,11 @@ document.addEventListener('DOMContentLoaded', async () => {
       ].filter(Boolean);
       const anyOpen = popoverEls.some(p => p.classList.contains('open'));
       if (!anyOpen) return;
+      // On a long press, iOS can fire the opening pill's release over the backdrop
+      // it just revealed (which now covers the pill), producing a close event that's
+      // really the tail of the same gesture. Swallow closes that land right after an
+      // open rather than requiring a quicker release, which would make opening finicky.
+      if (Date.now() - lastBarPopoverOpenAt < 350) return;
       if (e) e.preventDefault();
       popoverEls.forEach(p => p.classList.remove('open'));
       sharedBackdrop.classList.remove('open');

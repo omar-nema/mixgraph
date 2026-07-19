@@ -302,10 +302,14 @@
   .filter-popover .genre-pill { font-size: 12px; padding: 6px 14px; }
 
   /* Filter popovers: allow autocomplete to overflow */
-  #artist-popover, #dj-popover, #genre-popover {
+  #artist-popover, #dj-popover {
     overflow: visible;
     max-height: none;
   }
+  /* Genre popover keeps the base .filter-popover cap (max-height: 75vh;
+     overflow-y: auto) instead of the override above — its pill list can run
+     long even before "Show all genres" is expanded, and without a cap it
+     pushes past the bottom of small mobile screens. */
   /* Cap the genre pills list so "More" scrolls internally instead of
      pushing the popover past the screen edge */
   #genre-popover.expanded #genre-pills {
