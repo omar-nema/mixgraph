@@ -168,11 +168,20 @@ function renderSourceToggle(node) {
 function initSourceToggle(card, node) {
   const toggle = card.querySelector('.source-toggle');
   if (!toggle) return;
+  // A single physical tap can fire two click events on iOS (same cause as the
+  // mobile filter popovers). Against a naive classList.toggle() that nets out
+  // to a no-op — open-then-closed on the first tap, requiring a second tap to
+  // actually see it. Guard so only the first click of a same-gesture pair flips
+  // the tooltip; a genuine follow-up tap well after this window still works.
+  let lastTipToggleAt = 0;
   toggle.querySelectorAll('.src-opt').forEach(btn => {
     btn.addEventListener('click', e => {
       e.preventDefault();
       e.stopPropagation();
       if (btn.getAttribute('aria-disabled') === 'true') {
+        const now = Date.now();
+        if (now - lastTipToggleAt < 350) return;
+        lastTipToggleAt = now;
         // Toggle the "unavailable" tooltip so a second tap dismisses it (touch
         // devices have no hover to fall back on).
         toggle.classList.toggle('tip-open');
