@@ -341,6 +341,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   // shown backdrop, which now covers the pill) gets ignored instead of instantly
   // closing what the press just opened.
   let lastBarPopoverOpenAt = 0;
+  // Mirror of the above for the opposite direction: a single tap on an already-open
+  // pill can fire two click events, the first closing it (toggle-off) and a
+  // duplicate immediately reopening it. Timestamp only set on an actual toggle-off
+  // or backdrop close (not on a popover-to-popover switch), so legitimate rapid
+  // switching between Genre/Artist/DJ never gets blocked by this guard.
+  let lastBarPopoverCloseAt = 0;
   if (filterBarGenre) {
     const popoverBackdrop = document.getElementById('popover-backdrop');
     const popovers = {
@@ -362,9 +368,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     function openBarPopover(name, pillEl) {
       const popover = popovers[name];
       if (!popover) return;
+      // Same-gesture duplicate click can fire right after this same tap closed the
+      // popover via the toggle-off branch below (or via the backdrop) — ignore the
+      // reopen attempt instead of flickering closed-then-open.
+      if (Date.now() - lastBarPopoverCloseAt < 300) return;
       const already = popover.classList.contains('open');
       closeBarPopovers(false);
       if (already) {
+        lastBarPopoverCloseAt = Date.now();
         if (typeof filtersDirty !== 'undefined' && filtersDirty) { filtersDirty = false; if (typeof shuffle === 'function') shuffle(); }
         return;
       }
@@ -416,6 +427,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       // open rather than requiring a quicker release, which would make opening finicky.
       if (Date.now() - lastBarPopoverOpenAt < 350) return;
       if (e) e.preventDefault();
+      lastBarPopoverCloseAt = Date.now();
       popoverEls.forEach(p => p.classList.remove('open'));
       sharedBackdrop.classList.remove('open');
       if (window._collapseGenrePills) window._collapseGenrePills();
