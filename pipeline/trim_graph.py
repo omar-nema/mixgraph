@@ -4,8 +4,12 @@ Trim the combined graph for frontend delivery.
 
 1. Back up the original (all fields, all episodes) to combined_graph_backup.json
 2. Reduce high-frequency NTS morning shows (keep N most recent per host)
+2b. Drop mixcloud-only tracks (source == 'mixcloud_set') and prune their edges,
+    so they never render as unplayable cards
 3. Strip fields unused by frontend (position, timestamp_a/b, first_timestamp)
 4. Overwrite combined_graph.json with the trimmed version
+
+Must run after enrich.py — it reads audio_cache.json to identify mixcloud tracks.
 """
 
 import json
@@ -15,6 +19,7 @@ from pathlib import Path
 
 GRAPH_PATH = Path(__file__).parent / "output" / "combined_graph.json"
 BACKUP_PATH = Path(__file__).parent / "output" / "combined_graph_backup.json"
+AUDIO_CACHE_PATH = Path(__file__).parent / "output" / "audio_cache.json"
 WEB_PATH = Path(__file__).parent.parent / "web-app" / "output" / "combined_graph.json"
 
 # (base show name lowercase, max episodes to keep per host)
@@ -107,6 +112,31 @@ def main():
                 new_edge["contexts"] = new_contexts
                 new_edges.append(new_edge)
         n["edges"] = new_edges
+
+    # Step 2b: Drop mixcloud-only tracks (source == 'mixcloud_set').
+    # These have no SC track and no SC set — only a Mixcloud set — so the
+    # candidate builder already bars them from playback/selection. Removing the
+    # nodes here keeps them from rendering as unplayable cards and shrinks the file.
+    if AUDIO_CACHE_PATH.exists():
+        with open(AUDIO_CACHE_PATH) as f:
+            audio_cache = json.load(f)
+        mc_nodes = {
+            nid for nid, v in audio_cache.items()
+            if isinstance(v, dict) and v.get("source") == "mixcloud_set"
+        }
+        mc_present = mc_nodes & nodes.keys()
+        print(f"\nDropping mixcloud-only tracks: {len(mc_present)} nodes")
+        for nid in mc_present:
+            del nodes[nid]
+        # Prune dangling edges that pointed to removed nodes
+        pruned_edges = 0
+        for n in nodes.values():
+            kept = [e for e in n.get("edges", []) if e.get("node") not in mc_nodes]
+            pruned_edges += len(n.get("edges", [])) - len(kept)
+            n["edges"] = kept
+        print(f"  Pruned {pruned_edges:,} dangling edges")
+    else:
+        print(f"\nWARNING: {AUDIO_CACHE_PATH} not found — skipping mixcloud drop")
 
     # Step 3: Strip fields unused by frontend
     print(f"\nStripping unused fields: {STRIP_NODE_FIELDS + STRIP_CONTEXT_FIELDS}")
