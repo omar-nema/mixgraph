@@ -190,7 +190,11 @@ async function initFilters() {
 
   function syncGenrePillHighlights() {
     document.querySelectorAll('.genre-pill').forEach(p => {
-      p.classList.toggle('selected', genreFilters.includes(p.dataset.genre));
+      if (p.dataset.genreParent) {
+        p.classList.toggle('selected', isGenreParentActive(p.dataset.genreParent));
+      } else if (p.dataset.genre) {
+        p.classList.toggle('selected', isGenreIndividuallySelected(p.dataset.genre));
+      }
     });
   }
 
@@ -215,6 +219,32 @@ async function initFilters() {
       manualGenreToggles.add(name);
     });
   }
+
+  // "All" pill for a category: apply the parent filter (matches any child) and
+  // disable any individual selections in that category. Toggles off if already on.
+  function toggleGenreParent(parent) {
+    applyFilterChange(() => {
+      const children = GENRE_TAXONOMY[parent] || [];
+      const existingIdx = genreSearchFilters.findIndex(f => f.display === parent);
+      if (existingIdx >= 0) {                 // already on → turn off
+        genreSearchFilters.splice(existingIdx, 1);
+        return;
+      }
+      children.forEach(c => manualGenreToggles.delete(c));
+      for (let i = genreSearchFilters.length - 1; i >= 0; i--) {
+        if (children.includes(genreSearchFilters[i].display)) genreSearchFilters.splice(i, 1);
+      }
+      trackEvent('filter_genre');
+      genreSearchFilters.push({ display: parent, names: [...children] });
+    });
+  }
+
+  // A pill counts as selected only when chosen individually — not merely because
+  // a parent "All" chip covers it — so "All" and specific pills stay distinct.
+  function isGenreIndividuallySelected(name) {
+    return manualGenreToggles.has(name) || genreSearchFilters.some(f => f.display === name);
+  }
+  const isGenreParentActive = (parent) => genreSearchFilters.some(f => f.display === parent);
 
   function clearAllFilters() {
     applyFilterChange(() => {
@@ -288,50 +318,77 @@ async function initFilters() {
 
   // ── Render genre pills ──
   let genrePillsExpanded = false;
-  function allGenreNames() {
-    const names = new Set(displayGenres.map(g => g.name));
-    for (const entry of GENRE_SEARCH_INDEX) {
-      if (!entry.isParent) names.add(entry.display);
+  // Parent → children for the expanded nested view. Starts from the taxonomy,
+  // then folds any in-data genres missing from it under "Other" so nothing
+  // silently drops out of the list.
+  function nestedGenreGroups() {
+    const groups = Object.entries(GENRE_TAXONOMY).map(([parent, children]) => ({
+      parent, names: [...children],
+    }));
+    const known = new Set();
+    groups.forEach(g => g.names.forEach(n => known.add(n)));
+    const stragglers = displayGenres
+      .map(g => g.name)
+      .filter(n => !known.has(n) && !GENRE_TAXONOMY[n]);
+    if (stragglers.length) {
+      let other = groups.find(g => g.parent === 'Other');
+      if (!other) { other = { parent: 'Other', names: [] }; groups.push(other); }
+      other.names.push(...stragglers);
     }
-    return [...names].sort((a, b) => a.localeCompare(b));
+    // Alphabetical by category, but keep the "Other" catch-all last.
+    groups.sort((a, b) => {
+      if (a.parent === 'Other') return 1;
+      if (b.parent === 'Other') return -1;
+      return a.parent.localeCompare(b.parent);
+    });
+    return groups;
+  }
+  function appendGenrePill(container, name) {
+    const pill = document.createElement('button');
+    pill.className = 'genre-pill' + (isGenreIndividuallySelected(name) ? ' selected' : '');
+    pill.textContent = name;
+    pill.dataset.genre = name;
+    pill.addEventListener('click', () => toggleGenre(name));
+    container.appendChild(pill);
+  }
+  // The "All" pill heads each category: applies the parent filter.
+  function appendGenreAllPill(container, parent) {
+    const pill = document.createElement('button');
+    pill.className = 'genre-pill genre-all-pill' + (isGenreParentActive(parent) ? ' selected' : '');
+    pill.textContent = 'All';
+    pill.dataset.genreParent = parent;
+    pill.addEventListener('click', () => toggleGenreParent(parent));
+    container.appendChild(pill);
   }
   function renderGenrePills(container) {
     container.innerHTML = '';
-    const names = genrePillsExpanded
-      ? allGenreNames()
-      : displayGenres.map(g => g.name);
-    // In the expanded (alphabetical) list, break the pills into A/B/C… groups
-    // with a letter sublabel so the long list stays scannable.
-    let lastLetter = null;
-    for (const name of names) {
-      if (genrePillsExpanded) {
-        const c = (name[0] || '').toUpperCase();
-        const letter = /[A-Z]/.test(c) ? c : '#';
-        if (letter !== lastLetter) {
-          lastLetter = letter;
-          const hdr = document.createElement('div');
-          hdr.className = 'genre-letter-group';
-          hdr.textContent = letter;
-          container.appendChild(hdr);
-        }
+    if (genrePillsExpanded) {
+      // Expanded: group pills under their parent-category header.
+      for (const group of nestedGenreGroups()) {
+        const hdr = document.createElement('div');
+        hdr.className = 'genre-cat-group';
+        hdr.textContent = group.parent;
+        container.appendChild(hdr);
+        if (group.parent !== 'Other') appendGenreAllPill(container, group.parent);
+        for (const name of group.names) appendGenrePill(container, name);
       }
-      const pill = document.createElement('button');
-      pill.className = 'genre-pill' + (genreFilters.includes(name) ? ' selected' : '');
-      pill.textContent = name;
-      pill.dataset.genre = name;
-      pill.addEventListener('click', () => toggleGenre(name));
-      container.appendChild(pill);
+    } else {
+      for (const g of displayGenres) appendGenrePill(container, g.name);
     }
+    // Footer toggle lives as a sibling of the pill list (not inside it) so it
+    // stays pinned at the bottom of the popover while the list scrolls.
+    const popover = container.parentElement;
+    popover.querySelector('.genre-more-pill')?.remove();
     const toggle = document.createElement('button');
     toggle.className = 'genre-pill genre-more-pill';
-    toggle.textContent = genrePillsExpanded ? 'Less' : 'More';
+    toggle.textContent = genrePillsExpanded ? 'Show fewer' : 'Show all genres';
     toggle.addEventListener('click', (e) => {
       e.stopPropagation();
       genrePillsExpanded = !genrePillsExpanded;
-      genrePopover.classList.toggle('expanded', genrePillsExpanded);
+      popover.classList.toggle('expanded', genrePillsExpanded);
       renderGenrePills(container);
     });
-    container.appendChild(toggle);
+    popover.appendChild(toggle);
   }
   renderGenrePills(document.getElementById('genre-pills'));
   // Reset the "More" expansion (flag + class + re-render). Exposed so the mobile

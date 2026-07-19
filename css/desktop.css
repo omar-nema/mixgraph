@@ -1712,6 +1712,19 @@ body.night #card-context-menu {
   padding-right: 4px;
   align-content: flex-start;
 }
+/* Parent-category sublabel dividing the expanded genre list into taxonomy
+   groups. flex-basis:100% forces a full-width row break in the flex-wrap
+   container. */
+.genre-cat-group {
+  flex: 0 0 100%;
+  width: 100%;
+  margin: 8px 0 2px;
+  font-size: 13.5px;
+  font-weight: 300;
+  letter-spacing: 0.04em;
+  color: var(--text-tertiary);
+}
+.genre-cat-group:first-child { margin-top: 0; }
 .genre-pill {
   font-size: 14px;
   font-weight: 400;
@@ -1732,16 +1745,32 @@ body.night #card-context-menu {
   border-color: var(--connection-highlight);
   color: #fff;
 }
+/* "Show all genres" toggle — same footer treatment as the card "show more
+   connections" button: bleeds to the popover edges, divider on top, subtle
+   gray hover. Negative margins cancel the popover's 16px padding. */
 .genre-pill.genre-more-pill,
 .genre-pill.genre-more-pill:hover {
-  background: none;
-  border-color: transparent;
-  padding: 6px 12px;
-  color: var(--text-tertiary);
+  flex: 0 0 auto;
+  width: calc(100% + 32px);
+  margin: 14px -16px -16px;
+  padding: 12px 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-top: 1px solid var(--card-border);
+  border-radius: 0 0 11px 11px;
+  background: transparent;
+  color: var(--text-primary);
   font-weight: 400;
+  transition: background 0.2s ease;
 }
 .genre-pill.genre-more-pill:hover {
+  background: #f0ebe7;
   color: var(--text-primary);
+}
+body.night .genre-pill.genre-more-pill:hover {
+  background: rgba(255, 255, 255, 0.06);
 }
 
 /* Cluster context pills */
