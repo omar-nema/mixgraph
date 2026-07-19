@@ -306,6 +306,12 @@
     overflow: visible;
     max-height: none;
   }
+  /* Cap the genre pills list so "More" scrolls internally instead of
+     pushing the popover past the screen edge */
+  #genre-popover.expanded #genre-pills {
+    max-height: 55vh;
+    overflow-y: auto;
+  }
   /* Autocomplete dropdowns: high z-index to sit above everything */
   #find-ac, #dj-ac, #genre-ac {
     z-index: 400;
@@ -353,7 +359,7 @@
     border-radius: var(--card-radius);
     cursor: pointer;
     color: var(--text-secondary);
-    font-size: 19px;
+    font-size: 15px;
     font-weight: 400;
     padding: 0;
     flex-shrink: 0;
@@ -362,7 +368,7 @@
   #mobile-help-btn.open { color: var(--text-primary); }
 
   /* Nudge header icons a touch larger on smaller phones (≥420px re-tunes below) */
-  #mobile-header-share svg,
+  #mobile-header-share svg { width: 13px; height: 13px; }
   #mobile-filter-toggle svg { width: 17px; height: 17px; }
 
   /* In Dig: show filter toggle, hide share. In Shuffle: show share, hide filter toggle */
