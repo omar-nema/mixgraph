@@ -11,6 +11,7 @@ Usage:
     python scraper.py --skip-discovery    # Use existing episode index
     python scraper.py --resume            # Resume interrupted scrape
     python scraper.py --concurrency 10    # Increase parallelism
+    python scraper.py --start-date 2024-10-01 --end-date 2024-12-31   # Backfill a date range
 """
 
 import asyncio
@@ -79,6 +80,8 @@ async def scrape_episodes(
     existing: Dict[str, dict],
     limit: Optional[int] = None,
     concurrency: int = DEFAULT_CONCURRENCY,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
 ) -> List[dict]:
     """
     Scrape episode metadata + tracklists from NTS API.
@@ -88,10 +91,17 @@ async def scrape_episodes(
         existing: Already-scraped episodes keyed by URL
         limit: Max episodes to scrape (None = all)
         concurrency: Number of concurrent requests
+        start_date, end_date: Inclusive YYYY-MM-DD bounds (None = unbounded).
+            Undated index entries are always excluded when a range is given,
+            since there's no date to filter on.
     """
-    # Build scrape queue (skip already done)
+    # Build scrape queue (skip already done, then apply date range if given)
     to_scrape = []
     for entry in index:
+        if start_date or end_date:
+            d = entry.get("date")
+            if not d or (start_date and d < start_date) or (end_date and d > end_date):
+                continue
         url = f"https://www.nts.live/shows/{entry['show_alias']}/episodes/{entry['episode_alias']}"
         if url not in existing:
             to_scrape.append(entry)
@@ -119,7 +129,13 @@ async def scrape_episodes(
                     result = await fetch_and_parse_episode(
                         client, entry["show_alias"], entry["episode_alias"]
                     )
-                    result.pop("error", None)
+                    if result.get("error"):
+                        # Don't save — a saved entry becomes "already scraped" and is
+                        # permanently skipped on future runs, silently masking a fetch
+                        # failure as "genuinely has no tracklist" forever.
+                        errors += 1
+                        logger.warning(f"  fetch failed, will retry next run: {entry['episode_alias']}: {result['error']}")
+                        continue
                     all_episodes.append(result)
                     scraped += 1
 
@@ -148,6 +164,8 @@ async def run(
     skip_discovery: bool = False,
     limit: Optional[int] = None,
     concurrency: int = DEFAULT_CONCURRENCY,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
 ):
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     start = time.time()
@@ -174,7 +192,10 @@ async def run(
     existing = load_existing(EPISODES_FILE)
     logger.info(f"Found {len(existing)} already-scraped episodes")
 
-    all_episodes = await scrape_episodes(index, existing, limit=limit, concurrency=concurrency)
+    all_episodes = await scrape_episodes(
+        index, existing, limit=limit, concurrency=concurrency,
+        start_date=start_date, end_date=end_date,
+    )
 
     # Save final
     n = save_episodes(all_episodes, EPISODES_FILE)
@@ -201,12 +222,17 @@ def main():
     parser.add_argument("--skip-discovery", action="store_true", help="Use existing episode index")
     parser.add_argument("--resume", action="store_true", help="Alias for --skip-discovery")
     parser.add_argument("--concurrency", type=int, default=DEFAULT_CONCURRENCY, help=f"Concurrent requests (default: {DEFAULT_CONCURRENCY})")
+    parser.add_argument("--start-date", type=str, default=None, help="Only scrape episodes on/after this date (YYYY-MM-DD)")
+    parser.add_argument("--end-date", type=str, default=None, help="Only scrape episodes on/before this date (YYYY-MM-DD)")
 
     args = parser.parse_args()
     skip = args.skip_discovery or args.resume
 
     try:
-        asyncio.run(run(skip_discovery=skip, limit=args.limit, concurrency=args.concurrency))
+        asyncio.run(run(
+            skip_discovery=skip, limit=args.limit, concurrency=args.concurrency,
+            start_date=args.start_date, end_date=args.end_date,
+        ))
     except KeyboardInterrupt:
         logger.info("\nInterrupted. Progress has been saved.")
     except Exception as e:
