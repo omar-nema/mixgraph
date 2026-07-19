@@ -311,6 +311,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   mobileHelpBtn.addEventListener('click', () => {
     const isOpen = mobileHelpPanel.classList.toggle('visible');
     mobileHelpBtn.classList.toggle('open', isOpen);
+    mobileHelpBtn.textContent = isOpen ? '✕' : '?';
+    mobileHelpBtn.title = isOpen ? 'Close' : 'How it works';
   });
   const mobileHeaderShare = document.getElementById('mobile-header-share');
   if (mobileHeaderShare) {
@@ -388,21 +390,32 @@ document.addEventListener('DOMContentLoaded', async () => {
   // had no close handler until you'd entered Shuffle, and also leaked listeners per cluster.)
   const sharedBackdrop = document.getElementById('popover-backdrop');
   if (sharedBackdrop) {
-    sharedBackdrop.addEventListener('click', () => {
+    // Close on the backdrop tap. On iOS, a plain `click` on a transparent div is
+    // unreliable — especially while the popover's search input has focus and the
+    // on-screen keyboard is up, where the first tap-outside gets swallowed as a
+    // keyboard-dismiss. `pointerdown` fires regardless; preventDefault stops the
+    // ghost click from retargeting to the pill underneath and reopening it.
+    const closeFromBackdrop = (e) => {
       const popoverEls = [
         document.getElementById('genre-popover'),
         document.getElementById('artist-popover'),
         document.getElementById('dj-popover'),
       ].filter(Boolean);
       const anyOpen = popoverEls.some(p => p.classList.contains('open'));
+      if (!anyOpen) return;
+      if (e) e.preventDefault();
       popoverEls.forEach(p => p.classList.remove('open'));
       sharedBackdrop.classList.remove('open');
       document.querySelectorAll('.mobile-filter-pill.semi-open').forEach(p => p.classList.remove('semi-open'));
-      if (anyOpen && typeof filtersDirty !== 'undefined' && filtersDirty) {
+      // Drop focus so the keyboard retracts with the popover.
+      if (document.activeElement && typeof document.activeElement.blur === 'function') document.activeElement.blur();
+      if (typeof filtersDirty !== 'undefined' && filtersDirty) {
         filtersDirty = false;
         if (typeof shuffle === 'function') shuffle();
       }
-    });
+    };
+    sharedBackdrop.addEventListener('pointerdown', closeFromBackdrop);
+    sharedBackdrop.addEventListener('click', closeFromBackdrop);
   }
 
   helpOverlay.addEventListener('click', (e) => { if (e.target === helpOverlay) helpOverlay.classList.remove('open'); });
