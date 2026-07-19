@@ -159,7 +159,7 @@ function renderSourceToggle(node) {
   const disabledTip = !node.scTrackUrl ? trackTip : (!node.setUrl ? MIX_UNAVAILABLE_TOOLTIP : '');
   return `<div class="source-toggle" data-node-id="${node.id}" data-selected="${selected}"${disabledTip ? ` data-disabled-tip="${disabledTip}"` : ''} role="group" aria-label="Play from track or mix">`
     + opt('track', 'track', !!node.scTrackUrl)
-    + opt('mix', 'mix', !!node.setUrl)
+    + opt('mix', 'mixed', !!node.setUrl)
     + `</div>`;
 }
 
@@ -172,7 +172,13 @@ function initSourceToggle(card, node) {
     btn.addEventListener('click', e => {
       e.preventDefault();
       e.stopPropagation();
-      if (btn.getAttribute('aria-disabled') === 'true') return;
+      if (btn.getAttribute('aria-disabled') === 'true') {
+        // Toggle the "unavailable" tooltip so a second tap dismisses it (touch
+        // devices have no hover to fall back on).
+        toggle.classList.toggle('tip-open');
+        return;
+      }
+      toggle.classList.remove('tip-open');
       const prev = getSelectedAudioSource(node.id);
       const next = setSelectedAudioSource(node.id, btn.dataset.source);
       if (!next || next === prev) return;
@@ -185,6 +191,16 @@ function initSourceToggle(card, node) {
       }
     });
   });
+  // Desktop hover tooltip for a disabled (unavailable) option. Driven via the
+  // .tip-open class rather than CSS :has(:hover): the toggle slides in/out on a
+  // transform, so a pure :hover selector gets "stuck" when the bar slides back
+  // under a stationary cursor. Force-clear on card mouseleave so it always
+  // resets when the pointer leaves the card.
+  toggle.querySelectorAll('.src-opt.disabled').forEach(btn => {
+    btn.addEventListener('mouseenter', () => toggle.classList.add('tip-open'));
+    btn.addEventListener('mouseleave', () => toggle.classList.remove('tip-open'));
+  });
+  card.addEventListener('mouseleave', () => toggle.classList.remove('tip-open'));
 }
 
 // ═══════════════════════════════════════════
