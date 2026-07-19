@@ -194,6 +194,8 @@ async function initFilters() {
         p.classList.toggle('selected', isGenreParentActive(p.dataset.genreParent));
       } else if (p.dataset.genre) {
         p.classList.toggle('selected', isGenreIndividuallySelected(p.dataset.genre));
+        // Child pills grey out while their category's "All" filter is active.
+        if (p.dataset.parentCat) p.disabled = isGenreParentActive(p.dataset.parentCat);
       }
     });
   }
@@ -343,11 +345,17 @@ async function initFilters() {
     });
     return groups;
   }
-  function appendGenrePill(container, name) {
+  function appendGenrePill(container, name, parent) {
     const pill = document.createElement('button');
     pill.className = 'genre-pill' + (isGenreIndividuallySelected(name) ? ' selected' : '');
     pill.textContent = name;
     pill.dataset.genre = name;
+    // Children in the expanded view carry their category so they can be disabled
+    // while that category's "All" filter is active.
+    if (parent) {
+      pill.dataset.parentCat = parent;
+      pill.disabled = isGenreParentActive(parent);
+    }
     pill.addEventListener('click', () => toggleGenre(name));
     container.appendChild(pill);
   }
@@ -356,6 +364,16 @@ async function initFilters() {
     const pill = document.createElement('button');
     pill.className = 'genre-pill genre-all-pill' + (isGenreParentActive(parent) ? ' selected' : '');
     pill.textContent = 'All';
+    pill.dataset.genreParent = parent;
+    pill.addEventListener('click', () => toggleGenreParent(parent));
+    container.appendChild(pill);
+  }
+  // Collapsed view shows one pill per category, labelled with the category name,
+  // that toggles the whole group (same parent filter as the "All" pill).
+  function appendGenreCategoryPill(container, parent) {
+    const pill = document.createElement('button');
+    pill.className = 'genre-pill' + (isGenreParentActive(parent) ? ' selected' : '');
+    pill.textContent = parent;
     pill.dataset.genreParent = parent;
     pill.addEventListener('click', () => toggleGenreParent(parent));
     container.appendChild(pill);
@@ -370,10 +388,14 @@ async function initFilters() {
         hdr.textContent = group.parent;
         container.appendChild(hdr);
         if (group.parent !== 'Other') appendGenreAllPill(container, group.parent);
-        for (const name of group.names) appendGenrePill(container, name);
+        for (const name of group.names) appendGenrePill(container, name, group.parent);
       }
     } else {
-      for (const g of displayGenres) appendGenrePill(container, g.name);
+      // Collapsed: one pill per category group (skip the "Other" catch-all).
+      for (const group of nestedGenreGroups()) {
+        if (group.parent === 'Other') continue;
+        appendGenreCategoryPill(container, group.parent);
+      }
     }
     // Footer toggle lives as a sibling of the pill list (not inside it) so it
     // stays pinned at the bottom of the popover while the list scrolls.
