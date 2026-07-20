@@ -78,10 +78,19 @@ function getAnonId() {
   return id;
 }
 
+// Capture acquisition source once at load — document.referrer is only reliable
+// on first paint (blanks out after client-side route changes), and utm_source
+// survives even when the referrer is stripped (e.g. app in-app browsers).
+const INITIAL_REFERRER = document.referrer || '';
+const INITIAL_UTM = new URLSearchParams(window.location.search).get('utm_source') || '';
+
 function trackEvent(event) {
   const w = window.innerWidth;
   const layout = w <= 768 ? 'mobile' : 'desktop'; // matches isMobileView() breakpoint
-  navigator.sendBeacon(API_BASE + '/api/event', JSON.stringify({ event, uid: getAnonId(), layout, w }));
+  navigator.sendBeacon(API_BASE + '/api/event', JSON.stringify({
+    event, uid: getAnonId(), layout, w,
+    ref: INITIAL_REFERRER, utm: INITIAL_UTM,
+  }));
 }
 
 function apiGetCratesPage(opts = {}) {

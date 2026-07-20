@@ -41,6 +41,25 @@ function parseUA(ua) {
   return { device, os, browser };
 }
 
+// Reduce a referrer URL to an acquisition source. Known platforms get a clean
+// label; anything else falls back to the bare hostname; empty = 'direct'.
+function classifyReferrer(ref) {
+  if (!ref) return 'direct';
+  let host;
+  try { host = new URL(ref).hostname.toLowerCase().replace(/^www\./, ''); }
+  catch { return 'other'; }
+  if (/(^|\.)reddit\.com$|(^|\.)redd\.it$/.test(host)) return 'reddit';
+  if (/(^|\.)(twitter\.com|x\.com|t\.co)$/.test(host)) return 'twitter';
+  if (/(^|\.)instagram\.com$|(^|\.)l\.instagram\.com$/.test(host)) return 'instagram';
+  if (/(^|\.)(facebook\.com|fb\.com|l\.facebook\.com|lm\.facebook\.com)$/.test(host)) return 'facebook';
+  if (/(^|\.)(youtube\.com|youtu\.be)$/.test(host)) return 'youtube';
+  if (/(^|\.)(tiktok\.com)$/.test(host)) return 'tiktok';
+  if (/(^|\.)(google\.|bing\.com|duckduckgo\.com|search\.brave\.com)/.test(host)) return 'search';
+  if (/(^|\.)(news\.ycombinator\.com|hn\.algolia\.com)$/.test(host)) return 'hackernews';
+  if (/(^|\.)(t\.me|telegram\.org)$/.test(host)) return 'telegram';
+  return host; // unrecognized — keep the raw hostname for drill-down
+}
+
 function csvParam(val) {
   if (!val) return [];
   return val.split(',').map(s => s.trim()).filter(Boolean);
@@ -591,17 +610,20 @@ export default {
 
       // POST /api/event — telemetry via Analytics Engine
       if (request.method === 'POST' && url.pathname === '/api/event') {
-        const { event, uid, layout, w } = await request.json();
+        const { event, uid, layout, w, ref, utm } = await request.json();
         const validEvents = ['shuffle', 'play', 'crates', 'filter_genre', 'filter_artist', 'filter_dj'];
         if (!validEvents.includes(event)) {
           return jsonResponse({ error: 'Invalid event' }, 400);
         }
         const cf = request.cf || {};
         const { device, os, browser } = parseUA(request.headers.get('user-agent'));
-        const referer = request.headers.get('referer') || '';
+        // Acquisition source: explicit utm_source wins, else classify the client's
+        // initial document.referrer. (The request's own Referer header is just our
+        // origin — the beacon fires from our page — so it's useless for this.)
+        const source = (utm ? String(utm).toLowerCase().slice(0, 64) : classifyReferrer(ref)).slice(0, 128);
         const layoutStr = layout === 'mobile' || layout === 'desktop' ? layout : '';
         env.EVENTS.writeDataPoint({
-          blobs: [event, cf.country || '', cf.city || '', uid || '', device, os, browser, referer, layoutStr],
+          blobs: [event, cf.country || '', cf.city || '', uid || '', device, os, browser, source, layoutStr],
           doubles: [parseFloat(cf.latitude) || 0, parseFloat(cf.longitude) || 0, parseInt(w) || 0],
           indexes: [event],
         });
