@@ -502,10 +502,13 @@
     scroll-snap-type: x mandatory;
 
     scrollbar-width: none;
-    padding: 0 calc((100vw - 70vw) / 2 + 5vw) 2px calc((100vw - 70vw) / 2 - 5vw);
+    /* Vertical padding gives the card's shadow/glow room to paint: overflow-x:auto
+       forces overflow-y to clip, so without it the .playing halo is sheared off
+       top & bottom. margin-bottom trimmed to keep the vertical footprint stable. */
+    padding: 20px calc((100vw - 70vw) / 2 + 5vw) 32px calc((100vw - 70vw) / 2 - 5vw);
     scroll-padding-inline: calc((100vw - 70vw) / 2 - 5vw) calc((100vw - 70vw) / 2 + 5vw);
     flex-shrink: 0;
-    margin-bottom: 12px;
+    margin-bottom: 0;
   }
   #mobile-carousel::-webkit-scrollbar { display: none; }
 
