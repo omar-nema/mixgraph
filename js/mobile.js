@@ -261,8 +261,14 @@ function selectMobileTrack(nodeId) {
     return;
   }
 
-  // Load into SC widget
+  // Load into SC widget. Register in the shared audio state machine so
+  // stopCurrentPlayback() (fired on Shuffle via showClusterMobile) actually
+  // pauses the widget — otherwise its !currentlyPlayingId guard no-ops and the
+  // old track/set keeps playing.
   if (!initSCWidget()) return;
+  stopCurrentPlayback();
+  currentlyPlayingId = nodeId;
+  currentBackend = 'sc';
   showScPlayer();
 
   scWidgetReady = false;
