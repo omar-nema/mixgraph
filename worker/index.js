@@ -16,6 +16,31 @@ function jsonResponse(data, status = 200) {
   });
 }
 
+// Lightweight User-Agent parser for telemetry (device type, OS, browser).
+// Not exhaustive — just enough to segment traffic in Grafana.
+function parseUA(ua) {
+  ua = ua || '';
+  // Device type
+  let device = 'desktop';
+  if (/\b(iPad|Tablet)\b/i.test(ua) || (/Android/i.test(ua) && !/Mobile/i.test(ua))) device = 'tablet';
+  else if (/Mobi|iPhone|iPod|Android.*Mobile|Windows Phone/i.test(ua)) device = 'mobile';
+  // OS
+  let os = 'other';
+  if (/iPhone|iPad|iPod/i.test(ua)) os = 'iOS';
+  else if (/Android/i.test(ua)) os = 'Android';
+  else if (/Mac OS X|Macintosh/i.test(ua)) os = 'macOS';
+  else if (/Windows/i.test(ua)) os = 'Windows';
+  else if (/Linux/i.test(ua)) os = 'Linux';
+  // Browser (order matters: Edge/Chrome UAs also contain "Safari")
+  let browser = 'other';
+  if (/Edg\//i.test(ua)) browser = 'Edge';
+  else if (/OPR\/|Opera/i.test(ua)) browser = 'Opera';
+  else if (/Firefox\//i.test(ua)) browser = 'Firefox';
+  else if (/Chrome\/|CriOS/i.test(ua)) browser = 'Chrome';
+  else if (/Safari\//i.test(ua)) browser = 'Safari';
+  return { device, os, browser };
+}
+
 function csvParam(val) {
   if (!val) return [];
   return val.split(',').map(s => s.trim()).filter(Boolean);
@@ -566,15 +591,18 @@ export default {
 
       // POST /api/event — telemetry via Analytics Engine
       if (request.method === 'POST' && url.pathname === '/api/event') {
-        const { event, uid } = await request.json();
+        const { event, uid, layout, w } = await request.json();
         const validEvents = ['shuffle', 'play', 'crates', 'filter_genre', 'filter_artist', 'filter_dj'];
         if (!validEvents.includes(event)) {
           return jsonResponse({ error: 'Invalid event' }, 400);
         }
         const cf = request.cf || {};
+        const { device, os, browser } = parseUA(request.headers.get('user-agent'));
+        const referer = request.headers.get('referer') || '';
+        const layoutStr = layout === 'mobile' || layout === 'desktop' ? layout : '';
         env.EVENTS.writeDataPoint({
-          blobs: [event, cf.country || '', cf.city || '', uid || ''],
-          doubles: [parseFloat(cf.latitude) || 0, parseFloat(cf.longitude) || 0],
+          blobs: [event, cf.country || '', cf.city || '', uid || '', device, os, browser, referer, layoutStr],
+          doubles: [parseFloat(cf.latitude) || 0, parseFloat(cf.longitude) || 0, parseInt(w) || 0],
           indexes: [event],
         });
         return new Response(null, { status: 204, headers: corsHeaders });

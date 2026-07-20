@@ -79,7 +79,9 @@ function getAnonId() {
 }
 
 function trackEvent(event) {
-  navigator.sendBeacon(API_BASE + '/api/event', JSON.stringify({ event, uid: getAnonId() }));
+  const w = window.innerWidth;
+  const layout = w <= 768 ? 'mobile' : 'desktop'; // matches isMobileView() breakpoint
+  navigator.sendBeacon(API_BASE + '/api/event', JSON.stringify({ event, uid: getAnonId(), layout, w }));
 }
 
 function apiGetCratesPage(opts = {}) {
