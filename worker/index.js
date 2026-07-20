@@ -610,7 +610,7 @@ export default {
 
       // POST /api/event — telemetry via Analytics Engine
       if (request.method === 'POST' && url.pathname === '/api/event') {
-        const { event, uid, layout, w, ref, utm } = await request.json();
+        const { event, uid, layout, w, ref, utm, sid } = await request.json();
         const validEvents = ['shuffle', 'play', 'crates', 'filter_genre', 'filter_artist', 'filter_dj'];
         if (!validEvents.includes(event)) {
           return jsonResponse({ error: 'Invalid event' }, 400);
@@ -623,7 +623,7 @@ export default {
         const source = (utm ? String(utm).toLowerCase().slice(0, 64) : classifyReferrer(ref)).slice(0, 128);
         const layoutStr = layout === 'mobile' || layout === 'desktop' ? layout : '';
         env.EVENTS.writeDataPoint({
-          blobs: [event, cf.country || '', cf.city || '', uid || '', device, os, browser, source, layoutStr],
+          blobs: [event, cf.country || '', cf.city || '', uid || '', device, os, browser, source, layoutStr, String(sid || '').slice(0, 64)],
           doubles: [parseFloat(cf.latitude) || 0, parseFloat(cf.longitude) || 0, parseInt(w) || 0],
           indexes: [event],
         });

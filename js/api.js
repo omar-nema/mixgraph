@@ -78,6 +78,20 @@ function getAnonId() {
   return id;
 }
 
+// Session id: rolling 30-min inactivity window (GA-style). A gap of >30 min
+// between events starts a new session, so the same user visiting on different
+// days counts as separate sessions — session length = span within one id.
+function getSessionId() {
+  const now = Date.now();
+  const GAP_MS = 30 * 60 * 1000;
+  let sid = localStorage.getItem('_sid');
+  const last = parseInt(localStorage.getItem('_sid_ts') || '0', 10);
+  if (!sid || !last || now - last > GAP_MS) sid = crypto.randomUUID();
+  localStorage.setItem('_sid', sid);
+  localStorage.setItem('_sid_ts', String(now));
+  return sid;
+}
+
 // Capture acquisition source once at load — document.referrer is only reliable
 // on first paint (blanks out after client-side route changes), and utm_source
 // survives even when the referrer is stripped (e.g. app in-app browsers).
@@ -88,7 +102,7 @@ function trackEvent(event) {
   const w = window.innerWidth;
   const layout = w <= 768 ? 'mobile' : 'desktop'; // matches isMobileView() breakpoint
   navigator.sendBeacon(API_BASE + '/api/event', JSON.stringify({
-    event, uid: getAnonId(), layout, w,
+    event, uid: getAnonId(), sid: getSessionId(), layout, w,
     ref: INITIAL_REFERRER, utm: INITIAL_UTM,
   }));
 }
