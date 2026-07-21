@@ -4,6 +4,8 @@
  * Covers:
  *   S1–S3. Shuffle mode navigation + deep-link
  *   P1.    Playback across multiple tracks (root, r1[0], r1[1])
+ *   P2.    Pause during track→mix load stays paused (no restart from 0:00)
+ *   P3.    Pause then resume replays the same track
  *   F1–F3. Artist / DJ / genre filters narrow rendered cluster
  *   D1–D3. Dig (crates) mode: render, tile-click, filter
  *
@@ -145,6 +147,96 @@ async function testPlaybackMultipleTracks(browser) {
       await page.click('#filter-shuffle-btn');
       await page.waitForTimeout(1200);
       assertEq((await snapshotPlayback(page)).playing.length, 0, 'no card playing after shuffle');
+    } finally { await ctx.close(); }
+  } finally { await muted.close(); }
+}
+
+// Reproduces the reported bug: play a track, switch to mix, pause while the set
+// is still loading. auto_play + the widget's READY handler used to override that
+// pause and restart the set from 0:00. We widen the load window so READY/auto_play
+// resolves AFTER the pause (the race a slow/cold load hits in the wild), then
+// assert the card never returns to "playing" — i.e. the pause is honored.
+async function testPauseDuringSetLoadStaysPaused(browser) {
+  setTest('P2. Pause during track→mix load stays paused (no restart from 0:00)');
+  const muted = await chromium.launch({ args: ['--mute-audio', '--autoplay-policy=no-user-gesture-required'] });
+  try {
+    const { ctx, page } = await newPage(muted);
+    try {
+      await loadTracks(page, APP_URL_MUTED);
+      // Need a node with BOTH an individual track and a set so we can play the
+      // track and then switch to mix (the reported repro path).
+      let target = null;
+      for (let i = 0; i < 8 && !target; i++) {
+        target = (await clusterSnapshot(page)).nodes.find(n => n.scTrackUrl && n.setUrl);
+        if (!target) { await page.click('#filter-shuffle-btn'); await page.waitForTimeout(900); }
+      }
+      if (!target) return fail('no node with both track + set within retry budget');
+
+      await clickPlayOn(page, target.id); // plays the track (default source when scTrackUrl exists)
+
+      const outcome = await page.evaluate(async (id) => {
+        const sleep = ms => new Promise(r => setTimeout(r, ms));
+        const card = document.querySelector(`.node-card[data-node-id="${id}"]`);
+        // Delay the real load so READY/auto_play land AFTER the user's pause.
+        const origLoad = scWidget.load.bind(scWidget);
+        scWidget.load = (url, opts) => setTimeout(() => origLoad(url, opts), 1500);
+        try {
+          card.querySelector('.src-opt[data-source="mix"]').click(); // switch → playSCSet → delayed load
+          await sleep(300);
+          card.querySelector('.play-btn').click();                  // user pauses mid-load
+          const pausedIntent = typeof userPaused !== 'undefined' ? userPaused : null;
+          await sleep(2500);                                         // past delayed load + READY + auto_play
+          return { pausedIntent, cardPlaying: card.classList.contains('playing') };
+        } finally { scWidget.load = origLoad; }
+      }, target.id);
+
+      assertTrue(outcome.pausedIntent === true, 'pause intent recorded (userPaused)');
+      assertTrue(!outcome.cardPlaying, 'set did NOT auto-restart after load resolved');
+    } finally { await ctx.close(); }
+  } finally { await muted.close(); }
+}
+
+// Guards the fix from over-correcting: a paused set must still resume on the next
+// tap (the intent flag has to clear, not stick true).
+async function testPauseThenResume(browser) {
+  setTest('P3. Pause then resume replays the same track (intent flag clears)');
+  const muted = await chromium.launch({ args: ['--mute-audio', '--autoplay-policy=no-user-gesture-required'] });
+  try {
+    const { ctx, page } = await newPage(muted);
+    try {
+      await loadTracks(page, APP_URL_MUTED);
+      const sel = await ensurePlayableCluster(page);
+      if (!sel) return fail('no playable cluster within retry budget');
+
+      await clickPlayOn(page, sel.root.id);
+      await page.waitForFunction(id => document.querySelector(`.node-card[data-node-id="${id}"]`)?.classList.contains('playing'),
+                                 sel.root.id, { timeout: 6000 }).catch(() => {});
+
+      // Pause
+      await page.evaluate(id => document.querySelector(`.node-card[data-node-id="${id}"] .play-btn`).click(), sel.root.id);
+      await page.waitForTimeout(400);
+      const paused = await page.evaluate(id => ({
+        playing: document.querySelector(`.node-card[data-node-id="${id}"]`).classList.contains('playing'),
+        intent: typeof userPaused !== 'undefined' ? userPaused : null,
+      }), sel.root.id);
+      assertTrue(!paused.playing && paused.intent === true, 'paused: not playing, intent set');
+
+      // Resume
+      await page.evaluate(id => document.querySelector(`.node-card[data-node-id="${id}"] .play-btn`).click(), sel.root.id);
+      await page.waitForFunction(id => document.querySelector(`.node-card[data-node-id="${id}"]`)?.classList.contains('playing'),
+                                 sel.root.id, { timeout: 6000 }).catch(() => {});
+      // Poll briefly — the resume must settle into a steady "playing" state.
+      const resumed = await page.evaluate(async id => {
+        const sleep = ms => new Promise(r => setTimeout(r, ms));
+        const card = document.querySelector(`.node-card[data-node-id="${id}"]`);
+        let everPlaying = false;
+        for (let i = 0; i < 6; i++) {
+          if (card.classList.contains('playing')) everPlaying = true;
+          await sleep(300);
+        }
+        return { everPlaying, intent: typeof userPaused !== 'undefined' ? userPaused : null };
+      }, sel.root.id);
+      assertTrue(resumed.everPlaying && resumed.intent === false, 'resumed: playing again, intent cleared');
     } finally { await ctx.close(); }
   } finally { await muted.close(); }
 }
@@ -315,6 +407,8 @@ async function testDigWithGenreFilter(browser) {
       testShuffleClusterShape,
       testShuffleDeepLink,
       testPlaybackMultipleTracks,
+      testPauseDuringSetLoadStaysPaused,
+      testPauseThenResume,
       testFilterArtist,
       testFilterDj,
       testFilterGenre,
