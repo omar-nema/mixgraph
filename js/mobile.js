@@ -340,8 +340,10 @@ function makeCarouselCard(node) {
 
   initSourceToggle(card, node);
 
-  card.addEventListener('click', (e) => {
-    if (e.target.closest('.mc-close')) {
+  // Card activation. Runs from either the pointer fast-path (below) or the
+  // native click fallback. `target` is the element the gesture landed on.
+  function activateCard(target) {
+    if (target.closest('.mc-close')) {
       // Switch back to Dig mode
       document.querySelectorAll('.mode-tab').forEach(t => t.classList.remove('active'));
       document.querySelectorAll('.mode-tab[data-mode="crates"]').forEach(t => t.classList.add('active'));
@@ -352,7 +354,7 @@ function makeCarouselCard(node) {
       history.pushState(null, '', '/dig');
       return;
     }
-    if (e.target.closest('.card-dots, .source-toggle')) return;
+    if (target.closest('.card-dots, .source-toggle')) return;
     // Scroll item to center if not already centered
     const carousel = document.getElementById('mobile-carousel');
     const itemCenter = item.offsetLeft + item.offsetWidth / 2;
@@ -363,6 +365,35 @@ function makeCarouselCard(node) {
     if (card.classList.contains('selected')) return;
     if (hasAudio) selectMobileTrack(node.id);
     else updateMobileSources(node.graphId);
+  }
+
+  // Pointer fast-path: a tap that lands while the scroll-snap carousel is still
+  // settling (momentum coast on iOS) gets its `click` swallowed by the browser —
+  // the first tap only arrests the scroll. Pointer events still fire, so we
+  // detect a tap ourselves (small movement, quick) and activate immediately.
+  // We keep the native click below for a11y (VoiceOver activation dispatches a
+  // click, not this touch sequence) and suppress its double-fire via `tapHandled`.
+  let tapStart = null;   // { x, y, t }
+  let tapHandled = false;
+  card.addEventListener('pointerdown', (e) => {
+    if (e.pointerType === 'mouse') return;   // let click handle mouse
+    tapStart = { x: e.clientX, y: e.clientY, t: e.timeStamp };
+  });
+  card.addEventListener('pointercancel', () => { tapStart = null; });
+  card.addEventListener('pointerup', (e) => {
+    if (!tapStart) return;
+    const moved = Math.hypot(e.clientX - tapStart.x, e.clientY - tapStart.y);
+    const quick = e.timeStamp - tapStart.t < 500;
+    tapStart = null;
+    if (moved > 10 || !quick) return;   // a drag/scroll, not a tap
+    tapHandled = true;
+    setTimeout(() => { tapHandled = false; }, 400);   // swallow the trailing click
+    activateCard(e.target);
+  });
+
+  card.addEventListener('click', (e) => {
+    if (tapHandled) return;   // already handled by the pointer fast-path
+    activateCard(e.target);
   });
 
   let contextText = '';
