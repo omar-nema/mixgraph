@@ -143,6 +143,7 @@ async function initFilters() {
     if (window._renderSearchBarChips) window._renderSearchBarChips();
     updateFilterUI();
     updateClusterPills();
+    syncFiltersToUrl();
 
     if (document.body.classList.contains('crates-mode')) {
       if (window._cratesResetFn) window._cratesResetFn();
@@ -155,6 +156,43 @@ async function initFilters() {
       filtersDirty = false;
       shuffle();
     }
+  }
+
+  // Persist user-facing filters (genre/artist/dj/track) to the URL query so links
+  // are shareable and survive reload. replaceState — no history spam. Other params
+  // (e.g. ?noplay) and the cluster hash are preserved.
+  function syncFiltersToUrl() {
+    const params = new URLSearchParams(location.search);
+    ['g', 'a', 'dj', 'q'].forEach(k => params.delete(k));
+    genreFilters.forEach(v => params.append('g', v));
+    [...searchFilters, ...clusterArtistFilters].forEach(f => params.append('a', f.display));
+    [...djSearchFilters, ...clusterDjFilters].forEach(f => params.append('dj', f.display));
+    if (trackSearchFilter) params.set('q', trackSearchFilter);
+    const qs = params.toString();
+    const url = location.pathname + (qs ? '?' + qs : '') + location.hash;
+    if (url !== location.pathname + location.search + location.hash) {
+      history.replaceState(history.state, '', url);
+    }
+  }
+
+  // Restore filters from the URL query on load. Each type collapses into one
+  // canonical bucket (genre → manual toggles, artist/dj → search filters); the
+  // original origin (parent chip vs pill, search vs cluster) isn't reconstructed,
+  // but the filtering result is identical. Returns true if any filter was applied.
+  function restoreFiltersFromUrl() {
+    const params = new URLSearchParams(location.search);
+    const genres = params.getAll('g');
+    const artists = params.getAll('a');
+    const djs = params.getAll('dj');
+    const q = params.get('q');
+    if (!genres.length && !artists.length && !djs.length && !q) return false;
+    applyFilterChange(() => {
+      genres.forEach(n => manualGenreToggles.add(n));
+      artists.forEach(d => { if (!searchFilters.some(f => f.display === d)) searchFilters.push({ display: d, source: 'searchbar' }); });
+      djs.forEach(d => { if (!djSearchFilters.some(f => f.display === d)) djSearchFilters.push({ display: d, source: 'searchbar' }); });
+      if (q) trackSearchFilter = q;
+    }, { deferReshuffle: true });
+    return true;
   }
 
   // `source` records where a filter was added: 'searchbar' (unified top search) or
@@ -1075,5 +1113,5 @@ async function initFilters() {
   // Populate cluster pills now that indexes are built
   updateClusterPills();
 
-  return { updateClusterPills, updateFilterUI, closeFindAc, closeDjAc, closeGenreAc, clearAllFilters, addDjFilter, addSearchFilter, toggleGenre };
+  return { updateClusterPills, updateFilterUI, closeFindAc, closeDjAc, closeGenreAc, clearAllFilters, addDjFilter, addSearchFilter, toggleGenre, restoreFiltersFromUrl };
 }

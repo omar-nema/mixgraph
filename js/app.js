@@ -13,8 +13,8 @@ function showCluster(cluster) {
   nodes.forEach(n => nodeMap[n.id] = n);
   currentRootId = cluster.nodes[0].graphId;
   document.getElementById('cluster-id').textContent = currentRootId;
-  const target = '/shuffle#' + encodeURIComponent(currentRootId);
-  if (location.pathname + location.hash !== target) {
+  const target = '/shuffle' + location.search + '#' + encodeURIComponent(currentRootId);
+  if (location.pathname + location.search + location.hash !== target) {
     history.pushState(null, '', target);
   }
   logCluster(cluster);
@@ -270,6 +270,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Register cluster pills hook before initial load
   onClusterShown = () => { filterCtrl.updateClusterPills(); filterCtrl.updateFilterUI(); };
 
+  // Restore filters from URL (genre/artist/dj/track) before the first load so the
+  // initial shuffle/cluster/crates query already reflects them.
+  filterCtrl.restoreFiltersFromUrl();
+
   // Determine starting mode from URL path
   const startPath = location.pathname.replace(/\/$/, '');
   const startInShuffle = startPath === '/shuffle';
@@ -286,7 +290,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   } else {
     // Default: dig/crates mode — URL is / or /dig
     if (startPath !== '/dig' && startPath !== '' && startPath !== '/') {
-      history.replaceState(null, '', '/dig');
+      history.replaceState(null, '', '/dig' + location.search);
     }
   }
 
@@ -1608,9 +1612,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       document.body.classList.toggle('crates-mode', mode === 'crates');
       // Push URL for mode change
       if (mode === 'crates') {
-        history.pushState(null, '', '/dig');
+        history.pushState(null, '', '/dig' + location.search);
       } else {
-        history.pushState(null, '', '/shuffle' + (currentRootId ? '#' + encodeURIComponent(currentRootId) : ''));
+        history.pushState(null, '', '/shuffle' + location.search + (currentRootId ? '#' + encodeURIComponent(currentRootId) : ''));
       }
       // Lazy init crates — defer so tab switch is instant
       if (mode === 'crates') {
