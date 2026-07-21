@@ -272,7 +272,20 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Restore filters from URL (genre/artist/dj/track) before the first load so the
   // initial shuffle/cluster/crates query already reflects them.
-  filterCtrl.restoreFiltersFromUrl();
+  const hasRestoredFilters = filterCtrl.restoreFiltersFromUrl();
+
+  // loadClusterById (hash links) doesn't compute the filter pool size, so a shared
+  // filtered link (?g=...#cluster) would show "results (0)". Fetch the pool size
+  // separately and refresh the label — without disturbing the displayed cluster.
+  async function refreshFilteredPoolSize() {
+    try {
+      const c = await apiShuffle(buildFilterParams());
+      if (c.meta.poolSize !== undefined) {
+        lastPoolSize = c.meta.poolSize;
+        filterCtrl.updateFilterUI();
+      }
+    } catch (_) { /* leave label uncounted if the pool can't be computed */ }
+  }
 
   // Determine starting mode from URL path
   const startPath = location.pathname.replace(/\/$/, '');
@@ -283,7 +296,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Switch to shuffle/tracks mode
     switchToMode('tracks');
     if (hashId) {
-      loadClusterById(hashId);
+      await loadClusterById(hashId);
+      if (hasRestoredFilters) refreshFilteredPoolSize();
     } else {
       shuffle();
     }
