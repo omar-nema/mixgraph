@@ -48,7 +48,6 @@ function showClusterMobile(cluster) {
     const anyOpen = Object.values(popovers).some(p => p && p.classList.contains('open'));
     Object.values(popovers).forEach(p => { if (p) p.classList.remove('open'); });
     popoverBackdrop.classList.remove('open');
-    if (window._collapseGenrePills) window._collapseGenrePills();
     document.querySelectorAll('.mobile-filter-pill').forEach(p => p.classList.remove('semi-open'));
     if (andReshuffle && anyOpen && filtersDirty) {
       filtersDirty = false;
@@ -295,7 +294,19 @@ function selectMobileTrack(nodeId) {
   scWidget.bind(SC.Widget.Events.PLAY, () => {
     if (card && card.classList.contains('selected')) card.classList.add('playing');
     // On mobile Safari, seekTo only works once the user presses play — seek here.
-    if (offsetSec && !didSeek) { didSeek = true; setTimeout(() => scWidget.seekTo(offsetSec * 1000), 500); }
+    // Guard against pausing inside the 500ms window: seekTo un-pauses the widget
+    // on Safari, so a quick pause would resume the mix from the offset instead of
+    // holding. Skip while paused and leave didSeek false so the next PLAY retries.
+    if (offsetSec && !didSeek) {
+      setTimeout(() => {
+        if (didSeek) return;
+        scWidget.isPaused(paused => {
+          if (didSeek || paused) return;
+          didSeek = true;
+          scWidget.seekTo(offsetSec * 1000);
+        });
+      }, 500);
+    }
   });
   scWidget.bind(SC.Widget.Events.PAUSE, () => {
     if (card) card.classList.remove('playing');
@@ -335,7 +346,7 @@ function makeCarouselCard(node) {
         <div class="mc-title"><span class="tt-inner">${node.title}</span></div>
         <div class="mc-artist"><span class="tt-inner">${node.artist}</span></div>
       </div>
-      <button class="card-dots" aria-label="More options" data-artist="${node.artist}" data-dj="${(node.djs && node.djs.length) ? node.djs[0].name : ''}" data-set-url="${node.setUrl || (node.djs && node.djs.length ? node.djs[0].episodeUrl || '' : '')}" data-track-url="${node.scTrackUrl || ''}"><svg viewBox="0 0 24 24" fill="currentColor"><circle class="dot dot-top" cx="12" cy="5" r="1.5"/><circle class="dot dot-mid" cx="12" cy="12" r="1.5"/><circle class="dot dot-bot" cx="12" cy="19" r="1.5"/><line class="x-line" x1="8" y1="8" x2="16" y2="16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line class="x-line" x1="16" y1="8" x2="8" y2="16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
+      <button class="card-dots" aria-label="More options" data-artist="${node.artist}" data-dj="${(node.djs && node.djs.length) ? node.djs[0].name : ''}" data-set-url="${node.setUrl || (node.djs && node.djs.length ? node.djs[0].episodeUrl || '' : '')}" data-track-url="${node.scTrackUrl || node.setUrl || ''}"><svg viewBox="0 0 24 24" fill="currentColor"><circle class="dot dot-top" cx="12" cy="5" r="1.5"/><circle class="dot dot-mid" cx="12" cy="12" r="1.5"/><circle class="dot dot-bot" cx="12" cy="19" r="1.5"/><line class="x-line" x1="8" y1="8" x2="16" y2="16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line class="x-line" x1="16" y1="8" x2="8" y2="16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
     </div>`;
 
   initSourceToggle(card, node);

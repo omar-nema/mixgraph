@@ -14,6 +14,13 @@ class SPAHandler(http.server.SimpleHTTPRequestHandler):
             self.path = '/index.html'
         super().do_GET()
 
+    def end_headers(self):
+        # Dev only: never cache, so edits to js/css show up on plain reload
+        # (no more hard-refresh needed). Does not affect the deployed site.
+        self.send_header('Cache-Control', 'no-store, must-revalidate')
+        self.send_header('Expires', '0')
+        super().end_headers()
+
 if __name__ == '__main__':
     s = http.server.HTTPServer(('', 8000), SPAHandler)
     print('SPA dev server on http://localhost:8000')

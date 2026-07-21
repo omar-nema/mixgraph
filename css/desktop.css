@@ -26,7 +26,7 @@ html { background: #f3f3f8; -webkit-text-size-adjust: 100%; text-size-adjust: 10
   --card-bg: color-mix(in srgb, white 50%, var(--bg));
   --card-border: color-mix(in srgb, black 10%, var(--bg));
   --card-border-subtle: color-mix(in srgb, black 7%, var(--bg));
-  --connection-stroke: color-mix(in srgb, black 25%, var(--bg));
+  --connection-stroke: color-mix(in srgb, black 38%, var(--bg));
   --toolbar-btn-bg: color-mix(in srgb, black 4%, var(--bg));
   --surface-elevated: color-mix(in srgb, white 30%, var(--bg));
 
@@ -89,7 +89,7 @@ body.night {
   --card-bg: color-mix(in srgb, white 9%, var(--bg));
   --card-border: color-mix(in srgb, white 12%, var(--bg));
   --card-border-subtle: color-mix(in srgb, white 6%, var(--bg));
-  --connection-stroke: color-mix(in srgb, white 20%, var(--bg));
+  --connection-stroke: color-mix(in srgb, white 32%, var(--bg));
   --toolbar-btn-bg: color-mix(in srgb, white 4%, var(--bg));
   --surface-elevated: color-mix(in srgb, white 14%, var(--bg));
 
@@ -118,8 +118,6 @@ body.night .album-art { background: var(--surface-elevated); }
 body.night .album-art.no-art { background: var(--surface-elevated); }
 body.night .node-card .rank-tooltip { background: #e8e4e0; color: #141414; }
 body.night .node-card .rank-tooltip::after { border-top-color: #e8e4e0; }
-body.night .progress-bar .bar-track { background: rgba(255,255,255,0.2); border-top-color: rgba(255,255,255,0.15); }
-body.night .progress-bar .bar-fill { background: var(--accent-fill-soft); }
 body.night .node-card.loading::after { background: linear-gradient(90deg, transparent 25%, rgba(255,255,255,0.06) 50%, transparent 75%); background-size: 200% 100%; animation: card-shimmer 2.5s ease-in-out infinite; }
 body.night #help-overlay { background: rgba(0, 0, 0, 0.6); }
 body.night #help-modal { background: var(--surface-elevated); box-shadow: 0 8px 40px rgba(0, 0, 0, 0.5); }
@@ -270,7 +268,40 @@ body {
   stroke-linejoin: round;
 }
 
-.card-dots { display: none; }
+/* Triple-dot context-menu trigger, bottom-right corner of every card.
+   Always visible; brightens on hover; morphs to an X while its menu is open.
+   `bottom` is tuned per rank so the 18px icon sits vertically centered on the
+   mix-name (dj-line) — its font-size (and thus line height) differs by rank. */
+.node-card .card-dots {
+  display: flex;
+  align-items: center;
+  position: absolute;
+  bottom: 7px;
+  right: 6px;
+  padding: 4px 3px 4px 18px;
+  /* Opaque card-bg backing, fading in from the left, so the playing-state
+     marquee scrolls out of view behind the button instead of under it. */
+  background: linear-gradient(to right, transparent, var(--card-bg) 18px);
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: color 0.15s ease;
+  z-index: 3;
+}
+.node-card[data-rank="root"] .card-dots { bottom: 10px; }
+.node-card .card-dots:hover { color: var(--text-primary); }
+.node-card .card-dots svg { width: 18px; height: 18px; display: block; }
+.node-card .card-dots .dot { transition: opacity 0.2s ease; }
+.node-card .card-dots .x-line { opacity: 0; transition: opacity 0.2s ease; }
+.node-card .card-dots.dots-open .dot { opacity: 0; }
+.node-card .card-dots.dots-open .x-line { opacity: 1; }
+/* On root cards with a "show more connections" footer, the footer sits flush at
+   the card bottom — lift the button up to the mix-name line so they don't collide.
+   (Placed after the root rule so it wins at equal specificity.) */
+.node-card:has(.card-footer) .card-dots { bottom: 47px; }
+/* keep the resting-state ellipsis clear of the button */
+.node-card .dj-line { padding-right: 30px; }
+
 .ctx-close { display: none; }
 
 .card-footer {
@@ -607,6 +638,9 @@ body.night .genre-tooltip {
   white-space: nowrap;
   z-index: 5;
   animation: filterLabelIn 0.4s ease both;
+  /* Keep "(3)" literal — stop Space Grotesk rendering it as a circled ③ */
+  font-variant-ligatures: none;
+  font-feature-settings: "liga" 0, "calt" 0, "dlig" 0;
 }
 #filter-label:empty { display: none; }
 @keyframes filterLabelIn {
@@ -933,26 +967,45 @@ a.track-title { color: inherit; text-decoration: none; }
   50%      { transform: scale(1.013); }
 }
 
-/* Progress bar at bottom of art-wrap */
+/* Progress / scrubber bar at the base of the art. Borrows the track/mixed
+   toggle's frosted-glass language (dark blur + saturate + white hairline) so it
+   stays legible over any album art — dark or light, any hue — while remaining
+   subtle. Floats over the art, so the same treatment works in both modes. */
 .progress-bar {
   position: absolute;
   bottom: 0; left: 0; right: 0;
   height: 6px;
   cursor: pointer;
   z-index: 5;
+  transition: height 0.15s ease;
 }
+.progress-bar:hover,
+.progress-bar.dragging { height: 10px; }
 
 .progress-bar .bar-track {
+  position: relative;
   width: 100%; height: 100%;
-  background: rgba(0, 0, 0, 0.45);
-  box-shadow: 0 -1px 3px rgba(0, 0, 0, 0.3);
-  border-top: 1px solid rgba(255, 255, 255, 0.4);
+  background: rgba(0, 0, 0, 0.5);
+  -webkit-backdrop-filter: blur(12px) saturate(1.3);
+  backdrop-filter: blur(12px) saturate(1.3);
+  border-top: 1px solid rgba(255, 255, 255, 0.16);
 }
 
 .progress-bar .bar-fill {
+  position: relative;
   height: 100%;
-  background: var(--connection-highlight);
   width: 0%;
+  background: var(--connection-highlight);
+}
+/* Bright playhead cap at the leading edge — the toggle's white-on-glass accent,
+   makes the current position findable on any background. Only on the playing
+   card so idle cards don't sprout a stray nub at 0%. */
+.node-card.playing .progress-bar .bar-fill::after {
+  content: '';
+  position: absolute;
+  top: 0; bottom: 0; right: 0;
+  width: 2px;
+  background: rgba(255, 255, 255, 0.9);
 }
 
 /* Loading shimmer — full card overlay */
@@ -1570,6 +1623,52 @@ body.night .filter-popover { background: var(--surface-elevated); box-shadow: 0 
 .popover-clear:not(:disabled):hover {
   opacity: 0.6;
 }
+
+/* Popover header: "N selected" toggle (left) + Clear all (right) */
+.popover-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+/* Clear all sits inside the header row now — drop its standalone offsets */
+.popover-header .popover-clear { align-self: auto; margin-bottom: 0; }
+
+.popover-selected-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--connection-highlight);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  transition: opacity 0.15s ease;
+  /* Stop Space Grotesk's ligature from turning "(3)" into a circled ③ */
+  font-variant-ligatures: none;
+  font-feature-settings: "liga" 0, "calt" 0, "dlig" 0;
+}
+.popover-selected-toggle[hidden] { display: none; }
+.popover-selected-toggle:not(:disabled):hover { opacity: 0.6; }
+/* Empty state: "Selected (0)" placeholder — tertiary, no chevron, not interactive */
+.popover-selected-toggle:disabled { color: var(--text-tertiary); cursor: default; opacity: 1; }
+.popover-selected-toggle:disabled .icon-caret { display: none; }
+/* Caret points right when collapsed, rotates down when expanded */
+.popover-selected-toggle .icon-caret { transition: transform 0.15s ease; transform: rotate(-90deg); }
+.filter-popover.selected-open .popover-selected-toggle .icon-caret { transform: rotate(0deg); }
+
+/* Collapsible tray of selected chips (reuses .find-chip). Hidden until expanded. */
+.popover-selected-tray {
+  display: none;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.filter-popover.selected-open .popover-selected-tray { display: flex; }
+
 .filter-popover { flex-direction: column; }
 .filter-popover.open { display: flex; animation: ctx-fade-in 0.12s ease-out; }
 
@@ -1712,12 +1811,15 @@ body.night #card-context-menu {
   gap: 6px;
   margin-top: 14px;
 }
-#genre-popover.expanded {
+/* Scoped to .open so a lingering .expanded on a closed popover stays inert
+   (display:none wins). This lets genrePillsExpanded persist across open/close —
+   reopening re-adds .open and restores the expanded layout automatically. */
+#genre-popover.open.expanded {
   max-height: 80vh;
   display: flex;
   flex-direction: column;
 }
-#genre-popover.expanded #genre-pills {
+#genre-popover.open.expanded #genre-pills {
   overflow-y: auto;
   flex: 1 1 auto;
   min-height: 0;

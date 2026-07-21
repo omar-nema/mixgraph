@@ -128,8 +128,8 @@ async function testChipSurfaceSync(browser) {
   } finally { await ctx.close(); }
 }
 
-async function testGenrePopoverAddSyncsSearchBar(browser) {
-  setTest('B2. Adding genre from popover syncs unified search bar');
+async function testGenrePopoverAddDoesNotMirrorSearchBar(browser) {
+  setTest('B2. Adding genre from popover shows in tray, NOT the search bar');
   const { ctx, page } = await newPage(browser);
   try {
     await loadTracks(page);
@@ -150,8 +150,36 @@ async function testGenrePopoverAddSyncsSearchBar(browser) {
     await page.click('body', { position: { x: 10, y: 10 } });
     await page.waitForTimeout(600);
     const s = await clusterSnapshot(page);
-    assertTrue(s.genreChips.length >= 1, 'genre popover chip row has entry');
+    // New behavior: popover selections live in the popover tray only — they must
+    // NOT mirror into the unified search bar.
+    assertTrue(s.genreChips.some(c => c.toLowerCase() === chose.toLowerCase()), `genre tray has "${chose}"`);
+    assertEq(s.searchBarChips.length, 0, 'search bar stays empty for popover-added genre');
+    assertTrue(s.pillGenreActive, 'pill-genre.active');
+  } finally { await ctx.close(); }
+}
+
+async function testSearchBarGenreMirrorsToTray(browser) {
+  setTest('B2b. Selecting a genre from the search bar shows in BOTH search bar and genre tray');
+  const { ctx, page } = await newPage(browser);
+  try {
+    await loadTracks(page);
+    // Add a genre via the unified search bar
+    await page.click('#filter-search');
+    await page.type('#filter-search', 'house', { delay: 35 });
+    await page.waitForSelector('#filter-search-ac.open .ac-item', { timeout: 8000 });
+    const chose = await page.evaluate(() => {
+      const items = [...document.querySelectorAll('#filter-search-ac .ac-item')];
+      const item = items.find(el => el.querySelector('.ac-type')?.textContent.trim() === 'genre');
+      if (!item) return null;
+      const name = item.querySelector('.ac-name')?.textContent.trim();
+      item.click();
+      return name;
+    });
+    if (!chose) return fail('no genre in search-bar autocomplete');
+    await page.waitForTimeout(600);
+    const s = await clusterSnapshot(page);
     assertTrue(s.searchBarChips.some(c => c.toLowerCase() === chose.toLowerCase()), `search bar has "${chose}"`);
+    assertTrue(s.genreChips.some(c => c.toLowerCase() === chose.toLowerCase()), `genre tray mirrors "${chose}"`);
     assertTrue(s.pillGenreActive, 'pill-genre.active');
   } finally { await ctx.close(); }
 }
@@ -340,7 +368,8 @@ async function testMobileEscapeClearsSemiOpen(browser) {
       testReshuffleOffScreenArtist,
       testRemoveFilterNoReshuffle,
       testChipSurfaceSync,
-      testGenrePopoverAddSyncsSearchBar,
+      testGenrePopoverAddDoesNotMirrorSearchBar,
+      testSearchBarGenreMirrorsToTray,
       testPopoverClearSyncsSearchBar,
       testGenreParentChildConsistency,
       testClusterPillNoReshuffle,

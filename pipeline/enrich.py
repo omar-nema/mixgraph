@@ -18,10 +18,12 @@ Usage:
     python enrich.py --fix-sets                         # fix NTS set URLs via API
 """
 
+import os
 import json
 import re
 import sys
 import time
+import atexit
 import signal
 import socket
 import http.client
@@ -268,6 +270,47 @@ def get_episode_context(node: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     return None
 
 
+def acquire_lock(cache_path: Path) -> bool:
+    """Prevent concurrent enrichment runs — two writers race and corrupt the cache.
+
+    Writes our PID to <cache>.lock. Refuses to start if another *live* run holds it;
+    clears the lock automatically if the holder is dead (stale after a crash / kill -9).
+    Registers cleanup so the lock is released on normal exit and on Ctrl-C.
+    """
+    lock_path = cache_path.with_name(cache_path.name + ".lock")
+    if lock_path.exists():
+        try:
+            other_pid = int(lock_path.read_text().strip())
+        except (ValueError, OSError):
+            other_pid = None
+        if other_pid and other_pid != os.getpid():
+            try:
+                os.kill(other_pid, 0)  # signal 0 = existence check
+                alive = True
+            except ProcessLookupError:
+                alive = False
+            except PermissionError:
+                alive = True  # exists, just not ours to signal
+            if alive:
+                print(f"ERROR: another enrichment run is active (PID {other_pid}) — refusing to start.")
+                print(f"  Running two at once corrupts {cache_path.name}.")
+                print(f"  If you're certain that PID is dead, remove {lock_path} and retry.")
+                return False
+            print(f"  Clearing stale lock from dead PID {other_pid}")
+
+    lock_path.write_text(str(os.getpid()))
+
+    def release():
+        try:
+            if lock_path.exists() and lock_path.read_text().strip() == str(os.getpid()):
+                lock_path.unlink()
+        except OSError:
+            pass
+
+    atexit.register(release)
+    return True
+
+
 def save_cache(cache: Dict[str, Any], cache_path: Path):
     """Save cache to disk."""
     cache_path.parent.mkdir(parents=True, exist_ok=True)
@@ -314,6 +357,11 @@ def main():
     # Load existing cache (incremental)
     cache: Dict[str, Any] = {}
     cache_path = Path(args.output)
+
+    # Guard against concurrent runs — overlapping writes corrupt the cache
+    if not acquire_lock(cache_path):
+        return 1
+
     if cache_path.exists():
         with open(cache_path, "r", encoding="utf-8") as f:
             cache = json.load(f)

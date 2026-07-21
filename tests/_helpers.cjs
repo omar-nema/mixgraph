@@ -162,9 +162,9 @@ function clusterSnapshot(page) {
       // Chip / pill surfaces
       clusterArtistPills: chips('#artist-cluster-pills .cluster-pill'),
       clusterDjPills:     chips('#dj-cluster-pills .cluster-pill'),
-      findChips:          chips('#find-chips-input .find-chip'),
-      djChips:            chips('#dj-chips-input .find-chip'),
-      genreChips:         chips('#genre-chips-input .find-chip'),
+      findChips:          chips('#artist-selected-tray .find-chip'),
+      djChips:            chips('#dj-selected-tray .find-chip'),
+      genreChips:         chips('#genre-selected-tray .find-chip'),
       searchBarChips:     chips('#filter-search-chips .find-chip'),
       pillArtistActive: document.getElementById('pill-artist')?.classList.contains('active') || false,
       pillDjActive:     document.getElementById('pill-dj')   ?.classList.contains('active') || false,

@@ -109,6 +109,15 @@ function renderCards() {
       rankLabel = `2 tracks from '${rootTitle}'`;
     }
 
+    // Track link (individual SC track, or the set with a timestamp) — used by
+    // the title link and the "View track" context-menu option on every trigger.
+    let trackLink = node.scTrackUrl || node.setUrl || null;
+    if (trackLink && trackLink === node.setUrl && node.setOffsetSec && node.setSource !== 'mixcloud') {
+      const m = Math.floor(node.setOffsetSec / 60);
+      const s = node.setOffsetSec % 60;
+      trackLink += `#t=${m}m${s}s`;
+    }
+
     // DJ line: link to SC set with timestamp if available, else episode URL
     const allDjs = node.djs || [];
     let djLine = '';
@@ -125,17 +134,10 @@ function renderCards() {
       const links = allDjs.map(d => {
         const href = setLink || d.episodeUrl;
         return href
-          ? `<a href="${href}" target="_blank" rel="noopener" data-dj="${d.name}" data-artist="${node.artist}" data-set-url="${d.episodeUrl || ''}">${d.name}</a>`
-          : `<span data-dj="${d.name}" data-artist="${node.artist}" class="dj-ctx-trigger">${d.name}</span>`;
+          ? `<a href="${href}" target="_blank" rel="noopener" data-dj="${d.name}" data-artist="${node.artist}" data-set-url="${d.episodeUrl || ''}" data-track-url="${trackLink || ''}">${d.name}</a>`
+          : `<span data-dj="${d.name}" data-artist="${node.artist}" data-set-url="${d.episodeUrl || ''}" data-track-url="${trackLink || ''}" class="dj-ctx-trigger">${d.name}</span>`;
       }).join(', ');
       djLine = `<span class="dj-line"><span class="tt-inner">Mixed by ${links}</span></span>`;
-    }
-
-    let trackLink = node.scTrackUrl || node.setUrl || null;
-    if (trackLink && trackLink === node.setUrl && node.setOffsetSec && node.setSource !== 'mixcloud') {
-      const m = Math.floor(node.setOffsetSec / 60);
-      const s = node.setOffsetSec % 60;
-      trackLink += `#t=${m}m${s}s`;
     }
     const titleData = `data-artist="${node.artist}" data-dj="${allDjs.length ? allDjs[0].name : ''}" data-set-url="${allDjs.length ? (allDjs[0].episodeUrl || '') : ''}" data-track-url="${trackLink || ''}"`;
     const titleTag = trackLink
@@ -171,7 +173,7 @@ function renderCards() {
         <div class="progress-bar"><div class="bar-track"><div class="bar-fill"></div></div></div>
       </div>
       ${titleTag}
-      <span class="artist-name"><span class="tt-inner"><span class="artist-ctx-trigger" data-artist="${node.artist}" data-dj="${allDjs.length ? allDjs[0].name : ''}" data-set-url="${allDjs.length ? (allDjs[0].episodeUrl || '') : ''}">${node.artist}</span></span></span>
+      <span class="artist-name"><span class="tt-inner"><span class="artist-ctx-trigger" data-artist="${node.artist}" data-dj="${allDjs.length ? allDjs[0].name : ''}" data-set-url="${allDjs.length ? (allDjs[0].episodeUrl || '') : ''}" data-track-url="${trackLink || ''}">${node.artist}</span></span></span>
       <button class="card-dots" aria-label="More options" data-artist="${node.artist}" data-dj="${allDjs.length ? allDjs[0].name : ''}" data-set-url="${allDjs.length ? (allDjs[0].episodeUrl || '') : ''}" data-track-url="${trackLink || ''}"><svg viewBox="0 0 24 24" fill="currentColor"><circle class="dot dot-top" cx="12" cy="5" r="1.5"/><circle class="dot dot-mid" cx="12" cy="12" r="1.5"/><circle class="dot dot-bot" cx="12" cy="19" r="1.5"/><line class="x-line" x1="8" y1="8" x2="16" y2="16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line class="x-line" x1="16" y1="8" x2="8" y2="16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
       ${djLine}
       ${showMoreFooter}

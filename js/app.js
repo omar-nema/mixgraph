@@ -358,7 +358,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       const anyOpen = Object.values(popovers).some(p => p && p.classList.contains('open'));
       Object.values(popovers).forEach(p => { if (p) p.classList.remove('open'); });
       popoverBackdrop.classList.remove('open');
-      if (window._collapseGenrePills) window._collapseGenrePills();
       [filterBarGenre, filterBarArtist, filterBarDj].forEach(p => p.classList.remove('semi-open'));
       if (andReshuffle && anyOpen && typeof filtersDirty !== 'undefined' && filtersDirty) {
         filtersDirty = false;
@@ -430,7 +429,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       lastBarPopoverCloseAt = Date.now();
       popoverEls.forEach(p => p.classList.remove('open'));
       sharedBackdrop.classList.remove('open');
-      if (window._collapseGenrePills) window._collapseGenrePills();
       document.querySelectorAll('.mobile-filter-pill.semi-open').forEach(p => p.classList.remove('semi-open'));
       // Drop focus so the keyboard retracts with the popover.
       if (document.activeElement && typeof document.activeElement.blur === 'function') document.activeElement.blur();
@@ -1907,12 +1905,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     let visible;
     if (source === 'genre') {
       visible = [ctxItems.genre];
-    } else if (source === 'track') {
-      visible = [ctxItems.viewTrack, ctxItems.sep, ctxItems.artist, ctxItems.dj, ctxItems.viewSet];
-    } else if (source === 'artist') {
-      visible = [ctxItems.artist, ctxItems.dj, ctxItems.sep, ctxItems.viewSet];
     } else {
-      visible = [ctxItems.dj, ctxItems.artist, ctxItems.sep, ctxItems.viewSet];
+      // Every card / name trigger shows the same menu in the same order:
+      // View set, View track, ── , Filter for artist, Filter for DJ.
+      // The two View items only appear when their URL is available.
+      const top = [];
+      if (ctxData.set) top.push(ctxItems.viewSet);
+      if (ctxData.track) top.push(ctxItems.viewTrack);
+      visible = top.length
+        ? [...top, ctxItems.sep, ctxItems.artist, ctxItems.dj]
+        : [ctxItems.artist, ctxItems.dj];
     }
     visible.forEach(el => { el.style.display = ''; frag.append(el); });
     ctxMenu.append(frag);
@@ -1932,8 +1934,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   function getSource(trigger) {
+    if (trigger.classList.contains('card-dots')) return 'card';
     if (trigger.classList.contains('track-ctx-trigger')) return 'track';
-    if (trigger.classList.contains('artist-ctx-trigger') || trigger.classList.contains('card-dots')) return 'artist';
+    if (trigger.classList.contains('artist-ctx-trigger')) return 'artist';
     return 'dj';
   }
 

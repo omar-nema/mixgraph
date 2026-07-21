@@ -157,31 +157,48 @@ async function initFilters() {
     }
   }
 
-  function addSearchFilter(entry) {
-    if (searchFilters.some(f => f.display === entry.display)) return;
+  // `source` records where a filter was added: 'searchbar' (unified top search) or
+  // 'popover' (a filter pill's own search / pills). Only 'searchbar' filters mirror
+  // into the top search bar; every source shows in the popover's own selected tray.
+  // If a filter already exists but is re-added via the search bar, upgrade its
+  // source so it starts appearing in the search bar too.
+  function addSearchFilter(entry, source = 'popover') {
+    const existing = searchFilters.find(f => f.display === entry.display);
+    if (existing) {
+      if (source === 'searchbar' && existing.source !== 'searchbar') applyFilterChange(() => { existing.source = 'searchbar'; });
+      return;
+    }
     trackEvent('filter_artist');
-    applyFilterChange(() => searchFilters.push({ display: entry.display }));
+    applyFilterChange(() => searchFilters.push({ display: entry.display, source }));
   }
 
   function removeSearchFilter(index) {
     applyFilterChange(() => searchFilters.splice(index, 1));
   }
 
-  function addDjFilter(entry) {
-    if (djSearchFilters.some(f => f.display === entry.display)) return;
+  function addDjFilter(entry, source = 'popover') {
+    const existing = djSearchFilters.find(f => f.display === entry.display);
+    if (existing) {
+      if (source === 'searchbar' && existing.source !== 'searchbar') applyFilterChange(() => { existing.source = 'searchbar'; });
+      return;
+    }
     trackEvent('filter_dj');
-    applyFilterChange(() => djSearchFilters.push({ display: entry.display }));
+    applyFilterChange(() => djSearchFilters.push({ display: entry.display, source }));
   }
 
   function removeDjFilter(index) {
     applyFilterChange(() => djSearchFilters.splice(index, 1));
   }
 
-  function addGenreSearchFilter(entry) {
-    if (genreSearchFilters.some(f => f.display === entry.display)) return;
+  function addGenreSearchFilter(entry, source = 'popover') {
+    const existing = genreSearchFilters.find(f => f.display === entry.display);
+    if (existing) {
+      if (source === 'searchbar' && existing.source !== 'searchbar') applyFilterChange(() => { existing.source = 'searchbar'; });
+      return;
+    }
     trackEvent('filter_genre');
     const names = genreFilterNames(entry);
-    applyFilterChange(() => genreSearchFilters.push({ display: entry.display, names }));
+    applyFilterChange(() => genreSearchFilters.push({ display: entry.display, names, source }));
   }
 
   function removeGenreSearchFilter(index) {
@@ -237,7 +254,7 @@ async function initFilters() {
         if (children.includes(genreSearchFilters[i].display)) genreSearchFilters.splice(i, 1);
       }
       trackEvent('filter_genre');
-      genreSearchFilters.push({ display: parent, names: [...children] });
+      genreSearchFilters.push({ display: parent, names: [...children], source: 'popover' });
     });
   }
 
@@ -320,6 +337,8 @@ async function initFilters() {
 
   // ── Render genre pills ──
   let genrePillsExpanded = false;
+  // Selected-chips trays (genre/artist/dj): collapsed by default, per-popover state.
+  const trayExpanded = { genre: false, artist: false, dj: false };
   // Parent → children for the expanded nested view. Starts from the taxonomy,
   // then folds any in-data genres missing from it under "Other" so nothing
   // silently drops out of the list.
@@ -413,39 +432,64 @@ async function initFilters() {
     popover.appendChild(toggle);
   }
   renderGenrePills(document.getElementById('genre-pills'));
-  // Reset the "More" expansion (flag + class + re-render). Exposed so the mobile
-  // close paths in app.js can keep the expanded state in sync when they close the
-  // popover — otherwise .expanded lingers and forces the popover to stay visible.
-  window._collapseGenrePills = function () {
-    if (!genrePillsExpanded) return;
-    genrePillsExpanded = false;
-    genrePopover.classList.remove('expanded');
-    renderGenrePills(document.getElementById('genre-pills'));
-  };
+  renderGenreSelected();
+  renderArtistSelected();
+  renderDjSelected();
 
-  // ── Render chips (shared for desktop + mobile, artist + DJ) ──
-  function renderChips(containerId, inputId, filters, removeFn, placeholder) {
-    const container = document.getElementById(containerId);
-    if (!container) return;
-    container.querySelectorAll('.find-chip').forEach(c => c.remove());
-    const input = document.getElementById(inputId);
-    filters.forEach((f, i) => {
+  // ── Selected-chips tray (shared: genre / artist / dj) ──
+  // Each popover has a collapsible tray of its selected filters, summarised by a
+  // "(N)" toggle. Chips live here (not inside the search input). The tray shows
+  // every selection surface for that filter, so the count matches what the user
+  // actually picked. (trayExpanded is declared up with genrePillsExpanded — it's
+  // read by the init-time renders below, before this point in source order.)
+  function renderSelectedTray(type, items) {
+    const tray = document.getElementById(`${type}-selected-tray`);
+    const toggle = document.getElementById(`${type}-selected-toggle`);
+    if (!tray || !toggle) return;
+    const n = items.length;
+    if (n === 0) trayExpanded[type] = false; // collapse when emptied
+    // Always visible: "Selected (0)" placeholder (tertiary, no chevron, inert via
+    // :disabled) when empty; "Selected (N)" with an expand chevron once picked.
+    toggle.hidden = false;
+    toggle.disabled = n === 0;
+    toggle.querySelector('.popover-selected-count').textContent = `Selected (${n})`;
+    const expanded = trayExpanded[type];
+    toggle.setAttribute('aria-expanded', String(expanded));
+    document.getElementById(`${type}-popover`).classList.toggle('selected-open', expanded && n > 0);
+    tray.innerHTML = '';
+    items.forEach(item => {
       const chip = document.createElement('span');
       chip.className = 'find-chip';
-      chip.innerHTML = `${escHtml(f.display)} <button class="chip-remove">&times;</button>`;
+      chip.innerHTML = `${escHtml(item.label)} <button class="chip-remove">&times;</button>`;
       chip.querySelector('.chip-remove').addEventListener('click', (e) => {
         e.stopPropagation();
-        removeFn(i);
+        item.remove();
       });
-      container.insertBefore(chip, input);
+      tray.appendChild(chip);
     });
-    if (placeholder) input.placeholder = filters.length ? '' : placeholder;
   }
-
-  function renderFindChips() { renderChips('find-chips-input', 'find-search', searchFilters, removeSearchFilter, 'Search artists'); }
-  function renderDjChips() { renderChips('dj-chips-input', 'dj-search', djSearchFilters, removeDjFilter, 'Search DJs'); }
-  function renderGenreChips() { renderChips('genre-chips-input', 'genre-search', genreSearchFilters, removeGenreSearchFilter, 'Search genres'); }
-  function renderAllChips() { renderFindChips(); renderDjChips(); renderGenreChips(); }
+  // Genre: search/parent chips (genreSearchFilters) + individually-toggled pills (manualGenreToggles).
+  function renderGenreSelected() {
+    renderSelectedTray('genre', [
+      ...genreSearchFilters.map((f, i) => ({ label: f.display, remove: () => removeGenreSearchFilter(i) })),
+      ...[...manualGenreToggles].map(name => ({ label: name, remove: () => toggleGenre(name) })),
+    ]);
+  }
+  // Artist: search chips (searchFilters) + cluster-context pills (clusterArtistFilters).
+  function renderArtistSelected() {
+    renderSelectedTray('artist', [
+      ...searchFilters.map((f, i) => ({ label: f.display, remove: () => removeSearchFilter(i) })),
+      ...clusterArtistFilters.map((f) => ({ label: f.display, remove: () => toggleClusterFilter(clusterArtistFilters, { display: f.display }) })),
+    ]);
+  }
+  // DJ: search chips (djSearchFilters) + cluster-context pills (clusterDjFilters).
+  function renderDjSelected() {
+    renderSelectedTray('dj', [
+      ...djSearchFilters.map((f, i) => ({ label: f.display, remove: () => removeDjFilter(i) })),
+      ...clusterDjFilters.map((f) => ({ label: f.display, remove: () => toggleClusterFilter(clusterDjFilters, { display: f.display }) })),
+    ]);
+  }
+  function renderAllChips() { renderArtistSelected(); renderDjSelected(); renderGenreSelected(); }
 
   // ── Filter row pill handlers ──
   const findSearchInput = document.getElementById('find-search');
@@ -495,15 +539,22 @@ async function initFilters() {
     if (left < 12) left = 12;
     popover.style.top = top + 'px';
     popover.style.left = left + 'px';
+    // Mobile: cap height to the space below the anchor (minus a little breathing
+    // room) so the whole popover fits on screen and its body scrolls internally
+    // instead of the popover running past the bottom edge.
+    if (window.innerWidth <= 768) {
+      popover.style.maxHeight = (window.innerHeight - top - 12) + 'px';
+    } else {
+      popover.style.maxHeight = '';
+    }
   }
 
   // Close all popovers (desktop AND mobile — both pill classes)
   function closeAllPopovers() {
-    if (genrePillsExpanded) {
-      genrePillsExpanded = false;
-      genrePopover.classList.remove('expanded');
-      renderGenrePills(document.getElementById('genre-pills'));
-    }
+    // Note: genrePillsExpanded and the trayExpanded flags intentionally persist
+    // across close/reopen so the "Show all genres" view and the expanded selected
+    // trays carry over. Their classes are inert while the popover is closed
+    // (the whole popover is display:none unless .open).
     genrePopover.classList.remove('open');
     artistPopover.classList.remove('open');
     djPopover.classList.remove('open');
@@ -529,6 +580,16 @@ async function initFilters() {
     } else {
       reshuffleIfFiltered();
     }
+  });
+
+  // Selected-chips tray: collapse/expand toggle (genre / artist / dj)
+  const renderSelectedFns = { genre: renderGenreSelected, artist: renderArtistSelected, dj: renderDjSelected };
+  ['genre', 'artist', 'dj'].forEach((type) => {
+    document.getElementById(`${type}-selected-toggle`)?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      trayExpanded[type] = !trayExpanded[type];
+      renderSelectedFns[type]();
+    });
   });
 
   // Artist popover
@@ -771,10 +832,17 @@ async function initFilters() {
     window._renderSearchBarChips = renderSearchBarChips;
     function renderSearchBarChips() {
       searchChipsContainer.querySelectorAll('.find-chip').forEach(c => c.remove());
+      // Only filters added via THIS search bar mirror here (source==='searchbar');
+      // popover-added filters stay in their own popover trays. Index is preserved
+      // from the full array so remove() targets the right entry.
+      const bar = (arr, removeFn) => arr
+        .map((f, i) => ({ f, i }))
+        .filter(({ f }) => f.source === 'searchbar')
+        .map(({ f, i }) => ({ label: f.display, remove: () => removeFn(i) }));
       const allChips = [
-        ...searchFilters.map((f, i) => ({ label: f.display, type: 'artist', remove: () => removeSearchFilter(i) })),
-        ...djSearchFilters.map((f, i) => ({ label: f.display, type: 'dj', remove: () => removeDjFilter(i) })),
-        ...genreSearchFilters.map((f, i) => ({ label: f.display, type: 'genre', remove: () => removeGenreSearchFilter(i) })),
+        ...bar(searchFilters, removeSearchFilter),
+        ...bar(djSearchFilters, removeDjFilter),
+        ...bar(genreSearchFilters, removeGenreSearchFilter),
       ];
       for (const { label, remove } of allChips) {
         const chip = document.createElement('span');
@@ -804,32 +872,33 @@ async function initFilters() {
 
     function addSearchBarChip(type, entry) {
       trackSearchFilter = null;
-      if (type === 'artist') addSearchFilter(entry);
-      else if (type === 'dj') addDjFilter(entry);
-      else if (type === 'genre') addGenreSearchFilter(entry);
+      if (type === 'artist') addSearchFilter(entry, 'searchbar');
+      else if (type === 'dj') addDjFilter(entry, 'searchbar');
+      else if (type === 'genre') addGenreSearchFilter(entry, 'searchbar');
       renderSearchBarChips();
       filterSearchInput.value = '';
       closeUnifiedAc();
       filterSearchInput.focus();
     }
 
+    // The search bar's × only clears what it added (source==='searchbar'), leaving
+    // filters set via the popovers/pills intact.
     function clearAllSearchChips() {
       clearTimeout(uniDebounce);
       closeUnifiedAc();
       filterSearchInput.value = '';
       trackSearchFilter = null;
-      applyFilterChange(() => {
-        searchFilters.length = 0;
-        djSearchFilters.length = 0;
-        genreSearchFilters.length = 0;
-      });
+      const dropBar = (arr) => { for (let i = arr.length - 1; i >= 0; i--) if (arr[i].source === 'searchbar') arr.splice(i, 1); };
+      applyFilterChange(() => { dropBar(searchFilters); dropBar(djSearchFilters); dropBar(genreSearchFilters); });
     }
 
     function removeLastSearchChip() {
       applyFilterChange(() => {
-        if (genreSearchFilters.length) genreSearchFilters.pop();
-        else if (djSearchFilters.length) djSearchFilters.pop();
-        else if (searchFilters.length) searchFilters.pop();
+        for (const arr of [genreSearchFilters, djSearchFilters, searchFilters]) {
+          for (let i = arr.length - 1; i >= 0; i--) {
+            if (arr[i].source === 'searchbar') { arr.splice(i, 1); return; }
+          }
+        }
       });
     }
 

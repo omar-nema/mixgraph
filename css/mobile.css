@@ -304,14 +304,19 @@
      muted navy the mobile --text-primary override otherwise gives them.
      Selected pills keep their white-on-accent text. */
   body:not(.night) .filter-popover .genre-pill:not(.selected) { color: #000; }
-  /* Footer toggle: restore breathing room the compact pill padding strips out,
-     and match the mobile popover's 14px padding for a clean edge-to-edge bleed. */
+  /* Footer toggle: full-bleed footer like desktop — divider on top, bleeds to the
+     popover edges (negative margins cancel the 14px popover padding). It's a
+     sibling of #genre-pills (not inside the scroller) and #genre-popover is
+     overflow:hidden, so the negative margins clip cleanly with no stray scrollbar.
+     `background: transparent` here (specificity 0,3,0) beats the night
+     `body.night .genre-pill` grey fill (0,2,1), keeping it a clean footer. */
   .filter-popover .genre-pill.genre-more-pill {
     font-size: 14px;
     min-height: 48px;
     padding: 14px 5px;
     margin: 12px -14px -14px;
     width: calc(100% + 28px);
+    background: transparent;
   }
 
   /* Filter popovers: allow autocomplete to overflow */
@@ -319,15 +324,27 @@
     overflow: visible;
     max-height: none;
   }
-  /* Genre popover keeps the base .filter-popover cap (max-height: 75vh;
-     overflow-y: auto) instead of the override above — its pill list can run
-     long even before "Show all genres" is expanded, and without a cap it
-     pushes past the bottom of small mobile screens. */
-  /* Cap the genre pills list so "More" scrolls internally instead of
-     pushing the popover past the screen edge */
-  #genre-popover.expanded #genre-pills {
-    max-height: 55vh;
+  /* Genre popover: fit fully on screen with the header + search pinned and the
+     pill list scrolling internally. positionPopover() caps the popover's
+     max-height to the space below the anchor, so the whole selector stays in
+     view (with a little breathing room) and only the body scrolls — in both the
+     starting curated view and the expanded "all genres" view. */
+  #genre-popover {
+    overflow: hidden; /* popover itself never scrolls; its body does */
+  }
+  #genre-popover > .popover-header,
+  #genre-popover > .popover-selected-tray,
+  #genre-popover > .popover-search-wrap {
+    flex: 0 0 auto; /* keep header + selected tray + search pinned, don't shrink */
+  }
+  /* Big selections scroll inside the tray rather than eating the whole popover
+     (applies to every filter popover's tray) */
+  .filter-popover > .popover-selected-tray { max-height: 22vh; overflow-y: auto; }
+  #genre-popover #genre-pills {
+    flex: 1 1 auto;
+    min-height: 0;
     overflow-y: auto;
+    align-content: flex-start;
   }
   /* Autocomplete dropdowns: high z-index to sit above everything */
   #find-ac, #dj-ac, #genre-ac {
