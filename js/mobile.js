@@ -268,6 +268,7 @@ function selectMobileTrack(nodeId) {
   stopCurrentPlayback();
   currentlyPlayingId = nodeId;
   currentBackend = 'sc';
+  userPaused = false;
   showScPlayer();
 
   scWidgetReady = false;

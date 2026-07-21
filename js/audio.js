@@ -13,6 +13,12 @@ let progressInterval = null;
 let isSeeking = false;
 let playingSetOffset = 0;   // track start offset in set (ms)
 let scPlayTimeout = null;
+// Tracks whether the user has paused/stopped the current playback. A backend's
+// load is async: it fires READY (and auto_play) some time after we call load().
+// Without this flag, a pause issued during that window is silently overridden
+// when the media finishes loading and auto-plays. Every code path that resumes
+// audio must honor this intent, and every fresh play() intent must clear it.
+let userPaused = false;
 const ASSUMED_TRACK_DUR = 5 * 60 * 1000; // 5 min fallback for set tracks
 var seekResumeDelay = 300;
 
@@ -29,6 +35,7 @@ function startPlayTimeout(nodeId, fallbackToSet) {
     const card = findCardForNode(nodeId);
     const stillLoading = card && card.classList.contains('loading');
     if (!stillLoading) return; // PLAY fired, all good
+    if (userPaused) return;    // user cancelled while loading — don't resurrect play
     // Only retry if widget is actually ready
     if (scWidgetReady) {
       try { scWidget.play(); } catch (e) {}
@@ -110,6 +117,9 @@ function hideScPlayer() {
 
 function stopCurrentPlayback() {
   clearPlayTimeout();
+  // Suppress any in-flight load from auto-playing after this stop. A fresh
+  // play() (playSC/playSCSet/playMixcloud) clears the flag again.
+  userPaused = true;
   if (!currentlyPlayingId) return;
   if (currentBackend === 'sc' && scWidget) {
     try { scWidget.pause(); } catch (e) {}
@@ -269,9 +279,14 @@ function setupScWidget(nodeId, card, offsetSec, onError) {
     scWidget.unbind(SC.Widget.Events.READY); // one-shot: prevent re-fire on iframe restore
     scWidgetReady = true;
     if (seekMs) { try { scWidget.seekTo(seekMs); } catch (e) {} }
+    // Respect a pause the user issued while the set was still loading.
+    if (userPaused) return;
     try { scWidget.play(); } catch (e) {}
   });
   scWidget.bind(SC.Widget.Events.PLAY, () => {
+    // auto_play (or a stray play) can fire this after the user paused mid-load.
+    // Immediately re-pause so the load never overrides the user's intent.
+    if (userPaused) { try { scWidget.pause(); } catch (e) {} return; }
     clearPlayTimeout();
     showScPlayer();
     if (seekMs && !seekLanded) { try { scWidget.seekTo(seekMs); } catch (e) {} }
@@ -310,6 +325,7 @@ function playSC(nodeId, trackUrl) {
   currentlyPlayingId = nodeId;
   currentBackend = 'sc';
   playingSetOffset = 0;
+  userPaused = false;
 
   setupScWidget(nodeId, card, 0, () => {
     hideScPlayer();
@@ -339,6 +355,7 @@ function playSCSet(nodeId, setUrl, offsetSec) {
   currentlyPlayingId = nodeId;
   currentBackend = 'sc';
   playingSetOffset = offsetSec ? offsetSec * 1000 : 0;
+  userPaused = false;
 
   setupScWidget(nodeId, card, offsetSec, () => { hideScPlayer(); onPlaybackEnded(); });
 
@@ -368,6 +385,7 @@ function playMixcloud(nodeId, mixcloudUrl, offsetSec) {
   currentlyPlayingId = nodeId;
   currentBackend = 'mc';
   playingSetOffset = offsetSec ? offsetSec * 1000 : 0;
+  userPaused = false;
   // Mixcloud widget needs the path, not the full URL
   const mcPath = mixcloudUrl.replace(/^https?:\/\/(www\.)?mixcloud\.com/, '');
   const iframe = document.getElementById('mc-widget');
@@ -379,6 +397,8 @@ function playMixcloud(nodeId, mixcloudUrl, offsetSec) {
     mcWidget = Mixcloud.PlayerWidget(iframe);
     mcWidget.ready.then(() => {
       mcWidget.events.play.on(() => {
+        // autoplay=1 can fire this after the user paused mid-load — re-pause.
+        if (userPaused) { mcWidget.pause().catch(() => {}); return; }
         if (btn) btn.innerHTML = PAUSE_SVG;
         if (card) { hideLoading(card); card.classList.add('playing'); applyGlow(card); }
         startProgressPolling();
@@ -454,11 +474,13 @@ function togglePlay(nodeId) {
     }
     const isPlaying = card && card.classList.contains('playing');
     if (isPlaying) {
+      userPaused = true;
       if (currentBackend === 'sc' && scWidget) try { scWidget.pause(); } catch(e) {}
       else if (currentBackend === 'mc' && mcWidget) try { mcWidget.pause(); } catch(e) {}
       if (btn) btn.innerHTML = PLAY_SVG;
       if (card) card.classList.remove('playing');
     } else {
+      userPaused = false;
       if (currentBackend === 'sc' && scWidget) scWidget.play();
       else if (currentBackend === 'mc' && mcWidget) mcWidget.play();
       if (btn) btn.innerHTML = PAUSE_SVG;
