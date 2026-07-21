@@ -6,5 +6,10 @@ compatibility_date = "2024-12-01"
 binding = "GRAPH_KV"
 id = "04f5b3defaf84e6ba843601156adc9d6"
 
+[[d1_databases]]
+binding = "CANDIDATES_DB"
+database_name = "b2b-candidates"
+database_id = "1c65aa1c-d6b9-4a00-bf8a-ceeec0a75149"
+
 [[analytics_engine_datasets]]
 binding = "EVENTS"

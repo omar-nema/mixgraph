@@ -24,6 +24,9 @@ venv/
 # Node
 node_modules/
 
+# Wrangler local cache (Miniflare KV/D1 state — can be hundreds of MB)
+.wrangler/
+
 # Local claude settings
 .claude/settings.local.json
 

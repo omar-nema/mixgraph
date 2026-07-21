@@ -256,6 +256,128 @@ function clusterMeetsMinimum(cluster) {
   return r1Count >= 2 && r2Count >= 2;
 }
 
+// ── Candidate filtering in D1 (shared by shuffle, crates, crates-index) ──
+// Builds parameterised WHERE clauses mirroring the old in-JS blob filter:
+//   source / title(exact) / genre(any-of) / dj(any-of) / artist(substring)
+//   + optional minEdges (crates requires 4+ edges).
+function candidateFilterClauses({ genres = [], artists = [], djs = [], title = '', source, minEdges } = {}) {
+  const clauses = [];
+  const binds = [];
+  if (minEdges != null) clauses.push(`e >= ${Number(minEdges)}`);
+  if (source && source !== 'none') {
+    if (source === 'soundcloud') clauses.push('st = 1');
+    else if (source === 'soundcloud_set') clauses.push("st = 0 AND s = 'soundcloud_set'");
+    else if (source === 'lotradio') clauses.push("st = 0 AND ss = 'soundcloud'");
+  }
+  if (title) { clauses.push('t = ?'); binds.push(title.toLowerCase()); }
+  if (genres.length > 0) {
+    clauses.push('EXISTS (SELECT 1 FROM json_each(candidates.g) je WHERE je.value IN (SELECT value FROM json_each(?)))');
+    binds.push(JSON.stringify(genres));
+  }
+  if (djs.length > 0) {
+    clauses.push('EXISTS (SELECT 1 FROM json_each(candidates.d) je WHERE je.value IN (SELECT value FROM json_each(?)))');
+    binds.push(JSON.stringify(djs.map(d => d.toLowerCase())));
+  }
+  if (artists.length > 0) {
+    clauses.push("EXISTS (SELECT 1 FROM json_each(?) qa WHERE candidates.a LIKE '%' || qa.value || '%')");
+    binds.push(JSON.stringify(artists.map(a => a.toLowerCase())));
+  }
+  return { clauses, binds };
+}
+
+// ── Seed selection from D1 (for /api/shuffle) ──
+// Filtering + weighted random pick happen in SQL; graph traversal still uses KV.
+//   - poolSize = matches BEFORE the exclude set (like the old pool.length)
+//   - weighted A-Res pick by `w`, unless an artist/dj/title filter is active → uniform
+//   - returns up to `limit` seeds in pick order, so the caller's re-roll loop can
+//     walk them without extra round-trips (matches "pick, skip if thin" behaviour)
+async function selectSeedsFromD1(db, filters, exclude, hasArtistDjFilter, limit) {
+  const { clauses: where, binds } = candidateFilterClauses(filters);
+
+  // Fast path: no filters + weighted pick → O(log n) cumulative-weight index seeks
+  // instead of a full-table A-Res scan. Covers the common "just shuffle" case
+  // (~5 rows read vs ~300K). Filtered/uniform picks fall through to the scan path.
+  if (where.length === 0 && !hasArtistDjFilter) {
+    const metaRows = (await db.prepare(
+      "SELECT k, v FROM meta WHERE k IN ('total_count','total_weight')"
+    ).all()).results || [];
+    const meta = Object.fromEntries(metaRows.map(r => [r.k, r.v]));
+    const poolSize = meta.total_count || 0;
+    const totalW = meta.total_weight || 0;
+    if (!poolSize || !totalW) return { seeds: [], poolSize: 0 };
+
+    const excludeArr = [...exclude];
+    const runSeeks = async (withExclude) => {
+      const thresholds = Array.from({ length: limit }, () => Math.random() * totalW);
+      const valuesSql = thresholds.map(() => '(?)').join(',');
+      const body = withExclude && excludeArr.length
+        ? 'SELECT id FROM candidates WHERE cw > r.x AND id NOT IN (SELECT value FROM json_each(?)) ORDER BY cw LIMIT 1'
+        : 'SELECT id FROM candidates WHERE cw > r.x ORDER BY cw LIMIT 1';
+      const sql = `WITH r(x) AS (VALUES ${valuesSql}) SELECT (${body}) AS id FROM r`;
+      const b = withExclude && excludeArr.length ? [...thresholds, JSON.stringify(excludeArr)] : thresholds;
+      const rows = (await db.prepare(sql).bind(...b).all()).results || [];
+      return [...new Set(rows.map(r => r.id).filter(Boolean))];
+    };
+
+    let seeds = await runSeeks(true);
+    if (seeds.length === 0 && excludeArr.length) seeds = await runSeeks(false); // exclude wiped the pool
+    return { seeds, poolSize };
+  }
+
+  const whereSql = where.length ? 'WHERE ' + where.join(' AND ') : '';
+
+  // poolSize = matches before exclude (mirrors the old pool.length)
+  const countRow = await db.prepare(`SELECT COUNT(*) AS n FROM candidates ${whereSql}`).bind(...binds).first();
+  const poolSize = countRow ? countRow.n : 0;
+  if (poolSize === 0) return { seeds: [], poolSize: 0 };
+
+  const orderBy = hasArtistDjFilter
+    ? 'random()'                                              // uniform pick
+    : 'pow(abs(random()) / 9.223372036854776e18, 1.0 / w) DESC'; // A-Res weighted pick
+
+  const excludeArr = [...exclude];
+  const buildSeedQuery = (withExclude) => {
+    const clauses = [...where];
+    const b = [...binds];
+    if (withExclude && excludeArr.length) {
+      clauses.push('id NOT IN (SELECT value FROM json_each(?))');
+      b.push(JSON.stringify(excludeArr));
+    }
+    const w = clauses.length ? 'WHERE ' + clauses.join(' AND ') : '';
+    return { sql: `SELECT id FROM candidates ${w} ORDER BY ${orderBy} LIMIT ${limit}`, b };
+  };
+
+  // Try honouring the exclude set; if it removes everything, fall back to the
+  // full pool (matches the old `if (unseen.length === 0) unseen = pool`).
+  let { sql, b } = buildSeedQuery(true);
+  let rows = (await db.prepare(sql).bind(...b).all()).results || [];
+  if (rows.length === 0) {
+    ({ sql, b } = buildSeedQuery(false));
+    rows = (await db.prepare(sql).bind(...b).all()).results || [];
+  }
+  return { seeds: rows.map(r => r.id), poolSize };
+}
+
+// Crates seed pool (for /api/crates): matching candidate ids with 4+ edges, in a
+// stable order so the deterministic per-seed shuffle + pagination stay consistent
+// across page requests.
+async function cratesSeedIdsFromD1(db, filters) {
+  const { clauses, binds } = candidateFilterClauses({ ...filters, minEdges: 4 });
+  const whereSql = clauses.length ? 'WHERE ' + clauses.join(' AND ') : '';
+  const rows = (await db.prepare(`SELECT id FROM candidates ${whereSql} ORDER BY id`).bind(...binds).all()).results || [];
+  return rows.map(r => r.id);
+}
+
+// Crates-index full-filter path (for /api/crates-index): matching candidates with
+// no edge threshold, returning the fields the caller needs downstream
+// (genres for bucketing, artist/djs for output).
+async function cratesMatchesFromD1(db, filters) {
+  const { clauses, binds } = candidateFilterClauses(filters);
+  const whereSql = clauses.length ? 'WHERE ' + clauses.join(' AND ') : '';
+  const rows = (await db.prepare(`SELECT id, g, a, d FROM candidates ${whereSql}`).bind(...binds).all()).results || [];
+  return rows.map(r => ({ id: r.id, g: JSON.parse(r.g || '[]'), a: r.a, d: JSON.parse(r.d || '[]') }));
+}
+
 // ── Worker entrypoint ──
 
 export default {
@@ -297,95 +419,46 @@ export default {
 
       // GET /api/shuffle
       if (url.pathname === '/api/shuffle') {
-        const allCandidates = await env.GRAPH_KV.get('candidates', 'json');
-
-        // Apply filters — all filtering uses the enriched candidates blob (no KV reads)
-        const genres = csvParam(q.get('genres'));
-        const artists = csvParam(q.get('artists'));
-        const djs = csvParam(q.get('djs'));
-        const title = q.get('title') || '';
-        const source = q.get('source');
+        // Seed selection runs in D1 (filter + weighted pick); graph traversal
+        // still runs on KV via selectClusterFromKV below.
+        const filters = {
+          genres: csvParam(q.get('genres')),
+          artists: csvParam(q.get('artists')),
+          djs: csvParam(q.get('djs')),
+          title: q.get('title') || '',
+          source: q.get('source'),
+        };
         const exclude = new Set(csvParam(q.get('exclude')));
+        const r1 = parseInt(q.get('r1')) || 4;
+        const r2 = parseInt(q.get('r2')) || 1;
+        const hasArtistDjFilter = filters.artists.length > 0 || filters.djs.length > 0 || !!filters.title;
 
-        const titleLower = title.toLowerCase();
-        let pool = allCandidates;
-        if (genres.length > 0 || artists.length > 0 || djs.length > 0 || title || (source && source !== 'none')) {
-          pool = allCandidates.filter(c => {
-            if (source && source !== 'none') {
-              if (source === 'soundcloud' && !c.st) return false;
-              if (source === 'soundcloud_set' && (c.st || c.s !== 'soundcloud_set')) return false;
-              if (source === 'lotradio' && (c.st || c.ss !== 'soundcloud')) return false;
-            }
-            if (title && c.t !== titleLower) return false;
-            if (genres.length > 0 && !genres.some(g => c.g.includes(g))) return false;
-            if (artists.length > 0 && !artists.some(a => c.a.includes(a.toLowerCase()))) return false;
-            if (djs.length > 0) {
-              const djsLower = djs.map(d => d.toLowerCase());
-              if (!c.d.some(d => djsLower.includes(d))) return false;
-            }
-            return true;
-          });
-        }
+        // Fetch up to maxAttempts seeds in pick order so the re-roll loop below
+        // can walk them without extra D1 round-trips.
+        const maxAttempts = 5;
+        const { seeds, poolSize } = await selectSeedsFromD1(
+          env.CANDIDATES_DB, filters, exclude, hasArtistDjFilter, maxAttempts
+        );
 
-        if (pool.length === 0) {
+        if (poolSize === 0) {
           return jsonResponse({ error: 'No tracks match current filters' }, 404);
         }
 
-        // Exclude recently seen
-        let unseen = pool.filter(c => !exclude.has(c.id));
-        if (unseen.length === 0) unseen = pool;
-
-        // Weighted random pick
-        const hasArtistDjFilter = artists.length > 0 || djs.length > 0 || !!title;
-        let picked;
-        if (hasArtistDjFilter) {
-          picked = unseen[Math.floor(Math.random() * unseen.length)];
-        } else {
-          let totalW = 0;
-          for (const c of unseen) totalW += c.w;
-          let r = Math.random() * totalW;
-          picked = unseen[unseen.length - 1];
-          for (const c of unseen) {
-            r -= c.w;
-            if (r <= 0) { picked = c; break; }
-          }
-        }
-
-        const r1 = parseInt(q.get('r1')) || 4;
-        const r2 = parseInt(q.get('r2')) || 1;
-
-        // Re-roll up to 5 times if cluster is too thin (< 2 R1 or < 2 R2)
-        const maxAttempts = 5;
-        const tried = new Set();
+        // Re-roll through the pre-fetched (weighted-ordered) seeds if a cluster
+        // is too thin (< 2 R1 or < 2 R2).
         let cluster = null;
-        for (let attempt = 0; attempt < maxAttempts; attempt++) {
-          if (attempt > 0) {
-            // Pick a new candidate, excluding already-tried roots
-            const retry = unseen.filter(c => !tried.has(c.id));
-            if (retry.length === 0) break;
-            if (hasArtistDjFilter) {
-              picked = retry[Math.floor(Math.random() * retry.length)];
-            } else {
-              let totalW = 0;
-              for (const c of retry) totalW += c.w;
-              let r = Math.random() * totalW;
-              picked = retry[retry.length - 1];
-              for (const c of retry) {
-                r -= c.w;
-                if (r <= 0) { picked = c; break; }
-              }
-            }
-          }
-          tried.add(picked.id);
-          cluster = await selectClusterFromKV(env.GRAPH_KV, picked.id, r1, r2);
+        let attempts = 0;
+        for (const seedId of seeds) {
+          attempts++;
+          cluster = await selectClusterFromKV(env.GRAPH_KV, seedId, r1, r2);
           if (clusterMeetsMinimum(cluster)) break;
         }
 
         if (!cluster) {
           return jsonResponse({ error: 'Failed to build cluster' }, 500);
         }
-        cluster.meta.poolSize = pool.length;
-        cluster.meta.attempts = tried.size;
+        cluster.meta.poolSize = poolSize;
+        cluster.meta.attempts = attempts;
         return jsonResponse(cluster);
       }
 
@@ -417,8 +490,6 @@ export default {
         const count = Math.min(parseInt(q.get('count')) || 12, 24);
         if (page > 50) return jsonResponse({ error: 'Max page depth is 50' }, 400);
 
-        const allCandidates = await env.GRAPH_KV.get('candidates', 'json');
-
         // LCG for deterministic shuffle
         let rngState = seed === 0 ? 1 : seed;
         function rng() {
@@ -426,23 +497,11 @@ export default {
           return (rngState - 1) / 2147483646;
         }
 
-        // Apply filters + require 4+ edges for crates seeds (no KV reads needed)
+        // Seed pool (4+ edges + filters) comes from D1 instead of the 20MB blob.
         const genres = csvParam(q.get('genres'));
         const artists = csvParam(q.get('artists'));
         const djs = csvParam(q.get('djs'));
-
-        const seedPool = allCandidates
-          .filter(c => {
-            if (c.e < 4) return false;
-            if (genres.length > 0 && !genres.some(g => c.g.includes(g))) return false;
-            if (artists.length > 0 && !artists.some(a => c.a.includes(a.toLowerCase()))) return false;
-            if (djs.length > 0) {
-              const djsLower = djs.map(d => d.toLowerCase());
-              if (!c.d.some(d => djsLower.includes(d))) return false;
-            }
-            return true;
-          })
-          .map(c => c.id);
+        const seedPool = await cratesSeedIdsFromD1(env.CANDIDATES_DB, { genres, artists, djs });
 
 
         // Deterministic shuffle
@@ -551,23 +610,31 @@ export default {
           });
         }
 
-        // Filters active — match against full candidates pool (no edge threshold)
-        const [index, allCandidates] = await Promise.all([
-          env.GRAPH_KV.get('crates-index', 'json'),
-          env.GRAPH_KV.get('candidates', 'json'),
-        ]);
+        // Filters active — need the index for every path.
+        const index = await env.GRAPH_KV.get('crates-index', 'json');
         if (!index) return jsonResponse({ error: 'crates-index not found — rebuild KV' }, 404);
 
-        // Find all candidates matching filters (same logic as shuffle, no edge minimum)
+        // Fast path: genre-only filter where every selected genre is well-covered by
+        // the index (≥ MIN seeds each). Serve seed-direct matches straight from the
+        // index — no 20MB candidates read, no live KV node fetches. Per-genre (not
+        // pooled) so a big genre can't drag a small one onto the fast path.
+        const CRATES_FAST_PATH_MIN = 750;
+        if (genres.length > 0 && artists.length === 0 && djs.length === 0) {
+          const gcount = {};
+          for (const g of genres) gcount[g] = 0;
+          for (const c of index) {
+            for (const g of (c.g || [])) if (g in gcount) gcount[g]++;
+          }
+          if (genres.every(g => gcount[g] >= CRATES_FAST_PATH_MIN)) {
+            return jsonResponse(index.filter(c => genres.some(g => (c.g || []).includes(g))));
+          }
+        }
+
+        // Full path — match against all candidates via D1 (no edge threshold).
+        const matches = await cratesMatchesFromD1(env.CANDIDATES_DB, { genres, artists, djs });
         const matchIds = new Set();
         const matchCandidates = {};
-        for (const c of allCandidates) {
-          if (genres.length > 0 && !genres.some(g => c.g.includes(g))) continue;
-          if (artists.length > 0 && !artists.some(a => c.a.includes(a.toLowerCase()))) continue;
-          if (djs.length > 0) {
-            const djsLower = djs.map(d => d.toLowerCase());
-            if (!c.d.some(d => djsLower.includes(d))) continue;
-          }
+        for (const c of matches) {
           matchIds.add(c.id);
           matchCandidates[c.id] = c;
         }
@@ -580,9 +647,31 @@ export default {
           return hit;
         });
 
-        // Add entries for matching candidates not already in the index
-        // Fetch their nodes in parallel to get artwork + neighbors (cap to avoid worker timeout)
-        const extraIds = Object.keys(matchCandidates).filter(id => !indexIds.has(id)).slice(0, 100);
+        // Add entries for matching candidates not already in the index. Fetch their
+        // nodes live for artwork + neighbors, capped to avoid worker timeout. With
+        // multiple genres, distribute the budget round-robin so a large genre can't
+        // starve a small one out of the supplement.
+        const EXTRA_BUDGET = 100;
+        const nonIndexed = Object.keys(matchCandidates).filter(id => !indexIds.has(id));
+        let extraIds;
+        if (genres.length > 1) {
+          const buckets = genres.map(g => nonIndexed.filter(id => (matchCandidates[id].g || []).includes(g)));
+          const picked = new Set();
+          extraIds = [];
+          let progress = true;
+          while (extraIds.length < EXTRA_BUDGET && progress) {
+            progress = false;
+            for (const bucket of buckets) {
+              while (bucket.length) {
+                const id = bucket.shift();
+                if (!picked.has(id)) { picked.add(id); extraIds.push(id); progress = true; break; }
+              }
+              if (extraIds.length >= EXTRA_BUDGET) break;
+            }
+          }
+        } else {
+          extraIds = nonIndexed.slice(0, EXTRA_BUDGET);
+        }
         if (extraIds.length > 0) {
           // Batch in chunks of 20 to avoid KV fan-out limits
           const nodes = [];
