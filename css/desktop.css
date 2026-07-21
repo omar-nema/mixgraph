@@ -900,6 +900,25 @@ a.track-title { color: inherit; text-decoration: none; }
   cursor: pointer;
 }
 
+/* Bright segment that shimmers along the line from origin → destination on hover */
+.connection-shimmer {
+  fill: none;
+  stroke: color-mix(in oklch, var(--connection-highlight), white 45%);
+  stroke-width: calc(var(--connection-width) + 2px);
+  stroke-linecap: round;
+  pointer-events: none;
+  opacity: 0;
+  filter: drop-shadow(0 0 3px var(--connection-highlight));
+}
+.connection-shimmer.active {
+  opacity: 1;
+  animation: shimmerTravel 1.15s linear infinite;
+}
+@keyframes shimmerTravel {
+  from { stroke-dashoffset: var(--dash-from); }
+  to   { stroke-dashoffset: var(--dash-to); }
+}
+
 /* Floating tooltip shown when hovering a connection line */
 #path-tooltip {
   position: fixed;
@@ -915,7 +934,7 @@ a.track-title { color: inherit; text-decoration: none; }
   border-radius: 6px;
   pointer-events: none;
   opacity: 0;
-  transition: opacity 0.12s ease;
+  transition: opacity 0.3s ease-in-out;
 }
 #path-tooltip.visible { opacity: 1; }
 body.night #path-tooltip { background: #e8e4e0; color: #141414; }
@@ -1092,6 +1111,34 @@ body.night #path-tooltip { background: #e8e4e0; color: #141414; }
   will-change: transform;
 }
 .node-card.playing .source-badge {
+  opacity: 1;
+}
+/* SoundCloud badge — same gray pill as the eq badge, sits just left of it.
+   Only surfaces while playing from SoundCloud (data-source soundcloud/set);
+   Mixcloud playback uses data-source="mixcloud" and stays hidden. Desktop only
+   (mobile has its own visible SC player). */
+.sc-badge {
+  position: absolute;
+  bottom: 12px;
+  right: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 20px;
+  width: 20px;
+  padding: 3px;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-radius: 6px;
+  color: #fff;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+.sc-badge svg { width: 100%; height: 100%; display: block; }
+.node-card.playing[data-source="soundcloud"] .sc-badge,
+.node-card.playing[data-source="set"] .sc-badge {
   opacity: 1;
 }
 /* Equalizer: animate transform (GPU-composited) instead of height so it stays

@@ -98,6 +98,9 @@ function renderCards() {
       : '';
 
     const sourceBadge = `<span class="source-badge">${EQ_BARS_HTML}</span>`;
+    // SoundCloud badge — matches the eq-badge style, only surfaces on the playing
+    // card when audio is coming from SoundCloud (CSS gates it via data-source).
+    const scBadge = `<span class="sc-badge">${SOUNDCLOUD_ICON}</span>`;
 
     const rootTitle = nodes.find(n => n.rank === 'root')?.title || '';
     let rankLabel;
@@ -169,6 +172,7 @@ function renderCards() {
         ${imgTag}
         ${playBtn}
         ${sourceBadge}
+        ${scBadge}
         ${renderSourceToggle(node)}
         <div class="progress-bar"><div class="bar-track"><div class="bar-fill"></div></div></div>
       </div>
@@ -234,17 +238,15 @@ function setupCardMarquees(card) {
   });
 }
 
-// Build the hover-tooltip label for a connection: "Played one track away on {sets}"
+// Build the hover-tooltip label for a connection. One set names it; multiple
+// sets just report the count.
 function edgeTooltipText(edge) {
   const ctx = edge.context;
   if (!ctx) return '';
   const sets = (ctx.djSets && ctx.djSets.length) ? ctx.djSets : (ctx.dj ? [ctx.dj] : []);
   if (!sets.length) return '';
-  let joined;
-  if (sets.length === 1) joined = sets[0];
-  else if (sets.length === 2) joined = `${sets[0]} and ${sets[1]}`;
-  else joined = `${sets.slice(0, -1).join(', ')} and ${sets[sets.length - 1]}`;
-  return `Played one track away on ${joined}`;
+  if (sets.length === 1) return `These songs played back to back on set ${sets[0]}`;
+  return `These songs played back to back on ${sets.length} DJ sets`;
 }
 
 function renderConnections() {
@@ -271,6 +273,18 @@ function renderConnections() {
     // Invisible wide hit-area on top so the thin line is easy to hover (desktop)
     const tip = edgeTooltipText(edge);
     if (tip) {
+      // A bright segment that travels along the line from origin → destination.
+      // Path `d` is drawn from the `from` node to the `to` node, so animating
+      // the dash toward the path end sweeps the shimmer outward.
+      const shimmer = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      shimmer.setAttribute('d', d);
+      shimmer.setAttribute('class', 'connection-shimmer');
+      const seg = Math.min(70, Math.max(28, len * 0.32));
+      shimmer.style.strokeDasharray = `${seg} ${len}`;
+      shimmer.style.setProperty('--dash-from', `${seg}px`);
+      shimmer.style.setProperty('--dash-to', `${-len}px`);
+      svg.appendChild(shimmer);
+
       const hit = document.createElementNS('http://www.w3.org/2000/svg', 'path');
       hit.setAttribute('d', d);
       hit.setAttribute('class', 'connection-hit');
@@ -278,11 +292,13 @@ function renderConnections() {
       hit.dataset.to = edge.to;
       hit.addEventListener('mouseenter', () => {
         path.classList.add('highlighted');
+        shimmer.classList.add('active');
         showPathTooltip(tip);
       });
       hit.addEventListener('mousemove', movePathTooltip);
       hit.addEventListener('mouseleave', () => {
         path.classList.remove('highlighted');
+        shimmer.classList.remove('active');
         hidePathTooltip();
       });
       svg.appendChild(hit);
@@ -303,13 +319,14 @@ function showPathTooltip(text) {
 }
 function movePathTooltip(e) {
   if (!pathTooltipEl) return;
-  // Offset above-right of the cursor, clamped to the viewport
-  const pad = 14;
-  let x = e.clientX + pad;
-  let y = e.clientY - pad;
+  // Centered above the cursor, with a comfortable gap; clamp to viewport
+  const gap = 24;
   const w = pathTooltipEl.offsetWidth;
-  if (x + w + 8 > window.innerWidth) x = e.clientX - pad - w;
-  if (y < 8) y = e.clientY + pad;
+  const h = pathTooltipEl.offsetHeight;
+  let x = e.clientX - w / 2;
+  let y = e.clientY - h - gap;
+  x = Math.max(8, Math.min(x, window.innerWidth - w - 8));
+  if (y < 8) y = e.clientY + gap; // flip below if no room above
   pathTooltipEl.style.left = `${x}px`;
   pathTooltipEl.style.top = `${y}px`;
 }
