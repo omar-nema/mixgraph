@@ -676,7 +676,11 @@ body.night .genre-tooltip {
   width: 100%;
   height: 100%;
   z-index: 2;
+  /* Let empty space fall through to the connection hit-targets below;
+     cards re-enable their own pointer events. */
+  pointer-events: none;
 }
+#nodes-layer .node-card { pointer-events: auto; }
 
 /* ═══════════════════════════════════════════
    Node Cards
@@ -885,6 +889,36 @@ a.track-title { color: inherit; text-decoration: none; }
   opacity: 0.85;
   stroke: var(--connection-highlight);
 }
+
+/* Invisible wide hit-target so the thin line is easy to hover */
+.connection-hit {
+  fill: none;
+  stroke: transparent;
+  stroke-width: 16px;
+  stroke-linecap: round;
+  pointer-events: stroke;
+  cursor: pointer;
+}
+
+/* Floating tooltip shown when hovering a connection line */
+#path-tooltip {
+  position: fixed;
+  z-index: 50;
+  max-width: 320px;
+  background: #1a1a1a;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  line-height: 1.35;
+  padding: 6px 10px;
+  border-radius: 6px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+#path-tooltip.visible { opacity: 1; }
+body.night #path-tooltip { background: #e8e4e0; color: #141414; }
 
 /* ═══════════════════════════════════════════
    Play Button & Audio State

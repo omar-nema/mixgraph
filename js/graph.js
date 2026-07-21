@@ -234,6 +234,19 @@ function setupCardMarquees(card) {
   });
 }
 
+// Build the hover-tooltip label for a connection: "Played one track away on {sets}"
+function edgeTooltipText(edge) {
+  const ctx = edge.context;
+  if (!ctx) return '';
+  const sets = (ctx.djSets && ctx.djSets.length) ? ctx.djSets : (ctx.dj ? [ctx.dj] : []);
+  if (!sets.length) return '';
+  let joined;
+  if (sets.length === 1) joined = sets[0];
+  else if (sets.length === 2) joined = `${sets[0]} and ${sets[1]}`;
+  else joined = `${sets.slice(0, -1).join(', ')} and ${sets[sets.length - 1]}`;
+  return `Played one track away on ${joined}`;
+}
+
 function renderConnections() {
   const svg = document.getElementById('connections-layer');
 
@@ -242,8 +255,10 @@ function renderConnections() {
     const toNode = nodeMap[edge.to];
     if (!fromNode || !toNode) return;
 
+    const d = computePath(fromNode, toNode, i);
+
     const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-    path.setAttribute('d', computePath(fromNode, toNode, i));
+    path.setAttribute('d', d);
     path.setAttribute('class', 'connection-path');
     path.dataset.from = edge.from;
     path.dataset.to = edge.to;
@@ -252,7 +267,54 @@ function renderConnections() {
     const len = path.getTotalLength();
     path.style.strokeDasharray = len;
     path.style.strokeDashoffset = len;
+
+    // Invisible wide hit-area on top so the thin line is easy to hover (desktop)
+    const tip = edgeTooltipText(edge);
+    if (tip) {
+      const hit = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      hit.setAttribute('d', d);
+      hit.setAttribute('class', 'connection-hit');
+      hit.dataset.from = edge.from;
+      hit.dataset.to = edge.to;
+      hit.addEventListener('mouseenter', () => {
+        path.classList.add('highlighted');
+        showPathTooltip(tip);
+      });
+      hit.addEventListener('mousemove', movePathTooltip);
+      hit.addEventListener('mouseleave', () => {
+        path.classList.remove('highlighted');
+        hidePathTooltip();
+      });
+      svg.appendChild(hit);
+    }
   });
+}
+
+// ── Connection hover tooltip ──
+let pathTooltipEl = null;
+function showPathTooltip(text) {
+  if (!pathTooltipEl) {
+    pathTooltipEl = document.createElement('div');
+    pathTooltipEl.id = 'path-tooltip';
+    document.body.appendChild(pathTooltipEl);
+  }
+  pathTooltipEl.textContent = text;
+  pathTooltipEl.classList.add('visible');
+}
+function movePathTooltip(e) {
+  if (!pathTooltipEl) return;
+  // Offset above-right of the cursor, clamped to the viewport
+  const pad = 14;
+  let x = e.clientX + pad;
+  let y = e.clientY - pad;
+  const w = pathTooltipEl.offsetWidth;
+  if (x + w + 8 > window.innerWidth) x = e.clientX - pad - w;
+  if (y < 8) y = e.clientY + pad;
+  pathTooltipEl.style.left = `${x}px`;
+  pathTooltipEl.style.top = `${y}px`;
+}
+function hidePathTooltip() {
+  if (pathTooltipEl) pathTooltipEl.classList.remove('visible');
 }
 
 function setupHovers() {

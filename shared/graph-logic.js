@@ -52,10 +52,18 @@ export function getEdgeContext(graphNodes, fromId, toId) {
   for (const edge of node.edges) {
     if (edge.node === toId && edge.contexts && edge.contexts.length > 0) {
       const ctx = edge.contexts[0];
+      // All distinct DJ set names this adjacency appears in (dedup, keep order)
+      const seen = new Set();
+      const djSets = [];
+      for (const c of edge.contexts) {
+        const name = (c.dj || '').trim();
+        if (name && !seen.has(name)) { seen.add(name); djSets.push(name); }
+      }
       return {
         dj: ctx.dj || '',
         episodeUrl: ctx.episode_url || '',
         date: ctx.date || '',
+        djSets,
       };
     }
   }
