@@ -3,7 +3,8 @@
 # But allow the frontend data files served by GitHub Pages
 !web-app/output/
 web-app/output/*
-!web-app/output/audio_cache.json
+# audio_cache.json is a local-only pipeline artifact (build tooling reads it from
+# disk; the frontend never loads it). Kept out of git — it grows past GitHub's 100MB.
 !web-app/output/dj_name_map.json
 sandbox/*
 !sandbox/webgl-crates/
