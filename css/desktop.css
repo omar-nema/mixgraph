@@ -2131,7 +2131,9 @@ body.night .genre-pill.genre-more-pill:hover {
 
 /* app-screenshot frame */
 .ob-frame {
-  width: 100%;
+  /* Stay left-flush (matching .ob-copy below) but leave room on the right so
+     the top-right progress dots don't sit on top of the browser-chrome bar. */
+  width: calc(100% - 80px);
   border-radius: 12px; overflow: hidden;
   background: var(--card-bg);
   border: 1px solid var(--card-border);
@@ -2150,7 +2152,9 @@ body.night .genre-pill.genre-more-pill:hover {
 
 /* intro graph motif */
 /* slide 1 diagram (recovered from the old help modal) */
-.ob-diagram { width: 100%; align-self: center; }
+/* Left-flush with room on the right, same as .ob-frame, so the top-right
+   progress dots clear the diagram instead of overlapping its corner node. */
+.ob-diagram { width: calc(100% - 80px); align-self: flex-start; }
 .ob-diagram .help-diagram { display: block; width: 100%; height: auto; max-width: 480px; margin: 0 auto; }
 /* night-mode recolor of the diagram's baked-in light palette */
 body.night .help-diagram { background: transparent; }
