@@ -147,7 +147,11 @@
 
   #mobile-shuffle-area {
     flex-shrink: 0;
-    margin-bottom: 28px;
+    /* 12px + #mobile-carousel's 20px top padding = 32px, matching the gap
+       between the card and the "Mixed by" line below (carousel's own 32px
+       bottom padding) — was 28px (-> 48px total), visibly bigger than the
+       bottom gap. */
+    margin-bottom: 12px;
     display: flex;
     justify-content: center;
     width: 100%;
