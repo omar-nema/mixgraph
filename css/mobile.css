@@ -456,50 +456,57 @@
     border-color: var(--accent-wash);
   }
 
-  #mobile-help-panel {
-    display: none;
+  /* Onboarding carousel — mobile: slides down and covers the page beneath the header. */
+  #onboarding-overlay {
     position: fixed;
-    top: calc(58px + env(safe-area-inset-top, 0px));
-    right: 8px;
-    z-index: 310;
-    width: calc(100vw - 16px);
-    max-height: calc(100vh - 74px - env(safe-area-inset-top, 0px));
+    inset: 0;
+    z-index: 190;                 /* below #mobile-header (200) so it sits *beneath* the header */
+    background: var(--bg);
+    display: block;
+    opacity: 1;
+    pointer-events: none;
+    transform: translateY(-100%);
+    transition: transform 0.34s cubic-bezier(.22,.61,.36,1);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+  #onboarding-overlay.open { transform: translateY(0); pointer-events: auto; }
+  /* While onboarding is open, hide app chrome that stacks above the panel (z-index > the panel's 190)
+     so nothing bleeds over it: the header's Dig filter bar, and the Shuffle-mode filter area (z-index 295).
+     The filter toggle stays in the top row — it doesn't overlap the panel — so the header keeps its layout. */
+  body.ob-open #mobile-filter-bar,
+  body.ob-open #mobile-find-bar,
+  body.ob-open #mobile-shuffle-area { display: none; }
+
+  .ob-sheet {
+    position: absolute;
+    top: var(--ob-top, 96px); left: 0; right: 0; bottom: 0;
+    width: auto; height: auto; max-height: none;
+    display: flex; flex-direction: column;
+    background: var(--bg);
+    border: none; border-radius: 0; box-shadow: none;
+    -webkit-backdrop-filter: none; backdrop-filter: none;
+    padding: 0;
+    transform: none;
     overflow-y: auto;
-    background: color-mix(in srgb, var(--bg) 92%, transparent);
-    -webkit-backdrop-filter: blur(20px) saturate(1.4);
-    backdrop-filter: blur(20px) saturate(1.4);
-    border: 1px solid var(--card-border);
-    border-radius: var(--card-radius);
-    box-shadow: 0 8px 30px rgba(0,0,0,0.12);
-    padding: 20px;
+    overscroll-behavior: contain;
+  }
+  .ob-sheet .ob-close { display: none; }          /* header "?" → "✕" is the closer on mobile */
 
-    transform-origin: top right;
-    animation: mobile-help-in 0.2s ease;
-  }
-  #mobile-help-panel.visible { display: block; }
-  body.night #mobile-help-panel { background: var(--surface-elevated); box-shadow: 0 8px 30px rgba(0,0,0,0.5); }
-  #mobile-help-panel h3 {
-    font-size: 16px;
-    font-weight: 600;
-    color: var(--text-primary);
-    margin: 0 0 12px 0;
-  }
-  #mobile-help-panel p {
-    font-size: 13px;
-    line-height: 1.5;
-    color: var(--text-primary);
-    margin: 0 0 8px 0;
-  }
-  #mobile-help-panel p:last-child { margin-bottom: 0; }
-  #mobile-help-panel a { color: var(--connection-highlight); }
-  @keyframes mobile-help-in {
-    from { opacity: 0; transform: scale(0.95); }
-    to { opacity: 1; transform: scale(1); }
-  }
+  .ob-viewport { flex: 1 0 auto; padding: 0; }
+  .ob-inner { gap: 24px; padding: 20px 18px 8px; }
+  .ob-h { font-size: clamp(23px, 6.4vw, 30px); max-width: 22ch; }
+  .ob-lead { font-size: 16px; }
+  .ob-motif { width: min(78%, 300px); margin-bottom: 4px; }
 
-  /* Hide desktop help overlay on mobile — use mobile-help-panel instead */
-  #help-overlay { display: none; }
-  .help-diagram { display: none; }
+  .ob-nav {
+    position: sticky; bottom: 0;
+    padding: 14px 18px calc(16px + env(safe-area-inset-bottom, 0px));
+    background: linear-gradient(to top, var(--bg) 78%, transparent);
+  }
+  .ob-btn { font-size: 14.5px; }
+  .ob-ghost { padding: 11px 15px; }
+  .ob-primary { padding: 11px 18px; }
 
   /* Mobile tracks layout */
   #mobile-tracks {

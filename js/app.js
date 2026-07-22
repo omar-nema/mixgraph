@@ -252,11 +252,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
   window.addEventListener('resize', syncDesktopToolbarHeight);
 
-  // Populate help panels from shared template
-  const helpTpl = document.getElementById('help-content');
-  document.getElementById('mobile-help-panel').appendChild(helpTpl.content.cloneNode(true));
-  document.getElementById('help-modal-content').appendChild(helpTpl.content.cloneNode(true));
-
   // Init filters, search indexes, autocomplete, popovers
   const filterCtrl = await initFilters();
 
@@ -321,17 +316,96 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
-  // Wire help modal
-  const helpOverlay = document.getElementById('help-overlay');
-  document.getElementById('help-btn').addEventListener('click', () => helpOverlay.classList.add('open'));
+  // Wire onboarding — desktop "back2back?" opens a centered modal; mobile "?" slides a full panel down below the header.
   const mobileHelpBtn = document.getElementById('mobile-help-btn');
-  const mobileHelpPanel = document.getElementById('mobile-help-panel');
-  mobileHelpBtn.addEventListener('click', () => {
-    const isOpen = mobileHelpPanel.classList.toggle('visible');
-    mobileHelpBtn.classList.toggle('open', isOpen);
-    mobileHelpBtn.textContent = isOpen ? '✕' : '?';
-    mobileHelpBtn.title = isOpen ? 'Close' : 'How it works';
-  });
+  const onboarding = (() => {
+    const overlay = document.getElementById('onboarding-overlay');
+    const track = document.getElementById('ob-track');
+    const slides = [...track.children];
+    const dotsWrap = document.getElementById('ob-dots');
+    const prev = document.getElementById('ob-prev');
+    const next = document.getElementById('ob-next');
+    const arrow = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>';
+    const NEXT_LABELS = ['How it works', 'Shuffle mode', 'Start exploring']; // per-slide label for the forward button
+    let i = 0;
+
+    const dots = slides.map((_, n) => {
+      const d = document.createElement('button');
+      d.className = 'ob-dot'; d.setAttribute('role', 'tab');
+      d.setAttribute('aria-label', 'Go to slide ' + (n + 1));
+      d.addEventListener('click', () => go(n));
+      dotsWrap.appendChild(d);
+      return d;
+    });
+
+    function render() {
+      track.style.transform = `translateX(${-i * 100}%)`;
+      slides.forEach((s, n) => s.toggleAttribute('data-active', n === i));
+      dots.forEach((d, n) => d.setAttribute('aria-current', n === i ? 'true' : 'false'));
+      prev.disabled = i === 0;
+      next.innerHTML = (NEXT_LABELS[i] || 'Next') + ' ' + arrow;
+    }
+    function go(n) { i = Math.max(0, Math.min(slides.length - 1, n)); render(); }
+
+    function open() {
+      // Collapse the header's filter chrome first (so it can't bleed over the panel),
+      // then pin the sliding panel just below the resulting (variable-height) header.
+      document.body.classList.add('ob-open');
+      const mh = document.getElementById('mobile-header');
+      if (mh) overlay.style.setProperty('--ob-top', mh.getBoundingClientRect().height + 'px');
+      // Clear any live helper toast so it doesn't float over the panel
+      document.querySelectorAll('.helper-toast.visible').forEach(t => t.classList.remove('visible'));
+      overlay.classList.add('open');
+      overlay.setAttribute('aria-hidden', 'false');
+      mobileHelpBtn.classList.add('open');
+      mobileHelpBtn.textContent = '✕';
+      mobileHelpBtn.title = 'Close';
+      go(0);
+    }
+    function close() {
+      document.body.classList.remove('ob-open');
+      overlay.classList.remove('open');
+      overlay.setAttribute('aria-hidden', 'true');
+      mobileHelpBtn.classList.remove('open');
+      mobileHelpBtn.textContent = '?';
+      mobileHelpBtn.title = 'How it works';
+    }
+    function toggle() { overlay.classList.contains('open') ? close() : open(); }
+
+    next.addEventListener('click', () => i === slides.length - 1 ? close() : go(i + 1));
+    prev.addEventListener('click', () => go(i - 1));
+    overlay.querySelector('.ob-close').addEventListener('click', close);
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+    document.addEventListener('keydown', (e) => {
+      if (!overlay.classList.contains('open')) return;
+      if (e.key === 'Escape') close();
+      else if (e.key === 'ArrowRight') go(i + 1);
+      else if (e.key === 'ArrowLeft') go(i - 1);
+    });
+
+    // swipe / drag
+    let x0 = null, dx = 0, dragging = false;
+    const down = x => { x0 = x; dx = 0; dragging = true; track.style.transition = 'none'; };
+    const move = x => { if (!dragging) return; dx = x - x0; track.style.transform = `translateX(calc(${-i * 100}% + ${dx}px))`; };
+    const up = () => {
+      if (!dragging) return;
+      dragging = false; track.style.transition = '';
+      const threshold = Math.min(120, track.offsetWidth * 0.18);
+      if (dx <= -threshold) go(i + 1); else if (dx >= threshold) go(i - 1); else render();
+    };
+    track.addEventListener('touchstart', e => down(e.touches[0].clientX), { passive: true });
+    track.addEventListener('touchmove', e => move(e.touches[0].clientX), { passive: true });
+    track.addEventListener('touchend', up);
+    track.addEventListener('mousedown', e => { e.preventDefault(); down(e.clientX); });
+    window.addEventListener('mousemove', e => move(e.clientX));
+    window.addEventListener('mouseup', up);
+
+    render();
+    return { open, close, toggle };
+  })();
+
+  document.getElementById('help-btn').addEventListener('click', () => onboarding.open());
+  mobileHelpBtn.addEventListener('click', () => onboarding.toggle());
   const mobileHeaderShare = document.getElementById('mobile-header-share');
   if (mobileHeaderShare) {
     mobileHeaderShare.addEventListener('click', () => {
@@ -458,10 +532,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     sharedBackdrop.addEventListener('pointerdown', closeFromBackdrop);
     sharedBackdrop.addEventListener('click', closeFromBackdrop);
   }
-
-  helpOverlay.addEventListener('click', (e) => { if (e.target === helpOverlay) helpOverlay.classList.remove('open'); });
-  helpOverlay.querySelector('.help-close').addEventListener('click', () => helpOverlay.classList.remove('open'));
-  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') helpOverlay.classList.remove('open'); });
 
   // Wire theme toggle — follow system preference unless user has manually chosen
   const themeBtn = document.getElementById('theme-toggle');
