@@ -206,8 +206,12 @@ function updateMobileSources(graphId) {
 // title/artist marquee) tracks what's actually audible. The SC widget's PAUSE
 // event is unreliable on mobile, so we can't drive .playing off events alone.
 let mobilePlayPoll = null;
+let mobileMuteGuard = null; // keeps the SC widget muted until the intro-skip seek lands
 function stopMobilePlayPoll() {
   if (mobilePlayPoll) { clearInterval(mobilePlayPoll); mobilePlayPoll = null; }
+}
+function stopMobileMuteGuard() {
+  if (mobileMuteGuard) { clearInterval(mobileMuteGuard); mobileMuteGuard = null; }
 }
 function startMobilePlayPoll(card) {
   stopMobilePlayPoll();
@@ -282,6 +286,8 @@ function selectMobileTrack(nodeId) {
   const offsetSec = useMix ? (node.setOffsetSec || 7) : 0;
   let didSeek = false;
 
+  stopMobileMuteGuard();
+
   scWidget.bind(SC.Widget.Events.READY, () => {
     scWidgetReady = true;
     if (card) card.classList.remove('loading');
@@ -294,22 +300,51 @@ function selectMobileTrack(nodeId) {
   // poll above is a fallback for mobile Safari's unreliable PAUSE event.
   scWidget.bind(SC.Widget.Events.PLAY, () => {
     if (card && card.classList.contains('selected')) card.classList.add('playing');
-    // On mobile Safari, seekTo only works once the user presses play — seek here.
-    // Guard against pausing inside the 500ms window: seekTo un-pauses the widget
-    // on Safari, so a quick pause would resume the mix from the offset instead of
-    // holding. Skip while paused and leave didSeek false so the next PLAY retries.
-    if (offsetSec && !didSeek) {
-      setTimeout(() => {
-        if (didSeek) return;
-        scWidget.isPaused(paused => {
-          if (didSeek || paused) return;
-          didSeek = true;
-          scWidget.seekTo(offsetSec * 1000);
-        });
-      }, 500);
-    }
+    if (offsetSec && !didSeek) startMobileMuteGuard();
+    else if (!offsetSec) { try { scWidget.setVolume(100); } catch (e) {} } // recover prior mute
   });
+
+  // On mobile Safari, seekTo only works once the user presses play, and SC honors a
+  // lone seek/volume call only intermittently — so re-assert mute+seek every 100ms
+  // until the position lands past the intro, then unmute. Muting keeps the leak that
+  // plays before the seek sticks silent. Skip while paused so we don't fight it
+  // (seekTo un-pauses on Safari), leaving didSeek false so the next PLAY retries.
+  function startMobileMuteGuard() {
+    stopMobileMuteGuard();
+    const target = offsetSec * 1000;
+    const started = Date.now();
+    mobileMuteGuard = setInterval(() => {
+      if (didSeek) { stopMobileMuteGuard(); return; }
+      if (Date.now() - started > 5000) { didSeek = true; try { scWidget.setVolume(100); } catch (e) {} stopMobileMuteGuard(); return; }
+      scWidget.isPaused(paused => {
+        if (didSeek || paused) return;
+        scWidget.getPosition(pos => {
+          // Re-check: a pause may have landed (setting didSeek) while getPosition
+          // was in flight. Seeking now would un-pause the widget (Safari quirk).
+          if (didSeek) return;
+          if (pos >= target - 500) {
+            didSeek = true;
+            try { scWidget.setVolume(100); } catch (e) {}
+            stopMobileMuteGuard();
+          } else {
+            try { scWidget.setVolume(0); scWidget.seekTo(target); } catch (e) {}
+          }
+        });
+      });
+    }, 100);
+  }
   scWidget.bind(SC.Widget.Events.PAUSE, () => {
+    // A pause ends the intro-skip. Kill the guard and never seek again — otherwise
+    // its next seekTo would un-pause the widget (Safari quirk) and steamroll the
+    // user's pause. `isPaused` polling is too flaky to catch this reliably; the
+    // PAUSE event is. Restore volume in case the guard left it muted, and re-assert
+    // the pause to undo a resume any stray in-flight seek already triggered.
+    if (!didSeek) {
+      didSeek = true;
+      stopMobileMuteGuard();
+      try { scWidget.setVolume(100); } catch (e) {}
+      try { scWidget.pause(); } catch (e) {}
+    }
     if (card) card.classList.remove('playing');
   });
 

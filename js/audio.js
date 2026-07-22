@@ -13,6 +13,7 @@ let progressInterval = null;
 let isSeeking = false;
 let playingSetOffset = 0;   // track start offset in set (ms)
 let scPlayTimeout = null;
+let scMuteGuard = null; // interval that keeps the SC widget muted until the intro-skip seek lands
 // Tracks whether the user has paused/stopped the current playback. A backend's
 // load is async: it fires READY (and auto_play) some time after we call load().
 // Without this flag, a pause issued during that window is silently overridden
@@ -117,6 +118,7 @@ function hideScPlayer() {
 
 function stopCurrentPlayback() {
   clearPlayTimeout();
+  if (scMuteGuard) { clearInterval(scMuteGuard); scMuteGuard = null; }
   // Suppress any in-flight load from auto-playing after this stop. A fresh
   // play() (playSC/playSCSet/playMixcloud) clears the flag again.
   userPaused = true;
@@ -275,10 +277,47 @@ function setupScWidget(nodeId, card, offsetSec, onError) {
 
   const seekMs = offsetSec ? offsetSec * 1000 : 0;
   let seekLanded = !seekMs;
+  if (scMuteGuard) { clearInterval(scMuteGuard); scMuteGuard = null; }
+
+  // Skip the set intro (e.g. the NTS sting) when a track starts at 0:00. SC swallows
+  // a seek issued before playback truly begins — and honors a single volume/seek
+  // call only intermittently once it does — so we re-assert mute+seek on a short
+  // interval until the position actually lands past the intro, then unmute. Muting
+  // (rather than just seeking) keeps the ~0.5s that leaks before the seek sticks
+  // silent instead of audibly playing the intro.
+  function startScMuteGuard() {
+    if (!seekMs || scMuteGuard) return;
+    const started = Date.now();
+    scMuteGuard = setInterval(() => {
+      if (seekLanded) { clearInterval(scMuteGuard); scMuteGuard = null; return; }
+      // Bail out (and restore volume) if the seek never lands, so audio is never
+      // stuck silent.
+      if (Date.now() - started > 5000) {
+        seekLanded = true;
+        try { scWidget.setVolume(100); } catch (e) {}
+        clearInterval(scMuteGuard); scMuteGuard = null;
+        return;
+      }
+      if (userPaused) return; // hold muted; don't fight a user pause with seek/play
+      scWidget.getPosition(pos => {
+        // Re-check: a pause may have landed while getPosition was in flight.
+        // seekTo on a paused widget un-pauses it (Safari), so bail if paused now.
+        if (userPaused) return;
+        if (pos >= seekMs - 500) {
+          seekLanded = true;
+          try { scWidget.setVolume(100); } catch (e) {}
+          if (scMuteGuard) { clearInterval(scMuteGuard); scMuteGuard = null; }
+        } else {
+          try { scWidget.setVolume(0); scWidget.seekTo(seekMs); } catch (e) {}
+        }
+      });
+    }, 100);
+  }
+
   scWidget.bind(SC.Widget.Events.READY, () => {
     scWidget.unbind(SC.Widget.Events.READY); // one-shot: prevent re-fire on iframe restore
     scWidgetReady = true;
-    if (seekMs) { try { scWidget.seekTo(seekMs); } catch (e) {} }
+    if (seekMs) { try { scWidget.setVolume(0); scWidget.seekTo(seekMs); } catch (e) {} }
     // Respect a pause the user issued while the set was still loading.
     if (userPaused) return;
     try { scWidget.play(); } catch (e) {}
@@ -289,7 +328,8 @@ function setupScWidget(nodeId, card, offsetSec, onError) {
     if (userPaused) { try { scWidget.pause(); } catch (e) {} return; }
     clearPlayTimeout();
     showScPlayer();
-    if (seekMs && !seekLanded) { try { scWidget.seekTo(seekMs); } catch (e) {} }
+    if (seekMs && !seekLanded) startScMuteGuard();
+    else { try { scWidget.setVolume(100); } catch (e) {} } // recover if a prior set left it muted
     if (card) {
       hideLoading(card);
       card.classList.add('playing');
@@ -300,14 +340,6 @@ function setupScWidget(nodeId, card, offsetSec, onError) {
       if (btn) btn.innerHTML = PAUSE_SVG;
     }
     startProgressPolling();
-  });
-  // Keep reasserting the seek until playback actually lands near the target, so
-  // a set never audibly plays from 0:00 before jumping to the track's timestamp.
-  scWidget.bind(SC.Widget.Events.PLAY_PROGRESS, (e) => {
-    if (seekLanded) return;
-    const pos = e && typeof e.currentPosition === 'number' ? e.currentPosition : 0;
-    if (pos >= seekMs - 2500) { seekLanded = true; return; }
-    scWidget.seekTo(seekMs);
   });
   scWidget.bind(SC.Widget.Events.FINISH, onPlaybackEnded);
   scWidget.bind(SC.Widget.Events.ERROR, onError);
@@ -337,8 +369,11 @@ function playSC(nodeId, trackUrl) {
   });
 
   showScPlayer();
-  // Safari: call play() synchronously in user gesture to unlock iframe audio
-  try { scWidget.play(); } catch (e) {}
+  // Call play() synchronously in the user gesture so Safari unlocks iframe audio.
+  // Mute first (all browsers): the widget is shared, so this play() briefly resumes
+  // the previously-loaded (paused) track until load() swaps in the new one. Muting
+  // keeps that ~0.5s leak silent; the PLAY handler restores volume for the new track.
+  try { scWidget.setVolume(0); scWidget.play(); } catch (e) {}
   scWidget.load(trackUrl, getScLoadOpts());
   startPlayTimeout(nodeId, true);
 }
@@ -360,8 +395,11 @@ function playSCSet(nodeId, setUrl, offsetSec) {
   setupScWidget(nodeId, card, offsetSec, () => { hideScPlayer(); onPlaybackEnded(); });
 
   showScPlayer();
-  // Safari: call play() synchronously in user gesture to unlock iframe audio
-  try { scWidget.play(); } catch (e) {}
+  // Call play() synchronously in the user gesture so Safari unlocks iframe audio.
+  // Mute first (all browsers): the widget is shared, so this play() briefly resumes
+  // the previously-loaded track until load() swaps in the set. Muting keeps that
+  // ~0.5s leak silent; READY / the mute guard hold it muted through the intro-skip seek.
+  try { scWidget.setVolume(0); scWidget.play(); } catch (e) {}
   scWidget.load(setUrl, getScLoadOpts());
   startPlayTimeout(nodeId, false);
 }
@@ -381,7 +419,7 @@ function playMixcloud(nodeId, mixcloudUrl, offsetSec) {
   if (AUDIO_SUPPRESSED) return;
   // Skip the set intro (e.g. the NTS sting) for tracks that start at 0:00.
   offsetSec = offsetSec || 7;
-  const { card, btn } = prepareCardForPlayback(nodeId, 'set');
+  const { card, btn } = prepareCardForPlayback(nodeId, 'mixcloud');
   currentlyPlayingId = nodeId;
   currentBackend = 'mc';
   playingSetOffset = offsetSec ? offsetSec * 1000 : 0;
@@ -475,6 +513,8 @@ function togglePlay(nodeId) {
     const isPlaying = card && card.classList.contains('playing');
     if (isPlaying) {
       userPaused = true;
+      // Tear down the intro-skip guard so it can't re-assert seek/play after pause.
+      if (scMuteGuard) { clearInterval(scMuteGuard); scMuteGuard = null; }
       if (currentBackend === 'sc' && scWidget) try { scWidget.pause(); } catch(e) {}
       else if (currentBackend === 'mc' && mcWidget) try { mcWidget.pause(); } catch(e) {}
       if (btn) btn.innerHTML = PLAY_SVG;
