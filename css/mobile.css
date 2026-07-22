@@ -812,6 +812,14 @@
   @media (max-height: 750px) {
     .mobile-carousel-item { width: 54vw; }
     .mobile-carousel-item[data-rank="root"] { width: 63vw; }
+    /* #mobile-carousel's padding/scroll-padding-inline center the root card by
+       assuming its default 70vw width — must be recalculated here against the
+       63vw root width above, or the centering math is off and the selected
+       card snaps to a visibly offset position on short-height phones. */
+    #mobile-carousel {
+      padding: 20px calc((100vw - 63vw) / 2 + 5vw) 32px calc((100vw - 63vw) / 2 - 5vw);
+      scroll-padding-inline: calc((100vw - 63vw) / 2 - 5vw) calc((100vw - 63vw) / 2 + 5vw);
+    }
   }
 
   /* Theme toggle: hidden on mobile */
