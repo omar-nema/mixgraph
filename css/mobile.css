@@ -495,8 +495,12 @@
 
   .ob-viewport { flex: 1 0 auto; padding: 0; }
   .ob-inner { gap: 24px; padding: 20px 18px 8px; }
-  .ob-h { font-size: clamp(23px, 6.4vw, 30px); max-width: 22ch; }
-  .ob-lead { font-size: 16px; }
+  /* Mobile screenshots already include the app's own header, so drop the desktop browser chrome. */
+  .ob-bar { display: none; }
+  /* Portrait phone shots — show them small and centered, like a device preview. */
+  .ob-frame { width: 60%; align-self: center; }
+  .ob-h { font-size: clamp(22px, 6.1vw, 29px); max-width: 22ch; }
+  .ob-lead { font-size: 15px; }
   .ob-motif { width: min(78%, 300px); margin-bottom: 4px; }
 
   .ob-nav {

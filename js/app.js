@@ -347,7 +347,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
     function go(n) { i = Math.max(0, Math.min(slides.length - 1, n)); render(); }
 
+    // Pick each screenshot to match the current viewport (mobile/desktop) and theme (light/night).
+    function syncShots() {
+      const mob = window.matchMedia('(max-width: 768px)').matches;
+      const night = document.body.classList.contains('night');
+      const key = (mob ? 'mob' : 'desk') + (night ? 'Dark' : '');
+      overlay.querySelectorAll('.ob-shot').forEach(img => {
+        const src = img.dataset[key] || img.dataset[mob ? 'mob' : 'desk'];
+        if (src && !img.src.endsWith(src)) img.src = src;
+      });
+    }
+
     function open() {
+      syncShots();
       // Collapse the header's filter chrome first (so it can't bleed over the panel),
       // then pin the sliding panel just below the resulting (variable-height) header.
       document.body.classList.add('ob-open');
