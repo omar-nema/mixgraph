@@ -283,7 +283,7 @@ function selectMobileTrack(nodeId) {
 
   const url = useMix ? node.setUrl : node.scTrackUrl;
   // For sets, jump past the intro (e.g. NTS sting) when the track starts at 0:00.
-  const offsetSec = useMix ? (node.setOffsetSec || 7) : 0;
+  const offsetSec = useMix ? (node.setOffsetSec > 0 ? node.setOffsetSec : 7) : 0;
   let didSeek = false;
 
   stopMobileMuteGuard();
@@ -305,17 +305,23 @@ function selectMobileTrack(nodeId) {
   });
 
   // On mobile Safari, seekTo only works once the user presses play, and SC honors a
-  // lone seek/volume call only intermittently — so re-assert mute+seek every 100ms
-  // until the position lands past the intro, then unmute. Muting keeps the leak that
-  // plays before the seek sticks silent. Skip while paused so we don't fight it
-  // (seekTo un-pauses on Safari), leaving didSeek false so the next PLAY retries.
+  // lone seek/volume call only intermittently — so keep the widget muted and re-assert
+  // the seek until the position lands, then unmute. Muting keeps the leak that plays
+  // before the seek sticks silent. Skip while paused so we don't fight it (seekTo
+  // un-pauses on Safari), leaving didSeek false so the next PLAY retries. Do NOT
+  // re-issue seekTo every tick: offsets are usually deep (median ~35 min), and a deep
+  // seek needs SC to fetch a new stream segment — spamming seekTo restarts that fetch
+  // so it never lands. Issue once, let it buffer, only re-seek if it clearly stalled.
   function startMobileMuteGuard() {
     stopMobileMuteGuard();
     const target = offsetSec * 1000;
     const started = Date.now();
+    let lastSeekAt = 0;
+    const RESEEK_GRACE = 1500; // give a seek this long to buffer before re-issuing
+    const BAIL_MS = 12000;     // deep seeks need more than the old 5s to land
     mobileMuteGuard = setInterval(() => {
       if (didSeek) { stopMobileMuteGuard(); return; }
-      if (Date.now() - started > 5000) { didSeek = true; try { scWidget.setVolume(100); } catch (e) {} stopMobileMuteGuard(); return; }
+      if (Date.now() - started > BAIL_MS) { didSeek = true; try { scWidget.setVolume(100); } catch (e) {} stopMobileMuteGuard(); return; }
       scWidget.isPaused(paused => {
         if (didSeek || paused) return;
         scWidget.getPosition(pos => {
@@ -326,8 +332,11 @@ function selectMobileTrack(nodeId) {
             didSeek = true;
             try { scWidget.setVolume(100); } catch (e) {}
             stopMobileMuteGuard();
-          } else {
+          } else if (Date.now() - lastSeekAt > RESEEK_GRACE) {
+            lastSeekAt = Date.now();
             try { scWidget.setVolume(0); scWidget.seekTo(target); } catch (e) {}
+          } else {
+            try { scWidget.setVolume(0); } catch (e) {}
           }
         });
       });

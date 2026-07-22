@@ -275,24 +275,27 @@ function setupScWidget(nodeId, card, offsetSec, onError) {
   scWidget.unbind(SC.Widget.Events.FINISH);
   scWidget.unbind(SC.Widget.Events.ERROR);
 
-  const seekMs = offsetSec ? offsetSec * 1000 : 0;
+  const seekMs = offsetSec > 0 ? offsetSec * 1000 : 0;
   let seekLanded = !seekMs;
   if (scMuteGuard) { clearInterval(scMuteGuard); scMuteGuard = null; }
 
-  // Skip the set intro (e.g. the NTS sting) when a track starts at 0:00. SC swallows
-  // a seek issued before playback truly begins — and honors a single volume/seek
-  // call only intermittently once it does — so we re-assert mute+seek on a short
-  // interval until the position actually lands past the intro, then unmute. Muting
-  // (rather than just seeking) keeps the ~0.5s that leaks before the seek sticks
-  // silent instead of audibly playing the intro.
+  // Seek to the track's offset within the set (usually deep — median ~35 min).
+  // SC swallows a seek issued before playback truly begins, so we keep the widget
+  // muted and re-assert the seek until the position actually lands, then unmute.
+  // Crucially we do NOT re-issue seekTo every tick: a deep seek needs SC to fetch a
+  // new stream segment, and spamming seekTo restarts that fetch so it never lands.
+  // We issue once, wait for it to buffer, and only re-seek if it clearly stalled.
   function startScMuteGuard() {
     if (!seekMs || scMuteGuard) return;
     const started = Date.now();
+    let lastSeekAt = 0;
+    const RESEEK_GRACE = 1500; // give a seek this long to buffer before re-issuing
+    const BAIL_MS = 12000;     // deep seeks need more than the old 5s to land
     scMuteGuard = setInterval(() => {
       if (seekLanded) { clearInterval(scMuteGuard); scMuteGuard = null; return; }
       // Bail out (and restore volume) if the seek never lands, so audio is never
       // stuck silent.
-      if (Date.now() - started > 5000) {
+      if (Date.now() - started > BAIL_MS) {
         seekLanded = true;
         try { scWidget.setVolume(100); } catch (e) {}
         clearInterval(scMuteGuard); scMuteGuard = null;
@@ -307,8 +310,13 @@ function setupScWidget(nodeId, card, offsetSec, onError) {
           seekLanded = true;
           try { scWidget.setVolume(100); } catch (e) {}
           if (scMuteGuard) { clearInterval(scMuteGuard); scMuteGuard = null; }
-        } else {
+        } else if (Date.now() - lastSeekAt > RESEEK_GRACE) {
+          // Not there yet and the last seek has had time to land — (re)issue it.
+          lastSeekAt = Date.now();
           try { scWidget.setVolume(0); scWidget.seekTo(seekMs); } catch (e) {}
+        } else {
+          // A seek is in flight; stay muted and let it buffer.
+          try { scWidget.setVolume(0); } catch (e) {}
         }
       });
     }, 100);
@@ -382,9 +390,9 @@ function playSCSet(nodeId, setUrl, offsetSec) {
   if (AUDIO_SUPPRESSED) return;
   if (!initSCWidget()) return;
 
-  // Tracks that start at 0:00 begin with the set's intro (e.g. the NTS sting).
-  // Nudge past it so playback opens on the actual music.
-  offsetSec = offsetSec || 7;
+  // Tracks that start at 0:00 (or have no/negative offset) begin with the set's
+  // intro (e.g. the NTS sting). Nudge past it so playback opens on the actual music.
+  offsetSec = offsetSec > 0 ? offsetSec : 7;
 
   const { card } = prepareCardForPlayback(nodeId, 'set');
   currentlyPlayingId = nodeId;
@@ -417,8 +425,8 @@ function hideMcPlayer() {
 
 function playMixcloud(nodeId, mixcloudUrl, offsetSec) {
   if (AUDIO_SUPPRESSED) return;
-  // Skip the set intro (e.g. the NTS sting) for tracks that start at 0:00.
-  offsetSec = offsetSec || 7;
+  // Skip the set intro (e.g. the NTS sting) for tracks with no/zero/negative offset.
+  offsetSec = offsetSec > 0 ? offsetSec : 7;
   const { card, btn } = prepareCardForPlayback(nodeId, 'mixcloud');
   currentlyPlayingId = nodeId;
   currentBackend = 'mc';
