@@ -1055,7 +1055,7 @@ async function initFilters() {
   const STAFF_PICKS = [
     'Ben UFO', 'Powder', 'David August', 'Tim Reaper', 'Kelman Duran',
     'Zack Fox', 'Avalon Emerson', 'Skee Mask', 'Mia Koden',
-    'DJ Python', 'Nihal', 'DJ Haram',
+    'DJ Python', 'Nihal', 'DJ Haram', 'Nick León', 'CCL',
   ];
   const staffPicksActive = () =>
     STAFF_PICKS.every(name => djSearchFilters.some(f => f.display === name));
