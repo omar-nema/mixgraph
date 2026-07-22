@@ -417,6 +417,93 @@ export function buildGenreList(graphNodes) {
     .sort((a, b) => b.count - a.count);
 }
 
+// ── Crates index (Dig seed metadata) ──
+
+// Upper bound on the crates-index blob. Above this, sample down so the blob the
+// browser downloads for the Dig view stops growing with the catalog. No effect
+// until the 4+-edge seed count exceeds this.
+export const CRATES_INDEX_CAP = 9000;
+
+// Deterministic subsample of k items — stable across rebuilds, preserves genre
+// proportions in expectation (uniform pick). Seeded so builds are reproducible.
+function seededSample(arr, k) {
+  let s = 12345;
+  const rng = () => { s = (s * 16807) % 2147483647; return (s - 1) / 2147483646; };
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a.slice(0, k);
+}
+
+// Build the crates-index blob: per-seed metadata for the Dig view. One KV blob,
+// CDN-cached, so the worker serves Dig without per-request BFS. Seeds are
+// candidates with 4+ edges; each carries up to 8 artwork URLs (seed + 1st/2nd-hop
+// neighbours), neighbour ids, genres/artist/DJ for filtering, and a display count.
+// Single source of truth for build_kv.js and build_crates_index.js.
+export function buildCratesIndex(graphNodes, audioCache, djNameMap = {}, opts = {}) {
+  const cap = opts.cap ?? CRATES_INDEX_CAP;
+  const candidates = opts.candidates || buildCandidates(graphNodes, audioCache).candidates;
+
+  const seeds = [];
+  for (const id of candidates) {
+    const node = graphNodes[id];
+    const edges = node.edges || [];
+    if (edges.length < 4) continue;
+
+    const cached = audioCache[id] || {};
+    const artworks = [];
+    const neighborIds = [];
+    if (cached.artUrl) artworks.push(cached.artUrl);
+    // 1st-hop neighbours
+    for (const edge of edges) {
+      if (artworks.length >= 8) break;
+      const nArt = (audioCache[edge.node] || {}).artUrl;
+      if (nArt) { artworks.push(nArt); neighborIds.push(edge.node); }
+    }
+    // 2nd-hop neighbours (walk edges of 1st-hop nodes)
+    if (artworks.length < 8) {
+      for (const edge of edges) {
+        if (artworks.length >= 8) break;
+        const hop1 = graphNodes[edge.node];
+        if (!hop1) continue;
+        for (const e2 of (hop1.edges || [])) {
+          if (artworks.length >= 8) break;
+          if (e2.node === id) continue; // skip seed
+          const nArt = (audioCache[e2.node] || {}).artUrl;
+          if (nArt) { artworks.push(nArt); neighborIds.push(e2.node); }
+        }
+      }
+    }
+
+    // DJ names (expanded via djNameMap), lowercase
+    const djNames = new Set();
+    for (const edge of edges) {
+      for (const ctx of (edge.contexts || [])) {
+        const raw = (ctx.dj || '').trim();
+        if (!raw) continue;
+        (djNameMap[raw] || [raw]).forEach(n => djNames.add(n.toLowerCase()));
+      }
+    }
+
+    const r1 = edges.length;
+    const displayCount = 1 + r1 + Math.min(2, r1) * 2; // mirrors worker formula
+    seeds.push({
+      id,
+      artworks,
+      n: neighborIds,
+      count: displayCount,
+      weight: displayCount,
+      g: node.genres || [],
+      a: (node.artist || '').toLowerCase(),
+      d: [...djNames],
+    });
+  }
+
+  return seeds.length > cap ? seededSample(seeds, cap) : seeds;
+}
+
 // ── Crates generation ──
 
 function cratesBfs(graphNodes, startKey, maxNodes) {

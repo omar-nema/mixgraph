@@ -6,7 +6,7 @@ import { readFileSync, writeFileSync } from 'fs';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import {
-  buildCandidates, buildIndexes, buildGenreList,
+  buildCandidates, buildIndexes, buildGenreList, buildCratesIndex,
 } from '../shared/graph-logic.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -64,11 +64,11 @@ const enrichedCandidates = candidates.map((id, i) => {
   };
 });
 
-// Index blobs (small, read on every request)
-entries.push({
-  key: 'candidates',
-  value: JSON.stringify(enrichedCandidates),
-});
+// Candidates now live in D1 (the enriched blob exceeds KV's 25MB value limit).
+// Write them to a file for the D1 loader (scripts/load_d1_candidates.mjs) instead
+// of pushing a `candidates` KV blob. Everything else below still goes to KV.
+writeFileSync(`${root}/candidates-d1.json`, JSON.stringify(enrichedCandidates));
+console.log(`Wrote ${enrichedCandidates.length} candidates -> candidates-d1.json (load into D1 separately)`);
 entries.push({ key: 'crates-seeds', value: JSON.stringify(cratesSeeds) });
 entries.push({ key: 'genres', value: JSON.stringify(displayGenres) });
 entries.push({ key: 'artist-index', value: JSON.stringify(artistListAlpha) });
@@ -81,47 +81,8 @@ console.log(`Enriched candidates blob: ${candSizeMB}MB`);
 
 // Crates index — per-seed metadata for client-side crates rendering.
 // One KV read + CDN cache → replaces per-request BFS (was 7-9s → <200ms).
-const cratesIndex = enrichedCandidates
-  .filter(c => c.e >= 4)
-  .map(c => {
-    const node = graphNodes[c.id];
-    const cached = audioCache[c.id] || {};
-    // Collect artwork URLs: seed + 1st-hop + 2nd-hop neighbors (duplicates OK, cap 10)
-    const artworks = [];
-    const neighborIds = [];
-    if (cached.artUrl) artworks.push(cached.artUrl);
-    // 1st-hop neighbors
-    for (const edge of (node.edges || [])) {
-      if (artworks.length >= 8) break;
-      const nArt = (audioCache[edge.node] || {}).artUrl;
-      if (nArt) {
-        artworks.push(nArt);
-        neighborIds.push(edge.node);
-      }
-    }
-    // 2nd-hop neighbors (walk edges of 1st-hop nodes)
-    if (artworks.length < 8) {
-      for (const edge of (node.edges || [])) {
-        if (artworks.length >= 8) break;
-        const hop1 = graphNodes[edge.node];
-        if (!hop1) continue;
-        for (const e2 of (hop1.edges || [])) {
-          if (artworks.length >= 8) break;
-          if (e2.node === c.id) continue; // skip seed
-          const nArt = (audioCache[e2.node] || {}).artUrl;
-          if (nArt) {
-            artworks.push(nArt);
-            neighborIds.push(e2.node);
-          }
-        }
-      }
-    }
-    // displayCount mirrors worker formula
-    const r1 = (node.edges || []).length;
-    const displayCount = 1 + r1 + Math.min(2, r1) * 2;
-    return { id: c.id, artworks, n: neighborIds, count: displayCount, weight: displayCount, g: c.g, a: c.a, d: c.d };
-  });
-
+// Shared with build_crates_index.js; capped at CRATES_INDEX_CAP.
+const cratesIndex = buildCratesIndex(graphNodes, audioCache, djNameMap, { candidates });
 const cratesIndexJson = JSON.stringify(cratesIndex);
 const cratesMB = (Buffer.byteLength(cratesIndexJson) / 1024 / 1024).toFixed(1);
 console.log(`Crates index: ${cratesIndex.length} seeds, ${cratesMB}MB`);

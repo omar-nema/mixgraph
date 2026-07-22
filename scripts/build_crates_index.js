@@ -5,7 +5,7 @@
 import { readFileSync, writeFileSync } from 'fs';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { buildCandidates } from '../shared/graph-logic.js';
+import { buildCratesIndex } from '../shared/graph-logic.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = resolve(__dirname, '..', 'pipeline', 'output');
@@ -18,51 +18,8 @@ const audioCache = JSON.parse(readFileSync(`${root}/audio_cache.json`, 'utf8'));
 const djNameMap = JSON.parse(readFileSync(`${root}/dj_name_map.json`, 'utf8'));
 console.log(`Loaded in ${Date.now() - t0}ms — ${Object.keys(graphNodes).length} nodes`);
 
-const { candidates, candidateWeights } = buildCandidates(graphNodes, audioCache);
-
-// Build enriched candidates (same logic as build_kv.js)
-const enrichedCandidates = candidates.map((id, i) => {
-  const node = graphNodes[id];
-  const cached = audioCache[id] || {};
-  const djNames = new Set();
-  for (const edge of (node.edges || [])) {
-    for (const ctx of (edge.contexts || [])) {
-      const raw = (ctx.dj || '').trim();
-      if (!raw) continue;
-      const names = djNameMap[raw] || [raw];
-      names.forEach(n => djNames.add(n.toLowerCase()));
-    }
-  }
-  return {
-    id,
-    g: node.genres || [],
-    a: (node.artist || '').toLowerCase(),
-    e: (node.edges || []).length,
-    d: [...djNames],
-  };
-});
-
-// Build crates index — seeds with 4+ edges, artworks from seed + neighbors
-const cratesIndex = enrichedCandidates
-  .filter(c => c.e >= 4)
-  .map(c => {
-    const node = graphNodes[c.id];
-    const cached = audioCache[c.id] || {};
-    const artworks = [];
-    const neighborIds = [];
-    if (cached.artUrl) artworks.push(cached.artUrl);
-    for (const edge of (node.edges || [])) {
-      if (artworks.length >= 4) break;
-      const nArt = (audioCache[edge.node] || {}).artUrl;
-      if (nArt && !artworks.includes(nArt)) {
-        artworks.push(nArt);
-        neighborIds.push(edge.node);
-      }
-    }
-    const r1 = (node.edges || []).length;
-    const displayCount = 1 + r1 + Math.min(2, r1) * 2;
-    return { id: c.id, artworks, n: neighborIds, count: displayCount, weight: displayCount, g: c.g, a: c.a, d: c.d };
-  });
+// Build crates index — shared with build_kv.js (single source of truth).
+const cratesIndex = buildCratesIndex(graphNodes, audioCache, djNameMap);
 
 const cratesIndexJson = JSON.stringify(cratesIndex);
 const cratesMB = (Buffer.byteLength(cratesIndexJson) / 1024 / 1024).toFixed(1);
