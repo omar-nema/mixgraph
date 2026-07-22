@@ -102,9 +102,15 @@ function trackUnavailableTooltip(node) {
     : 'This song is available only mixed through a DJ set';
 }
 
+// The mixed view is only offered for SoundCloud sets — Mixcloud-only sets are
+// intentionally not playable, even when the track has its own SC audio.
+function mixPlayable(node) {
+  return !!(node && node.setUrl) && node.setSource !== 'mixcloud';
+}
+
 function getDefaultAudioSource(node) {
   if (node && node.scTrackUrl) return 'track';
-  if (node && node.setUrl) return 'mix';
+  if (mixPlayable(node)) return 'mix';
   return null;
 }
 
@@ -115,7 +121,7 @@ function getSelectedAudioSource(nodeId) {
   if (!node) return null;
   const sel = selectedAudioSources[nodeId];
   if (sel === 'track' && node.scTrackUrl) return 'track';
-  if (sel === 'mix' && node.setUrl) return 'mix';
+  if (sel === 'mix' && mixPlayable(node)) return 'mix';
   const def = getDefaultAudioSource(node);
   if (def) selectedAudioSources[nodeId] = def;
   return def;
@@ -125,7 +131,7 @@ function setSelectedAudioSource(nodeId, source) {
   const node = nodeMap[nodeId];
   if (!node) return null;
   if (source === 'track' && !node.scTrackUrl) return getSelectedAudioSource(nodeId);
-  if (source === 'mix' && !node.setUrl) return getSelectedAudioSource(nodeId);
+  if (source === 'mix' && !mixPlayable(node)) return getSelectedAudioSource(nodeId);
   selectedAudioSources[nodeId] = source;
   syncSourceToggleUI(nodeId);
   return source;
@@ -150,6 +156,7 @@ function renderSourceToggle(node) {
   const selected = selectedAudioSources[node.id] || getDefaultAudioSource(node);
   selectedAudioSources[node.id] = selected;
   const trackTip = trackUnavailableTooltip(node);
+  const mixAvailable = mixPlayable(node);
   const opt = (src, label, available) => {
     const active = selected === src;
     const tip = available ? '' : (src === 'track' ? trackTip : MIX_UNAVAILABLE_TOOLTIP);
@@ -158,10 +165,10 @@ function renderSourceToggle(node) {
       + ` data-source="${src}" aria-pressed="${active ? 'true' : 'false'}" aria-disabled="${available ? 'false' : 'true'}"`
       + (tip ? ` data-tip="${tip}"` : '') + `>${icon}<span class="src-label">${label}</span></button>`;
   };
-  const disabledTip = !node.scTrackUrl ? trackTip : (!node.setUrl ? MIX_UNAVAILABLE_TOOLTIP : '');
+  const disabledTip = !node.scTrackUrl ? trackTip : (!mixAvailable ? MIX_UNAVAILABLE_TOOLTIP : '');
   return `<div class="source-toggle" data-node-id="${node.id}" data-selected="${selected}"${disabledTip ? ` data-disabled-tip="${disabledTip}"` : ''} role="group" aria-label="Play from track or mix">`
     + opt('track', 'track', !!node.scTrackUrl)
-    + opt('mix', 'mixed', !!node.setUrl)
+    + opt('mix', 'mixed', mixAvailable)
     + `</div>`;
 }
 

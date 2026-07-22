@@ -450,9 +450,9 @@ function playSelectedAudioSource(nodeId) {
   const node = nodeMap[nodeId];
   if (!node) return;
   const source = getSelectedAudioSource(nodeId);
-  if (source === 'mix' && node.setUrl) { playSet(nodeId); return; }
+  if (source === 'mix' && mixPlayable(node)) { playSet(nodeId); return; }
   if (node.scTrackUrl) { playSC(nodeId, node.scTrackUrl); return; }
-  if (node.setUrl) { playSet(nodeId); }
+  if (mixPlayable(node)) { playSet(nodeId); }
 }
 
 function togglePlay(nodeId) {
