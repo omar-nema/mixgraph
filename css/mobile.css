@@ -525,6 +525,9 @@
     display: flex; align-items: center; justify-content: center;
   }
   .ob-shot { height: 100%; width: auto; max-width: 100%; }
+  /* Dig slide: swap the static desktop screenshot for the autoplaying video. */
+  .ob-shot-desktop { display: none; }
+  .ob-shot-mobile { display: block; height: 100%; width: auto; max-width: 100%; }
   .ob-diagram {
     flex: 1 1 0; min-height: 0; align-self: center; width: 100%;
     display: flex; align-items: center; justify-content: center;
