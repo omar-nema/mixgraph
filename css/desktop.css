@@ -1993,6 +1993,10 @@ body.night .genre-pill.genre-more-pill:hover {
   color: var(--text-tertiary);
   margin-bottom: 8px;
 }
+/* Recommendations sits below the cluster pills — give it breathing room. */
+.cluster-pills-label--rec {
+  margin-top: 16px;
+}
 .cluster-pills {
   display: flex;
   flex-wrap: wrap;

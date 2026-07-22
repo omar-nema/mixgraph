@@ -1050,6 +1050,33 @@ async function initFilters() {
     });
   }
 
+  // ── Staff Picks (curated DJ recommendation set) ──
+  // Applied as regular DJ filters; each name matches candidates.d (lowercased).
+  const STAFF_PICKS = [
+    'Ben UFO', 'Powder', 'David August', 'Tim Reaper', 'Kelman Duran',
+    'Zack Fox', 'Avalon Emerson', 'Skee Mask', 'Mia Koden',
+    'DJ Python', 'Nihal', 'DJ Haram',
+  ];
+  const staffPicksActive = () =>
+    STAFF_PICKS.every(name => djSearchFilters.some(f => f.display === name));
+  function toggleStaffPicks() {
+    const active = staffPicksActive();
+    applyFilterChange(() => {
+      if (active) {
+        for (const name of STAFF_PICKS) {
+          const i = djSearchFilters.findIndex(f => f.display === name);
+          if (i >= 0) djSearchFilters.splice(i, 1);
+        }
+      } else {
+        for (const name of STAFF_PICKS) {
+          if (!djSearchFilters.some(f => f.display === name)) {
+            djSearchFilters.push({ display: name, source: 'staffpicks' });
+          }
+        }
+      }
+    });
+  }
+
   // ── Cluster context pills ──
   function toggleClusterFilter(filtersArr, entry) {
     applyFilterChange(() => {
@@ -1065,6 +1092,10 @@ async function initFilters() {
 
     if (artistContainer) artistContainer.innerHTML = '';
     if (djContainer) djContainer.innerHTML = '';
+
+    // Staff Picks highlight tracks the DJ filter set, independent of the cluster.
+    const staffPill = document.getElementById('staff-picks-pill');
+    if (staffPill) staffPill.classList.toggle('added', staffPicksActive());
 
     if (nodes.length === 0) return;
 
@@ -1108,6 +1139,12 @@ async function initFilters() {
         }
       }
     }
+  }
+
+  // Wire the Staff Picks pill (static markup, so bind once)
+  const staffPicksPill = document.getElementById('staff-picks-pill');
+  if (staffPicksPill) {
+    staffPicksPill.addEventListener('click', (e) => { e.stopPropagation(); toggleStaffPicks(); });
   }
 
   // Populate cluster pills now that indexes are built
