@@ -471,9 +471,11 @@
     backdrop-filter: none;
   }
   #onboarding-overlay.open { transform: translateY(0); pointer-events: auto; }
-  /* While onboarding is open, hide app chrome that stacks above the panel (z-index > the panel's 190)
-     so nothing bleeds over it: the header's Dig filter bar, and the Shuffle-mode filter area (z-index 295).
-     The filter toggle stays in the top row — it doesn't overlap the panel — so the header keeps its layout. */
+  /* While onboarding is open, strip the header down to just the ✕: hide the mode tabs, share/link,
+     filter toggle + bar, find bar, and the Shuffle-mode filter area (z-index 295) that would bleed over. */
+  body.ob-open #mobile-mode-tabs,
+  body.ob-open #mobile-header-share,
+  body.ob-open #mobile-filter-toggle,
   body.ob-open #mobile-filter-bar,
   body.ob-open #mobile-find-bar,
   body.ob-open #mobile-shuffle-area { display: none; }
@@ -488,25 +490,36 @@
     -webkit-backdrop-filter: none; backdrop-filter: none;
     padding: 0;
     transform: none;
-    overflow-y: auto;
+    overflow: hidden;               /* everything is sized to fit — no scrolling */
     overscroll-behavior: contain;
   }
   .ob-sheet .ob-close { display: none; }          /* header "?" → "✕" is the closer on mobile */
 
-  .ob-viewport { flex: 1 0 auto; padding: 0; }
-  .ob-inner { gap: 24px; padding: 20px 18px 8px; }
-  /* Mobile screenshots already include the app's own header, so drop the desktop browser chrome. */
-  .ob-bar { display: none; }
-  /* Portrait phone shots — show them small and centered, like a device preview. */
-  .ob-frame { width: 60%; align-self: center; }
+  /* Fill the panel exactly: copy + nav take their natural height, the visual flexes to fill the rest. */
+  .ob-viewport { flex: 1 1 auto; min-height: 0; padding: 0; }
+  .ob-track { height: 100%; }
+  .ob-slide { height: 100%; }
+  .ob-inner { height: 100%; gap: 14px; padding: 14px 18px 4px; justify-content: flex-start; }
+  .ob-bar { display: none; }        /* mobile shots include the app's own header */
+  .ob-copy { flex: 0 0 auto; }
   .ob-h { font-size: clamp(22px, 6.1vw, 29px); max-width: 22ch; }
   .ob-lead { font-size: 15px; }
-  .ob-motif { width: min(78%, 300px); margin-bottom: 4px; }
+
+  /* The visual (screenshot frame or slide-1 diagram) grows/shrinks to whatever the copy leaves. */
+  .ob-frame {
+    flex: 1 1 0; min-height: 0; width: auto; align-self: center;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .ob-shot { height: 100%; width: auto; max-width: 100%; }
+  .ob-diagram {
+    flex: 1 1 0; min-height: 0; align-self: center; width: 100%;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .ob-diagram .help-diagram { width: auto; height: auto; max-width: min(100%, 320px); max-height: 100%; }
 
   .ob-nav {
-    position: sticky; bottom: 0;
-    padding: 14px 18px calc(16px + env(safe-area-inset-bottom, 0px));
-    background: linear-gradient(to top, var(--bg) 78%, transparent);
+    flex: 0 0 auto;
+    padding: 12px 18px calc(14px + env(safe-area-inset-bottom, 0px));
   }
   .ob-btn { font-size: 14.5px; }
   .ob-ghost { padding: 11px 15px; }
