@@ -2084,6 +2084,17 @@ body.night .genre-pill.genre-more-pill:hover {
 }
 .ob-close:hover { color: var(--text-primary); background: color-mix(in srgb, var(--text-primary) 12%, transparent); }
 
+/* Progress dots — top right, vertically centered against the close button's
+   34px height so they align with it rather than floating at their own
+   7px dot height. */
+.ob-dots {
+  position: absolute;
+  top: 16px; right: 60px;
+  height: 34px;
+  z-index: 2;
+  align-items: center;
+}
+
 .ob-viewport { overflow: hidden; }
 .ob-track {
   display: flex;
@@ -2161,9 +2172,9 @@ body.night .help-diagram path[stroke="#D4C9BD"] { stroke: #333; }
 body.night .help-diagram path[fill="#2A2520"] { fill: #e8e4e0; }
 body.night .help-diagram path[fill="#FAF7F4"] { fill: var(--card-bg); }
 
-/* footer nav */
+/* footer nav — dots moved to the top-right corner, so just right-align the buttons */
 .ob-nav {
-  display: flex; align-items: center; justify-content: space-between;
+  display: flex; align-items: center; justify-content: flex-end;
   padding-top: 20px;
 }
 .ob-dots { display: flex; gap: 8px; }

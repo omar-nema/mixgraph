@@ -499,6 +499,15 @@
     overscroll-behavior: contain;
   }
   .ob-sheet .ob-close { display: none; }          /* header "?" → "✕" is the closer on mobile */
+  /* No floating close button to align against here (the app header's own ✕
+     handles closing) — drop the desktop top-right absolute positioning and
+     let the dots sit as a plain centered row at the top of the sheet. */
+  .ob-dots {
+    position: static;
+    justify-content: center;
+    height: auto;
+    padding: 10px 0 0;
+  }
 
   /* Fill the panel exactly: copy + nav take their natural height, the visual flexes to fill the rest. */
   .ob-viewport { flex: 1 1 auto; min-height: 0; padding: 0; }
