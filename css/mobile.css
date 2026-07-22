@@ -299,7 +299,8 @@
     max-height: 75vh;
     overflow-y: auto;
   }
-  .filter-popover .genre-pill { font-size: 12px; padding: 6px 14px; }
+  .filter-popover .genre-pill,
+  .filter-popover .cluster-pill { font-size: 12px; padding: 6px 14px; }
   /* Genre labels read as strong/primary black in light mode instead of the
      muted navy the mobile --text-primary override otherwise gives them.
      Selected pills keep their white-on-accent text. */
