@@ -237,6 +237,24 @@ def get_lotradio_set_url(
     return None
 
 
+def find_lotradio_context(node: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Return the first Lot Radio episode context for a node, if any.
+
+    Lot Radio sets always live on SoundCloud, so this is used to prefer a SC set
+    when the track's primary (first) episode only resolved to an NTS/Mixcloud set.
+    """
+    for edge in node.get("edges", []):
+        for ctx in edge.get("contexts", []):
+            ep_url = ctx.get("episode_url", "") or ""
+            if "thelotradio.com" in ep_url:
+                return {
+                    "episode_url": ep_url,
+                    "timestamp": ctx.get("timestamp_a") or ctx.get("timestamp_b"),
+                    "dj": ctx.get("dj", ""),
+                }
+    return None
+
+
 def get_episode_context(node: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     """Extract episode URL, timestamp, and DJ from the first edge context of a node."""
     first_ep_url = node.get("first_episode_url")
@@ -514,6 +532,35 @@ def main():
                             if offset_sec is not None and entry["source"] == "not_found":
                                 entry["source"] = "soundcloud_set"
                                 stats["soundcloud_set"] += 1
+
+                    # Prefer SoundCloud over NTS/Mixcloud: when the primary
+                    # episode didn't yield a SoundCloud set but this track also
+                    # appears in a Lot Radio episode (always on SoundCloud), use
+                    # that set instead.
+                    if entry.get("setSource") != "soundcloud":
+                        lot_ctx = find_lotradio_context(node)
+                        if lot_ctx:
+                            time.sleep(0.3)
+                            lot_set_url = get_lotradio_set_url(
+                                lot_ctx["episode_url"],
+                                lot_ctx.get("dj") or artist,
+                                sc_client_id,
+                                episode_cache,
+                            )
+                            if lot_set_url:
+                                was_mixcloud_set = entry["source"] == "mixcloud_set"
+                                lot_ts = lot_ctx.get("timestamp")
+                                lot_offset = timestamp_to_seconds(lot_ts)
+                                entry["setUrl"] = lot_set_url
+                                entry["setSource"] = "soundcloud"
+                                entry["setTimestamp"] = lot_ts
+                                entry["setOffsetSec"] = lot_offset
+                                entry["setDj"] = lot_ctx.get("dj", "")
+                                if lot_offset is not None and entry["source"] in ("not_found", "mixcloud_set"):
+                                    entry["source"] = "soundcloud_set"
+                                    stats["soundcloud_set"] += 1
+                                    if was_mixcloud_set:
+                                        stats["mixcloud_set"] -= 1
 
             if entry["source"] == "not_found":
                 stats["not_found"] += 1
