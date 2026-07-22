@@ -483,7 +483,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         return;
       }
       const rect = pillEl.getBoundingClientRect();
-      popover.style.top = (rect.bottom + 8) + 'px';
+      const top = rect.bottom + 8;
+      popover.style.top = top + 'px';
+      // Cap height to the space actually below the anchor instead of relying
+      // solely on the CSS max-height:75vh — mobile browsers compute vh against
+      // the largest possible viewport (as if their own chrome were hidden), and
+      // Chrome on iOS reserves noticeably more screen for its toolbar than
+      // Safari, so 75vh can overshoot the real visible area and get the
+      // popover clipped at the bottom. window.innerHeight reflects what's
+      // actually visible right now, in any mobile browser.
+      popover.style.maxHeight = (window.innerHeight - top - 12) + 'px';
       popover.classList.add('open');
       popoverBackdrop.classList.add('open');
       pillEl.classList.add('semi-open');
