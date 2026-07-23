@@ -477,12 +477,17 @@ function makeCarouselCard(node) {
     item.appendChild(label);
   }
 
+  // Card row: wraps just the card (not the context label above it) so the
+  // back button below can be positioned against the card's real box.
+  const cardRow = document.createElement('div');
+  cardRow.className = 'mc-card-row';
+
   // Back arrow for root card (only if user came from Dig, not on direct link)
   if (node.rank === 'root' && window._cameFromDig) {
     const backBtn = document.createElement('button');
     backBtn.className = 'mc-back';
     backBtn.setAttribute('aria-label', 'Back to Dig');
-    backBtn.innerHTML = '<span class="mc-back-arrow">\u2190</span> Back to Dig';
+    backBtn.innerHTML = '<span class="mc-back-label"><span class="mc-back-arrow">\u2190</span> Back to Dig</span>';
     backBtn.addEventListener('click', () => {
       document.querySelectorAll('.mode-tab').forEach(t => t.classList.remove('active'));
       document.querySelectorAll('.mode-tab[data-mode="crates"]').forEach(t => t.classList.add('active'));
@@ -492,10 +497,11 @@ function makeCarouselCard(node) {
       document.querySelectorAll('.crate-stack.fade-out').forEach(s => { s.classList.remove('fade-out'); s.style.opacity = ''; });
       history.pushState(null, '', '/dig' + location.search);
     });
-    item.appendChild(backBtn);
+    cardRow.appendChild(backBtn);
   }
 
-  item.appendChild(card);
+  cardRow.appendChild(card);
+  item.appendChild(cardRow);
 
   return item;
 }

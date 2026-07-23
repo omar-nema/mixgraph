@@ -583,16 +583,26 @@
   .mobile-carousel-item[data-rank="root"] {
     width: 70vw;
   }
+  /* Wraps just the card (not the whole item — the item also holds the
+     "if you like this track, swipe" context label above it, which would
+     throw off vertical centering) so .mc-back can be positioned against
+     the card's actual box instead of guessing at viewport coordinates. */
+  .mc-card-row {
+    position: relative;
+  }
   .mc-back {
-    position: fixed;
-    left: 18px;
-    top: 50%;
-    transform: translateY(-50%) rotate(-90deg);
-    /* Pivoting on the left edge (not center) keeps the rotated bar's
-       horizontal footprint fixed regardless of label text width/font-size —
-       center-origin rotation was pushing the bar into the card as the text
-       grew, closing the gap on narrow phones. */
-    transform-origin: left center;
+    /* Stretches to the card-row's full height (i.e. the card's real height)
+       and sits flush against its left edge — real layout anchoring instead
+       of a fixed viewport offset. Width is a real sizing constant (the
+       bar's thickness), not a position hack. */
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    right: 100%;
+    width: 26px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     border: none;
     background: none;
     color: var(--text-tertiary);
@@ -600,13 +610,19 @@
     font-weight: 300;
     letter-spacing: 0.3px;
     transition: opacity 0.2s ease;
-    white-space: nowrap;
     cursor: pointer;
-    padding: 6px 0;
     z-index: 10;
     -webkit-tap-highlight-color: transparent;
   }
-  .mc-back .mc-back-arrow {
+  /* The rotation lives on the label, not the button — rotating the button
+     itself (after it's stretched to the card's full height) would swap its
+     box dimensions and break the flex centering above. */
+  .mc-back-label {
+    display: inline-block;
+    white-space: nowrap;
+    transform: rotate(-90deg);
+  }
+  .mc-back-label .mc-back-arrow {
     display: inline-block;
     transform: rotate(90deg);
     margin-right: 2px;
