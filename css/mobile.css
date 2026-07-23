@@ -585,10 +585,14 @@
   }
   .mc-back {
     position: fixed;
-    left: -12px;
+    left: 18px;
     top: 50%;
     transform: translateY(-50%) rotate(-90deg);
-    transform-origin: center center;
+    /* Pivoting on the left edge (not center) keeps the rotated bar's
+       horizontal footprint fixed regardless of label text width/font-size —
+       center-origin rotation was pushing the bar into the card as the text
+       grew, closing the gap on narrow phones. */
+    transform-origin: left center;
     border: none;
     background: none;
     color: var(--text-tertiary);
