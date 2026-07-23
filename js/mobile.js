@@ -290,10 +290,12 @@ function selectMobileTrack(nodeId) {
   // For sets, jump past the intro (e.g. NTS sting) when the track starts at 0:00.
   const offsetSec = useMix ? (node.setOffsetSec > 0 ? node.setOffsetSec : 7) : 0;
   let didSeek = false;
+  let readyFired = false; // true once the new URL's READY fires; guards PAUSE against stale events
 
   stopMobileMuteGuard();
 
   scWidget.bind(SC.Widget.Events.READY, () => {
+    readyFired = true;
     scWidgetReady = true;
     if (card) card.classList.remove('loading');
     // Poll the widget's real play/pause state (mobile PAUSE events are flaky).
@@ -348,6 +350,13 @@ function selectMobileTrack(nodeId) {
     }, 100);
   }
   scWidget.bind(SC.Widget.Events.PAUSE, () => {
+    // Ignore PAUSE events that arrive before the new URL's READY fires. stopCurrentPlayback()
+    // calls scWidget.pause() synchronously, but the SC widget's PAUSE response is async
+    // (postMessage round-trip), so it arrives after the new handlers are already bound.
+    // Without this guard, that stale PAUSE sets didSeek=true before the mute guard even
+    // starts, causing the mix to play from t=0 instead of the correct track timestamp.
+    // Real user pauses only happen after READY (the mute guard starts on PLAY, after READY).
+    if (!readyFired) return;
     // A pause ends the intro-skip. Kill the guard and never seek again — otherwise
     // its next seekTo would un-pause the widget (Safari quirk) and steamroll the
     // user's pause. `isPaused` polling is too flaky to catch this reliably; the
