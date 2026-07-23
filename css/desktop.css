@@ -2155,9 +2155,20 @@ body.night .genre-pill.genre-more-pill:hover {
 .ob-bar .ob-url { margin-left: 8px; font-size: 11px; font-weight: 500; color: var(--text-tertiary); }
 .ob-frame picture { display: block; }
 .ob-shot { display: block; width: 100%; height: auto; }
-/* Dig slide: static screenshot on desktop, autoplaying video on mobile
+/* Shuffle slide: static screenshot on desktop, autoplaying video on mobile
    (mobile.css flips this — see .ob-shot-desktop / .ob-shot-mobile there). */
 .ob-shot-mobile { display: none; }
+/* Dig slide: no separate desktop shot exists, so its .ob-frame-video wrapper
+   un-hides the (only) video here too — sized to the same aspect ratio as the
+   other slides' desktop screenshots, cropped to fill via object-fit: cover
+   the same way the mobile frame already does. */
+.ob-frame-video .ob-shot-mobile {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 14 / 9;
+  object-fit: cover;
+}
 
 /* intro graph motif */
 /* slide 1 diagram (recovered from the old help modal) */
