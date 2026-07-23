@@ -364,6 +364,11 @@ document.addEventListener('DOMContentLoaded', async () => {
       // then pin the sliding panel just below the resulting (variable-height) header.
       document.body.classList.add('ob-open');
       const mh = document.getElementById('mobile-header');
+      // On mobile the dots ride in the app header, in the slot the Dig/Shuffle
+      // tabs vacate — move them before measuring so --ob-top reflects the result.
+      if (mh && window.matchMedia('(max-width: 768px)').matches) {
+        mh.insertBefore(dotsWrap, document.getElementById('mobile-mode-tabs'));
+      }
       if (mh) overlay.style.setProperty('--ob-top', mh.getBoundingClientRect().height + 'px');
       // Clear any live helper toast so it doesn't float over the panel
       document.querySelectorAll('.helper-toast.visible').forEach(t => t.classList.remove('visible'));
@@ -376,6 +381,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
     function close() {
       document.body.classList.remove('ob-open');
+      overlay.querySelector('.ob-header').prepend(dotsWrap);   // back into the sheet (desktop's home for them)
       overlay.classList.remove('open');
       overlay.setAttribute('aria-hidden', 'true');
       mobileHelpBtn.classList.remove('open');
