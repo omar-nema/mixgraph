@@ -447,6 +447,7 @@ export function buildCratesIndex(graphNodes, audioCache, djNameMap = {}, opts = 
   const candidates = opts.candidates || buildCandidates(graphNodes, audioCache).candidates;
 
   const seeds = [];
+  const hasSeedArt = new Set(); // seeds whose OWN track has artwork (not borrowed from neighbours)
   for (const id of candidates) {
     const node = graphNodes[id];
     const edges = node.edges || [];
@@ -455,7 +456,7 @@ export function buildCratesIndex(graphNodes, audioCache, djNameMap = {}, opts = 
     const cached = audioCache[id] || {};
     const artworks = [];
     const neighborIds = [];
-    if (cached.artUrl) artworks.push(cached.artUrl);
+    if (cached.artUrl) { artworks.push(cached.artUrl); hasSeedArt.add(id); }
     // 1st-hop neighbours
     for (const edge of edges) {
       if (artworks.length >= 8) break;
@@ -501,7 +502,16 @@ export function buildCratesIndex(graphNodes, audioCache, djNameMap = {}, opts = 
     });
   }
 
-  return seeds.length > cap ? seededSample(seeds, cap) : seeds;
+  if (seeds.length <= cap) return seeds;
+  // Artwork floor: keep >=75% of the capped blob to seeds with their own track
+  // artwork, so the default Dig browse looks good. Art supply far exceeds the cap
+  // and is spread evenly across genres, so this doesn't starve genre coverage
+  // (no genre drops below the fast-path threshold — verified against the catalog).
+  // Filtered queries that hit D1 draw from the full pool and are unaffected.
+  const withArt = seeds.filter(s => hasSeedArt.has(s.id));
+  const noArt = seeds.filter(s => !hasSeedArt.has(s.id));
+  const artN = Math.min(withArt.length, Math.max(Math.round(cap * 0.75), cap - noArt.length));
+  return [...seededSample(withArt, artN), ...seededSample(noArt, cap - artN)];
 }
 
 // ── Crates generation ──
