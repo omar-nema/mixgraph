@@ -523,6 +523,12 @@
   .ob-frame {
     flex: 1 1 0; min-height: 0; width: auto; align-self: center;
     display: flex; align-items: center; justify-content: center;
+    /* Desktop's .ob-frame is styled as a browser-window mockup (border,
+       background, shadow, rounded corners) for the static screenshot inside
+       it. Every mobile slide shows a raw video instead (.ob-bar mockup bar
+       is already hidden above) — strip the box so the video stands on its
+       own instead of sitting inside a visible card. */
+    background: none; border: none; box-shadow: none; border-radius: 0;
   }
   .ob-shot { height: 100%; width: auto; max-width: 100%; }
   /* Dig slide: swap the static desktop screenshot for the autoplaying video. */
