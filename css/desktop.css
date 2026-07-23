@@ -2161,19 +2161,21 @@ body.night .genre-pill.genre-more-pill:hover {
 /* Dig and Shuffle slides: separate light/dark desktop recordings (native
    1280x800), switched purely on the OS-level color scheme — there's no
    separate in-app override for these assets the way body.night drives the
-   rest of the app's theming. */
+   rest of the app's theming. Light is the unconditional default (rather
+   than gated behind its own `@media (prefers-color-scheme: light)`) so a
+   browser that fails to match either query still shows something instead
+   of both staying hidden. */
 .ob-shot-desktop-light,
 .ob-shot-desktop-dark {
-  display: none;
   width: 100%;
   height: auto;
   aspect-ratio: 8 / 5;
   object-fit: cover;
 }
-@media (prefers-color-scheme: light) {
-  .ob-shot-desktop-light { display: block; }
-}
+.ob-shot-desktop-light { display: block; }
+.ob-shot-desktop-dark { display: none; }
 @media (prefers-color-scheme: dark) {
+  .ob-shot-desktop-light { display: none; }
   .ob-shot-desktop-dark { display: block; }
 }
 
