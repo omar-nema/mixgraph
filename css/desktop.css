@@ -2070,9 +2070,26 @@ body.night .genre-pill.genre-more-pill:hover {
 }
 #onboarding-overlay.open .ob-sheet { transform: none; }
 
+/* Real header row — spans the full modal width so the dots can be centered
+   against the modal (not the leftover space next to the close button), and
+   so it takes up its own space in the sheet's flex column instead of
+   floating over the content below it. */
+.ob-header {
+  position: relative;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 34px;
+  margin-bottom: 18px;
+}
 .ob-close {
+  /* Absolute *within the header* (not the whole sheet) — the header is its
+     own positioned box, so this stays a small, scoped offset rather than a
+     viewport/sheet-wide magic number. */
   position: absolute;
-  top: 16px; right: 16px;
+  top: 0; right: 0;
   z-index: 2;
   display: flex; align-items: center; justify-content: center;
   width: 34px; height: 34px;
@@ -2084,16 +2101,7 @@ body.night .genre-pill.genre-more-pill:hover {
 }
 .ob-close:hover { color: var(--text-primary); background: color-mix(in srgb, var(--text-primary) 12%, transparent); }
 
-/* Progress dots — top right, vertically centered against the close button's
-   34px height so they align with it rather than floating at their own
-   7px dot height. */
-.ob-dots {
-  position: absolute;
-  top: 16px; right: 60px;
-  height: 34px;
-  z-index: 2;
-  align-items: center;
-}
+.ob-dots { align-items: center; }
 
 .ob-viewport { overflow: hidden; }
 .ob-track {
@@ -2131,9 +2139,7 @@ body.night .genre-pill.genre-more-pill:hover {
 
 /* app-screenshot frame */
 .ob-frame {
-  /* Stay left-flush (matching .ob-copy below) but leave room on the right so
-     the top-right progress dots don't sit on top of the browser-chrome bar. */
-  width: calc(100% - 80px);
+  width: 100%;
   border-radius: 12px; overflow: hidden;
   background: var(--card-bg);
   border: 1px solid var(--card-border);
@@ -2155,9 +2161,7 @@ body.night .genre-pill.genre-more-pill:hover {
 
 /* intro graph motif */
 /* slide 1 diagram (recovered from the old help modal) */
-/* Left-flush with room on the right, same as .ob-frame, so the top-right
-   progress dots clear the diagram instead of overlapping its corner node. */
-.ob-diagram { width: calc(100% - 80px); align-self: flex-start; }
+.ob-diagram { width: 100%; align-self: flex-start; }
 .ob-diagram .help-diagram { display: block; width: 100%; height: auto; max-width: 480px; margin: 0 auto; }
 /* night-mode recolor of the diagram's baked-in light palette */
 body.night .help-diagram { background: transparent; }
@@ -2179,7 +2183,7 @@ body.night .help-diagram path[stroke="#D4C9BD"] { stroke: #333; }
 body.night .help-diagram path[fill="#2A2520"] { fill: #e8e4e0; }
 body.night .help-diagram path[fill="#FAF7F4"] { fill: var(--card-bg); }
 
-/* footer nav — dots moved to the top-right corner, so just right-align the buttons */
+/* footer nav — dots live in the header now, so just right-align the buttons */
 .ob-nav {
   display: flex; align-items: center; justify-content: flex-end;
   padding-top: 20px;

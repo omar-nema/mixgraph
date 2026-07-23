@@ -500,8 +500,10 @@
   }
   .ob-sheet .ob-close { display: none; }          /* header "?" → "✕" is the closer on mobile */
   /* No floating close button to align against here (the app header's own ✕
-     handles closing) — drop the desktop top-right absolute positioning and
-     let the dots sit as a plain centered row at the top of the sheet. */
+     handles closing) — the desktop .ob-header's fixed height/spacing was
+     sized around the close button, so drop it and let the dots sit as a
+     plain centered row at the top of the sheet instead. */
+  .ob-header { height: auto; margin-bottom: 0; }
   .ob-dots {
     position: static;
     justify-content: center;
