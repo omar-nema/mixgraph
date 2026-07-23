@@ -2158,21 +2158,10 @@ body.night .genre-pill.genre-more-pill:hover {
 /* Desktop never shows a mobile <video> — each slide's desktop video is its
    own separate element below (mobile.css does the reverse). */
 .ob-shot-mobile { display: none; }
-/* Dig slide: only one recording exists, but desktop still gets its own
-   <video> element rather than reusing mobile's — sized to match the other
-   slides' desktop frame proportions, cropped via object-fit: cover like
-   the mobile frame does. */
-.ob-shot-desktop {
-  display: block;
-  width: 100%;
-  height: auto;
-  aspect-ratio: 14 / 9;
-  object-fit: cover;
-}
-/* Shuffle slide: separate light/dark desktop recordings (native 1280x800),
-   switched purely on the OS-level color scheme — there's no separate
-   in-app override for this asset the way body.night drives the rest of
-   the app's theming. */
+/* Dig and Shuffle slides: separate light/dark desktop recordings (native
+   1280x800), switched purely on the OS-level color scheme — there's no
+   separate in-app override for these assets the way body.night drives the
+   rest of the app's theming. */
 .ob-shot-desktop-light,
 .ob-shot-desktop-dark {
   display: none;
