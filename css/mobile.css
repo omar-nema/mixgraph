@@ -674,9 +674,10 @@
   .mobile-carousel-card {
     transition: box-shadow 0.35s ease, border-color 0.35s ease;
   }
-  /* Selected but not playing: no distinct border — reads as a visible box
-     around the card, which looked bad. The accent border + glow is reserved
-     for .playing (actual audible playback) below. */
+  /* Selected but not playing: subtle accent outline only. */
+  .mobile-carousel-card.selected {
+    border-color: color-mix(in srgb, var(--connection-highlight) 45%, var(--card-border));
+  }
   /* Playing: full accent border + glow, driven by the SC widget's real play/pause
      state (.playing — see selectMobileTrack). Only shows while audio is audible. */
   .mobile-carousel-card.playing {
