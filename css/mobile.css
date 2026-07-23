@@ -527,8 +527,11 @@
     display: flex; align-items: center; justify-content: center;
   }
   .ob-shot { height: 100%; width: auto; max-width: 100%; }
-  /* Dig slide: swap the static desktop screenshot for the autoplaying video. */
-  .ob-shot-desktop { display: none; }
+  /* Mobile always shows its own .ob-shot-mobile video below — never any of
+     the desktop-only elements, regardless of slide or theme. */
+  .ob-shot-desktop,
+  .ob-shot-desktop-light,
+  .ob-shot-desktop-dark { display: none; }
   /* object-fit defaults to "contain" for <video> (unlike <img>, which fills by
      default) — with the frame's box not landing on the video's exact aspect
      ratio, that leaves a sliver of letterboxing/whitespace around the video

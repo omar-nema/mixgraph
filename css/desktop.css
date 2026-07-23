@@ -2155,26 +2155,24 @@ body.night .genre-pill.genre-more-pill:hover {
 .ob-bar .ob-url { margin-left: 8px; font-size: 11px; font-weight: 500; color: var(--text-tertiary); }
 .ob-frame picture { display: block; }
 .ob-shot { display: block; width: 100%; height: auto; }
-/* Shuffle slide: separate desktop video on desktop, autoplaying video on
-   mobile (mobile.css flips this — see .ob-shot-desktop / .ob-shot-mobile
-   there). */
+/* Desktop never shows a mobile <video> — each slide's desktop video is its
+   own separate element below (mobile.css does the reverse). */
 .ob-shot-mobile { display: none; }
-/* Dig slide: no separate desktop shot exists, so its .ob-frame-video wrapper
-   un-hides the (only) video here too — sized to the same aspect ratio as the
-   other slides' desktop screenshots, cropped to fill via object-fit: cover
-   the same way the mobile frame already does. */
-.ob-frame-video .ob-shot-mobile {
+/* Dig slide: only one recording exists, but desktop still gets its own
+   <video> element rather than reusing mobile's — sized to match the other
+   slides' desktop frame proportions, cropped via object-fit: cover like
+   the mobile frame does. */
+.ob-shot-desktop {
   display: block;
   width: 100%;
   height: auto;
   aspect-ratio: 14 / 9;
   object-fit: cover;
 }
-/* Shuffle slide: separate light/dark desktop recordings, swapped on the
-   app's own theme state (body.night) — the same signal every other themed
-   asset in this app uses, rather than the OS-level prefers-color-scheme
-   media feature, since the in-app toggle can be set independently of the
-   OS setting. */
+/* Shuffle slide: separate light/dark desktop recordings (native 1280x800),
+   switched purely on the OS-level color scheme — there's no separate
+   in-app override for this asset the way body.night drives the rest of
+   the app's theming. */
 .ob-shot-desktop-light,
 .ob-shot-desktop-dark {
   display: none;
@@ -2183,9 +2181,12 @@ body.night .genre-pill.genre-more-pill:hover {
   aspect-ratio: 8 / 5;
   object-fit: cover;
 }
-.ob-shot-desktop-light { display: block; }
-body.night .ob-shot-desktop-light { display: none; }
-body.night .ob-shot-desktop-dark { display: block; }
+@media (prefers-color-scheme: light) {
+  .ob-shot-desktop-light { display: block; }
+}
+@media (prefers-color-scheme: dark) {
+  .ob-shot-desktop-dark { display: block; }
+}
 
 /* intro graph motif */
 /* slide 1 diagram (recovered from the old help modal) */

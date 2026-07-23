@@ -32,8 +32,8 @@
     })();
   </script>
   <script src="https://w.soundcloud.com/player/api.js"></script>
-  <link rel="stylesheet" href="css/desktop.css?v=20260722r">
-  <link rel="stylesheet" href="css/mobile.css?v=20260722r">
+  <link rel="stylesheet" href="css/desktop.css?v=20260722s">
+  <link rel="stylesheet" href="css/mobile.css?v=20260722s">
 </head>
 <body class="crates-mode">
 <script>if (__night) document.body.classList.add('night');</script>
@@ -267,10 +267,17 @@
           <!-- Slide 2 — Dig -->
           <section class="ob-slide">
             <div class="ob-inner">
-              <!-- Only one recording exists (no separate light/dark or desktop/mobile
-                   cut), so it's reused on both breakpoints and both themes. -->
-              <div class="ob-frame ob-frame-video rise">
+              <!-- Only one recording exists (no separate desktop cut, no light/dark),
+                   but desktop and mobile still get their own <video> elements — each
+                   breakpoint's markup is self-contained even when the underlying file
+                   is shared, so neither one is wired to "do both". -->
+              <div class="ob-frame rise">
                 <div class="ob-bar" aria-hidden="true"><i></i><i></i><i></i><span class="ob-url">back2back — dig</span></div>
+                <video class="ob-shot-desktop" aria-label="Dig mode: a wall of album artwork"
+                       autoplay loop muted playsinline disablepictureinpicture disableremoteplayback>
+                  <source src="img/onboard-dig-mobile.mp4" type="video/mp4">
+                  <source src="img/onboard-dig-mobile.webm" type="video/webm">
+                </video>
                 <video class="ob-shot-mobile" aria-label="Dig mode: a wall of album artwork"
                        autoplay loop muted playsinline disablepictureinpicture disableremoteplayback>
                   <source src="img/onboard-dig-mobile.mp4" type="video/mp4">
@@ -289,12 +296,12 @@
             <div class="ob-inner">
               <div class="ob-frame rise">
                 <div class="ob-bar" aria-hidden="true"><i></i><i></i><i></i><span class="ob-url">back2back — shuffle</span></div>
-                <video class="ob-shot-desktop ob-shot-desktop-light" aria-label="Shuffle mode: a central track connected to adjacent tracks"
+                <video class="ob-shot-desktop-light" aria-label="Shuffle mode: a central track connected to adjacent tracks"
                        autoplay loop muted playsinline disablepictureinpicture disableremoteplayback>
                   <source src="img/onboard-shuffle-desktop-light.mp4" type="video/mp4">
                   <source src="img/onboard-shuffle-desktop-light.webm" type="video/webm">
                 </video>
-                <video class="ob-shot-desktop ob-shot-desktop-dark" aria-label="Shuffle mode: a central track connected to adjacent tracks"
+                <video class="ob-shot-desktop-dark" aria-label="Shuffle mode: a central track connected to adjacent tracks"
                        autoplay loop muted playsinline disablepictureinpicture disableremoteplayback>
                   <source src="img/onboard-shuffle-desktop-dark.mp4" type="video/mp4">
                   <source src="img/onboard-shuffle-desktop-dark.webm" type="video/webm">
@@ -371,13 +378,13 @@
   </button>
   <script src="https://widget.mixcloud.com/media/js/widgetApi.js"></script>
 
-  <script src="js/data.js?v=20260722r"></script>
-  <script src="js/api.js?v=20260722r"></script>
-  <script src="js/audio.js?v=20260722r"></script>
-  <script src="js/graph.js?v=20260722r"></script>
-  <script src="js/mobile.js?v=20260722r"></script>
-  <script src="js/filters.js?v=20260722r"></script>
-  <script src="js/app.js?v=20260722r"></script>
+  <script src="js/data.js?v=20260722s"></script>
+  <script src="js/api.js?v=20260722s"></script>
+  <script src="js/audio.js?v=20260722s"></script>
+  <script src="js/graph.js?v=20260722s"></script>
+  <script src="js/mobile.js?v=20260722s"></script>
+  <script src="js/filters.js?v=20260722s"></script>
+  <script src="js/app.js?v=20260722s"></script>
   <button id="dev-toggle" title="Settings">
     <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="var(--text-tertiary)" stroke-width="2" stroke-linecap="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
   </button>
