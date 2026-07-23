@@ -135,7 +135,12 @@ function renderCards() {
         }
       }
       const links = allDjs.map(d => {
-        const href = setLink || d.episodeUrl;
+        // setLink is a single resolved set tied to node.setDj (the one DJ
+        // enrichment actually matched a playable set for) — only that DJ gets
+        // it. Every other co-credited DJ falls back to their own episode page
+        // instead of silently reusing setLink and pointing at the wrong set.
+        const isSetDj = !!(setLink && node.setDj && d.name && node.setDj.trim().toLowerCase() === d.name.trim().toLowerCase());
+        const href = (isSetDj ? setLink : null) || d.episodeUrl;
         return href
           ? `<a href="${href}" target="_blank" rel="noopener" data-dj="${d.name}" data-artist="${node.artist}" data-set-url="${d.episodeUrl || ''}" data-track-url="${trackLink || ''}">${d.name}</a>`
           : `<span data-dj="${d.name}" data-artist="${node.artist}" data-set-url="${d.episodeUrl || ''}" data-track-url="${trackLink || ''}" class="dj-ctx-trigger">${d.name}</span>`;

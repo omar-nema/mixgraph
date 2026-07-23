@@ -145,7 +145,12 @@ function updateMobileSources(graphId) {
   const sources = new Map();
   for (const dj of (node.djs || [])) {
     const name = dj.name;
-    const url = setLink || dj.episodeUrl || '';
+    // setLink is a single resolved set tied to node.setDj (the one DJ enrichment
+    // actually matched a playable set for) — only that DJ gets it. Every other
+    // co-credited DJ on this track falls back to their own episode page instead
+    // of silently reusing setLink and pointing at the wrong DJ's set.
+    const isSetDj = !!(setLink && node.setDj && name && node.setDj.trim().toLowerCase() === name.trim().toLowerCase());
+    const url = (isSetDj ? setLink : null) || dj.episodeUrl || '';
     if (name && url) {
       const key = `${name}|${url}`;
       if (!sources.has(key)) sources.set(key, { dj: name, url });
