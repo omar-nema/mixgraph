@@ -2159,12 +2159,11 @@ body.night .genre-pill.genre-more-pill:hover {
    own separate element below (mobile.css does the reverse). */
 .ob-shot-mobile { display: none; }
 /* Dig and Shuffle slides: separate light/dark desktop recordings (native
-   1280x800), switched purely on the OS-level color scheme — there's no
-   separate in-app override for these assets the way body.night drives the
-   rest of the app's theming. Light is the unconditional default (rather
-   than gated behind its own `@media (prefers-color-scheme: light)`) so a
-   browser that fails to match either query still shows something instead
-   of both staying hidden. */
+   1280x800), switched on the app's own theme state (body.night — the same
+   class the in-app toggle uses everywhere else), not the OS-level
+   prefers-color-scheme media feature. The OS setting never changes when
+   Omar flips the in-app toggle, so gating on the media feature left these
+   videos stuck regardless of what the app itself was showing. */
 .ob-shot-desktop-light,
 .ob-shot-desktop-dark {
   width: 100%;
@@ -2174,9 +2173,12 @@ body.night .genre-pill.genre-more-pill:hover {
 }
 .ob-shot-desktop-light { display: block; }
 .ob-shot-desktop-dark { display: none; }
-@media (prefers-color-scheme: dark) {
-  .ob-shot-desktop-light { display: none; }
-  .ob-shot-desktop-dark { display: block; }
+/* Scoped to desktop widths: body.night has higher specificity than mobile.css's
+   .ob-shot-desktop-dark{display:none}, so without this guard it would win the
+   cascade there too and leak the desktop video onto mobile while in night mode. */
+@media (min-width: 769px) {
+  body.night .ob-shot-desktop-light { display: none; }
+  body.night .ob-shot-desktop-dark { display: block; }
 }
 
 /* intro graph motif */
