@@ -78,6 +78,19 @@ const OG_DIG_IMAGE = 'https://back2back.space/img/onboard-dig-dark.jpg';
 const OG_SHUFFLE_IMAGE = 'https://back2back.space/img/onboard-shuffle-dark.jpg';
 const OG_DEFAULT_DESC = 'Music discovery built from DJ set tracklists';
 
+// Mirror of the frontend's simpleHash()/gradientArtUrl() (js/data.js) so an
+// art-less seed track previews with the exact gradient the app draws on its
+// card. 500x500 versions (crawler-friendly; the app's are 120x120) live in
+// /gradients/og/. Inputs are the normalized node-id parts, already lowercased.
+const GRADIENT_COUNT = 40;
+function gradientOgImage(normTitle, normArtist) {
+  const s = ((normTitle || '') + (normArtist || '')).toLowerCase();
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = ((h << 5) - h + s.charCodeAt(i)) | 0;
+  const idx = Math.abs(h) % GRADIENT_COUNT;
+  return `https://back2back.space/gradients/og/${idx}.jpg`;
+}
+
 // Join a filter list into a readable phrase, capped so the title stays short.
 // ["Soul","Jazz"] -> "Soul & Jazz"; 4+ -> "Soul, Jazz, Funk & more".
 function joinFilters(list) {
@@ -119,18 +132,19 @@ async function pageOgResponse(url, node, pagePath, env) {
     const [artist, normTitle] = node.split(':::');
     const title = titleCaseFromId(normTitle) || 'Untitled';
     const who = titleCaseFromId(artist) || 'Unknown Artist';
-    let image = OG_SHUFFLE_IMAGE, imageW = 1400, imageH = 900;
+    // Default to the same gradient the app draws for art-less cards; upgrade to
+    // real album art when the seed track resolved to one. Both are 500x500 square.
+    let image = gradientOgImage(normTitle, artist);
     try {
       const kvNode = await getNode(env.GRAPH_KV, node);
       if (kvNode && kvNode.artUrl && kvNode.source !== 'not_found') {
         image = kvNode.artUrl;         // SoundCloud artwork is 500x500 square
-        imageW = 500; imageH = 500;
       }
-    } catch (_) { /* fall back to the static shuffle image */ }
+    } catch (_) { /* keep the gradient fallback */ }
     return ogShell({
       title: `${title}, ${who}`,
       description: OG_DEFAULT_DESC,
-      image, imageW, imageH,
+      image, imageW: 500, imageH: 500,
       url: url.toString(),
     });
   }
