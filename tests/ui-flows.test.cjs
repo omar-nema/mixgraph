@@ -196,6 +196,71 @@ async function testPauseDuringSetLoadStaysPaused(browser) {
   } finally { await muted.close(); }
 }
 
+// Reproduces the "mix starts from 0:00 on a track→mix switch" bug. The SC widget
+// is shared: switching sources resumes the previously-loaded track for ~0.5s
+// before load() swaps in the set, firing a STALE PLAY event. The old code acted
+// on it — starting the intro-skip mute guard against the wrong sound's position,
+// which could conclude the seek had "landed" and unmute the set at 0:00. We delay
+// the set's load so the stale PLAY is the only PLAY in the window, then assert the
+// card is NOT treated as playing and no mute guard starts until the real load
+// lands. Deterministic: fails on the pre-fix code, passes with the loadReady gate.
+async function testStalePlayIgnoredOnSourceSwitch(browser) {
+  setTest('P4. Stale PLAY on track→mix switch is ignored (no premature guard/unmute)');
+  const muted = await chromium.launch({ args: ['--mute-audio', '--autoplay-policy=no-user-gesture-required'] });
+  try {
+    const { ctx, page } = await newPage(muted);
+    try {
+      await loadTracks(page, APP_URL_MUTED);
+      // Need a node with an individual track AND a SoundCloud-playable set (mix is
+      // a no-op for Mixcloud-only sets). Resolve against the live nodeMap so we use
+      // the same mixPlayable() gate the UI does — the cluster snapshot omits
+      // setSource, so we can't tell SC sets from Mixcloud from it.
+      let target = null;
+      for (let i = 0; i < 8 && !target; i++) {
+        target = await page.evaluate(() => {
+          const list = (typeof nodes !== 'undefined' && nodes) ? nodes : [];
+          const n = list.find(n => n.scTrackUrl && mixPlayable(n));
+          return n ? { id: n.id } : null;
+        });
+        if (!target) { await page.click('#filter-shuffle-btn'); await page.waitForTimeout(900); }
+      }
+      if (!target) return fail('no node with track + SoundCloud set within retry budget');
+
+      await clickPlayOn(page, target.id); // plays the individual track
+
+      const outcome = await page.evaluate(async (id) => {
+        const sleep = ms => new Promise(r => setTimeout(r, ms));
+        const card = document.querySelector(`.node-card[data-node-id="${id}"]`);
+        const origLoad = scWidget.load.bind(scWidget);
+        scWidget.load = (url, opts) => setTimeout(() => origLoad(url, opts), 1500);
+        try {
+          card.querySelector('.src-opt[data-source="mix"]').click(); // track → mix, load delayed
+          // Sample inside the delay window: the stale resume of the old track fires
+          // PLAY here. It must NOT flip the card to playing or start the mute guard.
+          await sleep(800);
+          const during = {
+            playing: card.classList.contains('playing'),
+            loading: card.classList.contains('loading'),
+            guardRunning: typeof scMuteGuard !== 'undefined' && scMuteGuard !== null,
+          };
+          await sleep(2500); // past the delayed load → set truly plays
+          const after = {
+            playing: card.classList.contains('playing'),
+            setMode: typeof playingSetOffset !== 'undefined' && playingSetOffset > 0,
+          };
+          return { during, after };
+        } finally { scWidget.load = origLoad; }
+      }, target.id);
+
+      assertTrue(!outcome.during.playing, 'stale PLAY did not flip card to playing mid-load');
+      assertTrue(!outcome.during.guardRunning, 'mute guard did not start against the stale sound');
+      assertTrue(outcome.during.loading, 'card stays in loading state until the real set loads');
+      assertTrue(outcome.after.playing, 'set plays once its load resolves');
+      assertTrue(outcome.after.setMode, 'playback is in set/mix mode (offset applied)');
+    } finally { await ctx.close(); }
+  } finally { await muted.close(); }
+}
+
 // Guards the fix from over-correcting: a paused set must still resume on the next
 // tap (the intent flag has to clear, not stick true).
 async function testPauseThenResume(browser) {
@@ -408,6 +473,7 @@ async function testDigWithGenreFilter(browser) {
       testShuffleDeepLink,
       testPlaybackMultipleTracks,
       testPauseDuringSetLoadStaysPaused,
+      testStalePlayIgnoredOnSourceSwitch,
       testPauseThenResume,
       testFilterArtist,
       testFilterDj,

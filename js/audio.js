@@ -277,6 +277,14 @@ function setupScWidget(nodeId, card, offsetSec, onError) {
 
   const seekMs = offsetSec > 0 ? offsetSec * 1000 : 0;
   let seekLanded = !seekMs;
+  // The SC widget iframe is shared across track/mix. When we swap sources we
+  // resume the previously-loaded sound for ~0.5s before load() swaps in the new
+  // one (see playSC/playSCSet), which fires a stale PLAY event. Until THIS load's
+  // content is actually ready, that stale PLAY must not start the mute guard —
+  // otherwise the guard reads the OLD sound's position, can conclude the seek has
+  // "landed," unmute, and let the new set play from 0:00. This per-setup flag
+  // gates every PLAY handler action on the new sound being loaded.
+  let loadReady = false;
   if (scMuteGuard) { clearInterval(scMuteGuard); scMuteGuard = null; }
 
   // Seek to the track's offset within the set (usually deep — median ~35 min).
@@ -322,18 +330,30 @@ function setupScWidget(nodeId, card, offsetSec, onError) {
     }, 100);
   }
 
-  scWidget.bind(SC.Widget.Events.READY, () => {
-    scWidget.unbind(SC.Widget.Events.READY); // one-shot: prevent re-fire on iframe restore
+  // Fires once THIS load's sound is ready, driven exclusively by SC's per-load
+  // load() callback. We deliberately do NOT use the READY event: the SC widget
+  // iframe is shared, and binding READY on an already-ready widget fires it
+  // immediately against the PREVIOUS sound — which would seek/play/guard the wrong
+  // track and let the new set unmute at 0:00. The load() callback is the only
+  // signal that the NEW sound is actually loaded. Idempotent.
+  function onLoadReady() {
+    if (loadReady) return;
+    loadReady = true;
     scWidgetReady = true;
     if (seekMs) { try { scWidget.setVolume(0); scWidget.seekTo(seekMs); } catch (e) {} }
     // Respect a pause the user issued while the set was still loading.
     if (userPaused) return;
     try { scWidget.play(); } catch (e) {}
-  });
+  }
+
   scWidget.bind(SC.Widget.Events.PLAY, () => {
     // auto_play (or a stray play) can fire this after the user paused mid-load.
     // Immediately re-pause so the load never overrides the user's intent.
     if (userPaused) { try { scWidget.pause(); } catch (e) {} return; }
+    // Ignore the stale PLAY from the previously-loaded sound resuming before this
+    // load swapped in — acting on it would start the mute guard against the wrong
+    // sound's position and let the new set unmute at 0:00.
+    if (!loadReady) return;
     clearPlayTimeout();
     showScPlayer();
     if (seekMs && !seekLanded) startScMuteGuard();
@@ -351,6 +371,7 @@ function setupScWidget(nodeId, card, offsetSec, onError) {
   });
   scWidget.bind(SC.Widget.Events.FINISH, onPlaybackEnded);
   scWidget.bind(SC.Widget.Events.ERROR, onError);
+  return onLoadReady;
 }
 
 function playSC(nodeId, trackUrl) {
@@ -367,7 +388,7 @@ function playSC(nodeId, trackUrl) {
   playingSetOffset = 0;
   userPaused = false;
 
-  setupScWidget(nodeId, card, 0, () => {
+  const onLoadReady = setupScWidget(nodeId, card, 0, () => {
     hideScPlayer();
     resetCardUI(nodeId);
     currentlyPlayingId = null;
@@ -382,7 +403,7 @@ function playSC(nodeId, trackUrl) {
   // the previously-loaded (paused) track until load() swaps in the new one. Muting
   // keeps that ~0.5s leak silent; the PLAY handler restores volume for the new track.
   try { scWidget.setVolume(0); scWidget.play(); } catch (e) {}
-  scWidget.load(trackUrl, getScLoadOpts());
+  scWidget.load(trackUrl, { ...getScLoadOpts(), callback: onLoadReady });
   startPlayTimeout(nodeId, true);
 }
 
@@ -400,15 +421,15 @@ function playSCSet(nodeId, setUrl, offsetSec) {
   playingSetOffset = offsetSec ? offsetSec * 1000 : 0;
   userPaused = false;
 
-  setupScWidget(nodeId, card, offsetSec, () => { hideScPlayer(); onPlaybackEnded(); });
+  const onLoadReady = setupScWidget(nodeId, card, offsetSec, () => { hideScPlayer(); onPlaybackEnded(); });
 
   showScPlayer();
   // Call play() synchronously in the user gesture so Safari unlocks iframe audio.
   // Mute first (all browsers): the widget is shared, so this play() briefly resumes
   // the previously-loaded track until load() swaps in the set. Muting keeps that
-  // ~0.5s leak silent; READY / the mute guard hold it muted through the intro-skip seek.
+  // ~0.5s leak silent; the load callback / mute guard hold it muted through the seek.
   try { scWidget.setVolume(0); scWidget.play(); } catch (e) {}
-  scWidget.load(setUrl, getScLoadOpts());
+  scWidget.load(setUrl, { ...getScLoadOpts(), callback: onLoadReady });
   startPlayTimeout(nodeId, false);
 }
 
