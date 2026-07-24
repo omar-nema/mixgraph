@@ -91,7 +91,7 @@ function clearGlow(card) {
 // Every enriched node can have an isolated track (scTrackUrl) and/or the DJ
 // set it appeared in (setUrl at setOffsetSec). This toggle lets the user pick
 // which one plays. Default is the isolated track when both exist.
-const MIX_UNAVAILABLE_TOOLTIP = "This song is only available as its own track";
+const MIX_UNAVAILABLE_TOOLTIP = "Set not available via soundcloud player, use dot menu for mixcloud set";
 
 // Tooltip shown when "from track" is disabled — names the DJ set the song lives in.
 function trackUnavailableTooltip(node) {
