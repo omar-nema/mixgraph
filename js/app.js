@@ -13,7 +13,7 @@ function showCluster(cluster) {
   nodes.forEach(n => nodeMap[n.id] = n);
   currentRootId = cluster.nodes[0].graphId;
   document.getElementById('cluster-id').textContent = currentRootId;
-  const target = '/shuffle' + location.search + '#' + encodeURIComponent(currentRootId);
+  const target = buildShuffleUrl(currentRootId);
   if (location.pathname + location.search + location.hash !== target) {
     history.pushState(null, '', target);
   }
@@ -285,13 +285,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Determine starting mode from URL path
   const startPath = location.pathname.replace(/\/$/, '');
   const startInShuffle = startPath === '/shuffle';
-  const hashId = decodeURIComponent(window.location.hash.slice(1));
+  const nodeId = readNodeFromUrl();
 
-  if (startInShuffle || hashId) {
+  if (startInShuffle || nodeId) {
     // Switch to shuffle/tracks mode
     switchToMode('tracks');
-    if (hashId) {
-      await loadClusterById(hashId);
+    if (nodeId) {
+      await loadClusterById(nodeId);
       if (hasRestoredFilters) refreshFilteredPoolSize();
     } else {
       shuffle();
@@ -299,14 +299,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   } else {
     // Default: dig/crates mode — URL is / or /dig
     if (startPath !== '/dig' && startPath !== '' && startPath !== '/') {
-      history.replaceState(null, '', '/dig' + location.search);
+      history.replaceState(null, '', buildDigUrl());
     }
   }
 
   // Navigate on back/forward
   window.addEventListener('popstate', () => {
     const path = location.pathname.replace(/\/$/, '');
-    const id = decodeURIComponent(location.hash.slice(1));
+    const id = readNodeFromUrl();
     if (path === '/shuffle') {
       switchToMode('tracks');
       if (id && id !== currentRootId) loadClusterById(id);
@@ -559,6 +559,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     sharedBackdrop.addEventListener('pointerdown', closeFromBackdrop);
     sharedBackdrop.addEventListener('click', closeFromBackdrop);
   }
+
+  // Dev panel is gated behind ?dev — hidden for everyone else
+  if (new URLSearchParams(location.search).has('dev')) document.body.classList.add('dev-mode');
 
   // Wire theme toggle — follow system preference unless user has manually chosen
   const themeBtn = document.getElementById('theme-toggle');
@@ -1732,9 +1735,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       document.body.classList.toggle('crates-mode', mode === 'crates');
       // Push URL for mode change
       if (mode === 'crates') {
-        history.pushState(null, '', '/dig' + location.search);
+        history.pushState(null, '', buildDigUrl());
       } else {
-        history.pushState(null, '', '/shuffle' + location.search + (currentRootId ? '#' + encodeURIComponent(currentRootId) : ''));
+        history.pushState(null, '', buildShuffleUrl(currentRootId));
       }
       // Lazy init crates — defer so tab switch is instant
       if (mode === 'crates') {

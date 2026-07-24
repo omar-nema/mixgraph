@@ -189,6 +189,36 @@ body.night #dev-panel { background: #1a1a1a; border-color: #333; }
 }
 #theme-toggle:active { transform: translateY(0); }
 
+/* Feedback link — mirrors the theme toggle, sits bottom-right */
+#feedback-btn {
+  position: fixed;
+  bottom: 16px;
+  right: 16px;
+  z-index: 50;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--text-secondary);
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 20px;
+  padding: 7px 14px;
+  text-decoration: none;
+  box-shadow: var(--card-shadow);
+  transition: box-shadow 0.2s ease, color 0.2s ease, transform 0.2s ease, background 0.3s ease, border-color 0.3s ease;
+  display: flex;
+  align-items: center;
+  letter-spacing: 0.02em;
+}
+#feedback-btn:hover {
+  box-shadow: var(--card-hover-shadow);
+  color: var(--text-primary);
+  transform: translateY(-1px);
+}
+#feedback-btn:active { transform: translateY(0); }
+/* In dev mode the settings toggle reclaims the corner */
+body.dev-mode #feedback-btn { right: 60px; }
+
 /* ═══════════════════════════════════════════
    Reset & Base
    ═══════════════════════════════════════════ */
@@ -2327,6 +2357,7 @@ body.night .help-diagram path[fill="#FAF7F4"] { fill: var(--card-bg); }
 /* ═══════════════════════════════════════════
    Dev Panel (bottom-right)
    ═══════════════════════════════════════════ */
+/* Dev panel is internal-only: hidden unless the page is loaded with ?dev */
 #dev-toggle {
   position: fixed;
   bottom: 12px;
@@ -2336,11 +2367,13 @@ body.night .help-diagram path[fill="#FAF7F4"] { fill: var(--card-bg); }
   border: 1px solid var(--card-border);
   background: var(--card-bg);
   cursor: pointer;
-  display: flex; align-items: center; justify-content: center;
+  display: none;
+  align-items: center; justify-content: center;
   z-index: 1000;
   padding: 0;
   transition: transform 0.2s ease;
 }
+body.dev-mode #dev-toggle { display: flex; }
 #dev-toggle:hover { transform: scale(1.1); }
 
 #dev-panel {
@@ -2359,7 +2392,7 @@ body.night .help-diagram path[fill="#FAF7F4"] { fill: var(--card-bg); }
   font-size: 11px;
   color: var(--text-primary);
 }
-#dev-panel.open { display: block; }
+body.dev-mode #dev-panel.open { display: block; }
 
 #dev-panel h4 {
   margin: 0 0 8px;

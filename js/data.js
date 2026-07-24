@@ -3,6 +3,30 @@
 // ═══════════════════════════════════════════
 let currentRootId = null;
 let frozen = false;
+
+// Build a /shuffle URL carrying the current root as a ?node= query param,
+// merging (not clobbering) any existing query params (filters, ?noplay, etc.).
+// Query param — not #hash — so crawlers/the Worker can read it server-side for
+// per-track link previews.
+function buildShuffleUrl(rootId) {
+  const params = new URLSearchParams(location.search);
+  if (rootId) params.set('node', rootId); else params.delete('node');
+  const qs = params.toString();
+  return '/shuffle' + (qs ? '?' + qs : '');
+}
+
+// Build a /dig URL, preserving filters but dropping any stale ?node=.
+function buildDigUrl() {
+  const params = new URLSearchParams(location.search);
+  params.delete('node');
+  const qs = params.toString();
+  return '/dig' + (qs ? '?' + qs : '');
+}
+
+// Read the current node id from the URL: ?node= wins, #hash is the legacy fallback.
+function readNodeFromUrl() {
+  return new URLSearchParams(location.search).get('node') || decodeURIComponent(location.hash.slice(1));
+}
 let maxR1 = 4;
 let r2PerR1 = 1;
 let searchFilters = [];  // [{ display }] — artist filters (from search bar)

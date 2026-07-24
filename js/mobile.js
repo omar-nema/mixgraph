@@ -13,7 +13,7 @@ function showClusterMobile(cluster) {
   nodes.forEach(n => nodeMap[n.id] = n);
   currentRootId = cluster.nodes[0].graphId;
   document.getElementById('cluster-id').textContent = currentRootId;
-  const target = '/shuffle' + location.search + '#' + encodeURIComponent(currentRootId);
+  const target = buildShuffleUrl(currentRootId);
   if (location.pathname + location.search + location.hash !== target) history.pushState(null, '', target);
   logCluster(cluster);
 
@@ -421,7 +421,7 @@ function makeCarouselCard(node) {
       document.getElementById('crates-view').classList.remove('hidden');
       document.body.classList.add('crates-mode');
       document.querySelectorAll('.crate-stack.fade-out').forEach(s => { s.classList.remove('fade-out'); s.style.opacity = ''; });
-      history.pushState(null, '', '/dig' + location.search);
+      history.pushState(null, '', buildDigUrl());
       return;
     }
     if (target.closest('.card-dots, .source-toggle')) return;
@@ -495,7 +495,7 @@ function makeCarouselCard(node) {
       document.getElementById('crates-view').classList.remove('hidden');
       document.body.classList.add('crates-mode');
       document.querySelectorAll('.crate-stack.fade-out').forEach(s => { s.classList.remove('fade-out'); s.style.opacity = ''; });
-      history.pushState(null, '', '/dig' + location.search);
+      history.pushState(null, '', buildDigUrl());
     });
     cardRow.appendChild(backBtn);
   }

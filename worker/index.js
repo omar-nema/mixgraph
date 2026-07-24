@@ -16,6 +16,83 @@ function jsonResponse(data, status = 200) {
   });
 }
 
+// ── Per-track link previews (OG tags) ──
+// Page routes (/shuffle, /dig) are served by GitHub Pages, but when a Worker
+// route fronts them these helpers return an HTML shell whose OG tags describe
+// the specific track in ?node=, so iMessage/Slack/social previews are per-track.
+// Browsers get an immediate JS redirect to the root app (params preserved), so
+// the shell is only ever seen by crawlers.
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => (
+    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+  ));
+}
+
+// Normalized graphId parts are lowercase, punctuation-stripped, space-joined.
+// Turn one back into a display string: hyphens/underscores → spaces, title-case.
+function titleCaseFromId(part) {
+  return (part || '')
+    .replace(/[-_]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .split(' ')
+    .map(w => w ? w[0].toUpperCase() + w.slice(1) : w)
+    .join(' ');
+}
+
+// HTML shell with OG tags + a browser redirect back to the root app.
+function ogShell({ title, description, image, url }) {
+  const t = escapeHtml(title), d = escapeHtml(description), img = escapeHtml(image), u = escapeHtml(url);
+  return new Response(
+`<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>${t}</title>
+  <meta name="theme-color" content="#1e2228">
+  <meta property="og:title" content="${t}">
+  <meta property="og:description" content="${d}">
+  <meta property="og:image" content="${img}">
+  <meta property="og:url" content="${u}">
+  <meta property="og:type" content="website">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="${t}">
+  <meta name="twitter:description" content="${d}">
+  <meta name="twitter:image" content="${img}">
+  <script>window.location.replace('/' + window.location.search + window.location.hash);</script>
+</head>
+<body></body>
+</html>`,
+    { headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'public, max-age=300' } }
+  );
+}
+
+const OG_IMAGE = 'https://back2back.space/img/onboard-shuffle-dark.jpg';
+const OG_DEFAULT_DESC = 'Music discovery built from DJ set tracklists';
+
+// Build the OG response for a page route. `node` may be null (default preview).
+function pageOgResponse(url, node) {
+  if (node) {
+    const [artist, normTitle] = node.split(':::');
+    const title = titleCaseFromId(normTitle) || 'Untitled';
+    const who = titleCaseFromId(artist) || 'Unknown Artist';
+    return ogShell({
+      title: `"${title}" by ${who} · back2back`,
+      description: OG_DEFAULT_DESC,
+      image: OG_IMAGE,
+      url: url.toString(),
+    });
+  }
+  return ogShell({
+    title: 'back2back',
+    description: OG_DEFAULT_DESC,
+    image: OG_IMAGE,
+    url: url.toString(),
+  });
+}
+
 // Lightweight User-Agent parser for telemetry (device type, OS, browser).
 // Not exhaustive — just enough to segment traffic in Grafana.
 function parseUA(ua) {
@@ -390,6 +467,15 @@ export default {
     const q = url.searchParams;
 
     try {
+      // Page routes (/shuffle, /dig) — only reached if a Worker route fronts the
+      // static site. Return an OG shell (per-track when ?node= is present) that
+      // redirects browsers to the root app. Root ("/") is intentionally left to
+      // GitHub Pages so the redirect target never loops back through here.
+      const pagePath = url.pathname.replace(/\/$/, '');
+      if (pagePath === '/shuffle' || pagePath === '/dig') {
+        return pageOgResponse(url, q.get('node'));
+      }
+
       // GET /api/genres
       if (url.pathname === '/api/genres') {
         const genres = await env.GRAPH_KV.get('genres', 'json');

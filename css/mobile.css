@@ -93,8 +93,9 @@
   /* Hide desktop-only elements */
   #graph-viewport { display: none; }
   #desktop-genres { display: none !important; }
-  #dev-toggle { display: none; }
-  #dev-panel { display: none; }
+  #dev-toggle, body.dev-mode #dev-toggle { display: none; }
+  #dev-panel, body.dev-mode #dev-panel.open { display: none; }
+  #feedback-btn { display: none; }
   #toolbar { display: none; }
   #action-row { display: none; }
 
