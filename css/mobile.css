@@ -523,22 +523,27 @@
   .ob-h { font-size: clamp(22px, 6.1vw, 29px); max-width: 22ch; }
   .ob-lead { font-size: 15px; }
 
-  /* The visual (screenshot frame or slide-1 diagram) grows/shrinks to whatever the copy leaves. */
+  /* The visual (screenshot frame or slide-1 diagram) grows/shrinks to whatever the copy leaves.
+     The frame's height comes from flex; its shape comes from a per-slide aspect-ratio (below),
+     NOT from the video's intrinsic size. Safari resolves a replaced element's `width: auto`
+     from its intrinsic video dimensions independently of the flex-derived height, so the old
+     "video is the sizer" approach left the frame's white card-bg peeking around a mis-sized
+     video. Giving the frame a fixed ratio and letting the video fill it removes that gap. */
   .ob-frame {
-    flex: 1 1 0; min-height: 0; width: auto; align-self: center;
-    display: flex; align-items: center; justify-content: center;
+    flex: 1 1 0; min-height: 0; width: auto; max-width: 100%; align-self: center;
   }
+  /* Per-slide ratios match each recording so object-fit: cover crops nothing.
+     Slide 2 = Dig (320x538), slide 3 = Shuffle (320x576). */
+  .ob-slide:nth-of-type(2) .ob-frame { aspect-ratio: 320 / 538; }
+  .ob-slide:nth-of-type(3) .ob-frame { aspect-ratio: 320 / 576; }
   .ob-shot { height: 100%; width: auto; max-width: 100%; }
   /* Mobile always shows its own .ob-shot-mobile video below — never any of
      the desktop-only elements, regardless of slide or theme. */
   .ob-shot-desktop,
   .ob-shot-desktop-light,
   .ob-shot-desktop-dark { display: none; }
-  /* object-fit defaults to "contain" for <video> (unlike <img>, which fills by
-     default) — with the frame's box not landing on the video's exact aspect
-     ratio, that leaves a sliver of letterboxing/whitespace around the video
-     itself, inside the frame's border. cover guarantees a full, gap-free fill. */
-  .ob-shot-mobile { display: block; height: 100%; width: auto; max-width: 100%; object-fit: cover; }
+  /* Video fills the frame edge-to-edge; cover guarantees no letterbox gap. */
+  .ob-shot-mobile { display: block; width: 100%; height: 100%; object-fit: cover; }
   .ob-diagram {
     flex: 1 1 0; min-height: 0; align-self: center; width: 100%;
     display: flex; align-items: center; justify-content: center;
