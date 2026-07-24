@@ -53,11 +53,14 @@ function ogShell({ title, description, image, url }) {
   <title>${t}</title>
   <meta name="theme-color" content="#1e2228">
   <meta property="og:title" content="${t}">
+  <meta property="og:site_name" content="back2back">
   <meta property="og:description" content="${d}">
   <meta property="og:image" content="${img}">
+  <meta property="og:image:width" content="1400">
+  <meta property="og:image:height" content="900">
   <meta property="og:url" content="${u}">
   <meta property="og:type" content="website">
-  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:card" content="summary">
   <meta name="twitter:title" content="${t}">
   <meta name="twitter:description" content="${d}">
   <meta name="twitter:image" content="${img}">
@@ -69,7 +72,7 @@ function ogShell({ title, description, image, url }) {
   );
 }
 
-const OG_IMAGE = 'https://back2back.space/img/onboard-shuffle-dark.jpg';
+const OG_IMAGE = 'https://back2back.space/img/onboard-dig-dark.jpg';
 const OG_DEFAULT_DESC = 'Music discovery built from DJ set tracklists';
 
 // Build the OG response for a page route. `node` may be null (default preview).
@@ -79,7 +82,7 @@ function pageOgResponse(url, node) {
     const title = titleCaseFromId(normTitle) || 'Untitled';
     const who = titleCaseFromId(artist) || 'Unknown Artist';
     return ogShell({
-      title: `"${title}" by ${who} · back2back`,
+      title: `${title}, ${who}`,
       description: OG_DEFAULT_DESC,
       image: OG_IMAGE,
       url: url.toString(),
