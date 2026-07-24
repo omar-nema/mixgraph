@@ -2,6 +2,15 @@ name = "b2b-api"
 main = "worker/index.js"
 compatibility_date = "2024-12-01"
 
+# The API itself lives on the workers.dev subdomain. These routes additionally
+# front the GitHub-Pages page routes so crawlers hit the Worker's per-track OG
+# shell; everything else on back2back.space passes through to GitHub Pages.
+workers_dev = true
+routes = [
+  { pattern = "back2back.space/shuffle*", zone_name = "back2back.space" },
+  { pattern = "back2back.space/dig*", zone_name = "back2back.space" },
+]
+
 [[kv_namespaces]]
 binding = "GRAPH_KV"
 id = "04f5b3defaf84e6ba843601156adc9d6"
