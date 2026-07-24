@@ -42,7 +42,9 @@ function titleCaseFromId(part) {
 }
 
 // HTML shell with OG tags + a browser redirect back to the root app.
-function ogShell({ title, description, image, url }) {
+// imageW/imageH describe the og:image so crawlers pick the right layout
+// (square album art vs. the landscape onboarding shot).
+function ogShell({ title, description, image, imageW = 1400, imageH = 900, url }) {
   const t = escapeHtml(title), d = escapeHtml(description), img = escapeHtml(image), u = escapeHtml(url);
   return new Response(
 `<!DOCTYPE html>
@@ -56,8 +58,8 @@ function ogShell({ title, description, image, url }) {
   <meta property="og:site_name" content="back2back">
   <meta property="og:description" content="${d}">
   <meta property="og:image" content="${img}">
-  <meta property="og:image:width" content="1400">
-  <meta property="og:image:height" content="900">
+  <meta property="og:image:width" content="${imageW}">
+  <meta property="og:image:height" content="${imageH}">
   <meta property="og:url" content="${u}">
   <meta property="og:type" content="website">
   <meta name="twitter:card" content="summary">
@@ -72,26 +74,71 @@ function ogShell({ title, description, image, url }) {
   );
 }
 
-const OG_IMAGE = 'https://back2back.space/img/onboard-dig-dark.jpg';
+const OG_DIG_IMAGE = 'https://back2back.space/img/onboard-dig-dark.jpg';
+const OG_SHUFFLE_IMAGE = 'https://back2back.space/img/onboard-shuffle-dark.jpg';
 const OG_DEFAULT_DESC = 'Music discovery built from DJ set tracklists';
 
-// Build the OG response for a page route. `node` may be null (default preview).
-function pageOgResponse(url, node) {
+// Join a filter list into a readable phrase, capped so the title stays short.
+// ["Soul","Jazz"] -> "Soul & Jazz"; 4+ -> "Soul, Jazz, Funk & more".
+function joinFilters(list) {
+  const vals = list.filter(Boolean);
+  if (vals.length <= 1) return vals[0] || '';
+  if (vals.length === 2) return `${vals[0]} & ${vals[1]}`;
+  if (vals.length === 3) return `${vals[0]}, ${vals[1]} & ${vals[2]}`;
+  return `${vals[0]}, ${vals[1]}, ${vals[2]} & more`;
+}
+
+// Filter-aware Dig title from share-link params (g=genres, a=artists, dj=djs,
+// q=track). Prefers whichever filter is present; falls back to a plain label.
+function digTitle(url) {
+  const q = url.searchParams;
+  const parts = [
+    joinFilters(q.getAll('g')),
+    joinFilters(q.getAll('a')),
+    joinFilters(q.getAll('dj')),
+    q.get('q') || '',
+  ].filter(Boolean);
+  return parts.length ? `Digging ${parts.join(' · ')}` : 'Digging the crates';
+}
+
+// Build the OG response for a page route. Dig shows a filter-aware title over the
+// dig artwork; Shuffle shows "Title, Artist" over the seed track's album art
+// (best-effort KV lookup, falling back to the shuffle onboarding shot).
+async function pageOgResponse(url, node, pagePath, env) {
+  if (pagePath === '/dig') {
+    return ogShell({
+      title: digTitle(url),
+      description: OG_DEFAULT_DESC,
+      image: OG_DIG_IMAGE,
+      url: url.toString(),
+    });
+  }
+
+  // Shuffle
   if (node) {
     const [artist, normTitle] = node.split(':::');
     const title = titleCaseFromId(normTitle) || 'Untitled';
     const who = titleCaseFromId(artist) || 'Unknown Artist';
+    let image = OG_SHUFFLE_IMAGE, imageW = 1400, imageH = 900;
+    try {
+      const kvNode = await getNode(env.GRAPH_KV, node);
+      if (kvNode && kvNode.artUrl && kvNode.source !== 'not_found') {
+        image = kvNode.artUrl;         // SoundCloud artwork is 500x500 square
+        imageW = 500; imageH = 500;
+      }
+    } catch (_) { /* fall back to the static shuffle image */ }
     return ogShell({
       title: `${title}, ${who}`,
       description: OG_DEFAULT_DESC,
-      image: OG_IMAGE,
+      image, imageW, imageH,
       url: url.toString(),
     });
   }
+
   return ogShell({
     title: 'back2back',
     description: OG_DEFAULT_DESC,
-    image: OG_IMAGE,
+    image: OG_SHUFFLE_IMAGE,
     url: url.toString(),
   });
 }
@@ -476,7 +523,7 @@ export default {
       // GitHub Pages so the redirect target never loops back through here.
       const pagePath = url.pathname.replace(/\/$/, '');
       if (pagePath === '/shuffle' || pagePath === '/dig') {
-        return pageOgResponse(url, q.get('node'));
+        return await pageOgResponse(url, q.get('node'), pagePath, env);
       }
 
       // GET /api/genres
