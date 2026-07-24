@@ -39,7 +39,9 @@ from cluster import (
     get_soundcloud_client_id,
     load_graph,
     _BROWSER_UA,
+    _token_matches,
 )
+from utils import normalize as _normalize
 
 # NTS SoundCloud account user IDs (for filtering search results)
 NTS_SC_USER_IDS: Set[int] = set()
@@ -143,16 +145,45 @@ def get_nts_sc_set_url(
         episode_cache[cache_key] = None
         return None
 
-    # Find a result from a known NTS account
+    # Find a result from a known NTS account whose title matches the show
     for item in data.get("collection", []):
-        user_id = item.get("user", {}).get("id")
-        if user_id in NTS_SC_USER_IDS:
+        if nts_set_matches(item, query):
             permalink = item.get("permalink_url")
             episode_cache[cache_key] = permalink
             return permalink
 
     episode_cache[cache_key] = None
     return None
+
+
+# Words that carry no identifying weight in an NTS show/episode slug
+_QUERY_FILLER = {"w", "with", "and", "the", "a", "presents", "x", "b2b", "nts", "live"}
+
+# Fraction of meaningful query tokens that must appear in the SC set title
+_NTS_TITLE_OVERLAP = 0.6
+
+
+def nts_set_matches(item: Dict[str, Any], query: str) -> bool:
+    """True if a SC result is the NTS episode we searched for.
+
+    Two conditions: it must be uploaded by one of the known NTS accounts, and
+    the show name we searched for must appear in the set title — otherwise any
+    unrelated NTS upload ranked first wins.
+    """
+    if item.get("user", {}).get("id") not in NTS_SC_USER_IDS:
+        return False
+
+    # Queries come from a mixcloud slug or a show slug, so they carry filler
+    # ("w", "with", "presents") and date fragments. Demand a solid majority of
+    # the meaningful tokens rather than an exact match.
+    q_tokens = [t for t in _normalize(query).split() if t not in _QUERY_FILLER]
+    if not q_tokens:
+        return False
+
+    title = _normalize(item.get("title", ""))
+    title_tokens = set(title.split())
+    hits = sum(1 for t in q_tokens if _token_matches(t, title, title_tokens))
+    return hits / len(q_tokens) >= _NTS_TITLE_OVERLAP
 
 
 def get_nts_episode_urls(episode_url: str, episode_cache: Dict[str, Any]) -> Dict[str, Optional[str]]:
@@ -199,6 +230,28 @@ def get_nts_episode_urls(episode_url: str, episode_cache: Dict[str, Any]) -> Dic
     return result
 
 
+def lotradio_set_matches(item: Dict[str, Any], dj_name: str) -> bool:
+    """True if a SC result is a Lot Radio set *by the DJ we're looking for*.
+
+    Being on the thelotradio account isn't enough — the search is a generic
+    name search, so the first hit is routinely a different DJ's set. Require the
+    DJ name to actually show up in the set title (or its permalink slug).
+    """
+    permalink = item.get("permalink_url", "") or ""
+    if "thelotradio" not in permalink.lower():
+        return False
+
+    dj_tokens = _normalize(dj_name).split()
+    if not dj_tokens:
+        return False  # nothing to verify against — refuse rather than guess
+
+    # Split the permalink on every non-alphanumeric run so slug words stay words
+    slug_words = re.sub(r"[^a-zA-Z0-9]+", " ", permalink)
+    haystack = _normalize(f"{item.get('title', '')} {slug_words}")
+    haystack_tokens = set(haystack.split())
+    return all(_token_matches(t, haystack, haystack_tokens) for t in dj_tokens)
+
+
 def get_lotradio_set_url(
     episode_url: str,
     artist_name: str,
@@ -228,8 +281,8 @@ def get_lotradio_set_url(
         return None
 
     for item in data.get("collection", []):
-        permalink = item.get("permalink_url", "")
-        if "thelotradio" in permalink.lower():
+        if lotradio_set_matches(item, artist_name):
+            permalink = item.get("permalink_url", "")
             episode_cache[cache_key] = permalink
             return permalink
 

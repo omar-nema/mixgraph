@@ -96,6 +96,8 @@ python3 scripts/serve.py
 
 Four test files in `tests/`. All are plain `node tests/foo.test.cjs` scripts — no framework, no runner. Shared helpers in `tests/_helpers.cjs`.
 
+Python side: `pipeline/tests/` covers the enrichment matching logic (SC track / NTS set / Lot Radio set) with mocked HTTP — run it with `python3 -m pytest pipeline/tests -q` after touching `enrich.py` or `cluster.py`.
+
 **Run the whole thing with `npm test`** before committing anything substantial. It boots the API server and a static server if they're not running, then runs three suites in ~2 minutes.
 
 If you only touched one area, run the relevant suite instead:

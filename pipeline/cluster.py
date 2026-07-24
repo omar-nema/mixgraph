@@ -24,7 +24,7 @@ import urllib.request
 import urllib.parse
 import urllib.error
 from pathlib import Path
-from typing import Dict, Any, List, Optional, Tuple
+from typing import Dict, Any, List, Optional, Set, Tuple
 
 
 # ═══════════════════════════════════════════
@@ -387,6 +387,35 @@ def get_soundcloud_client_id() -> Optional[str]:
     return None
 
 
+# Tokens this short are matched as isolated words, not substrings — otherwise
+# acronyms like "M.O.M." (normalized "mom") match anything containing "mom"
+# ("Momentum", "Moment Of Truth"). Longer tokens keep substring matching so
+# minor suffix variance ("remix" / "remixes") still lines up.
+_ISOLATED_TOKEN_MAX_LEN = 4
+
+
+def _token_matches(token: str, combined: str, combined_tokens: Set[str]) -> bool:
+    """True if a query token is present in a candidate's 'user title' string."""
+    if len(token) <= _ISOLATED_TOKEN_MAX_LEN:
+        return token in combined_tokens
+    return token in combined
+
+
+def sc_track_matches(item: Dict[str, Any], norm_artist: str, norm_title: str) -> bool:
+    """True if a SoundCloud search result plausibly *is* the track we asked for.
+
+    Every word of the artist and title must appear in "<uploader> <track title>".
+    """
+    item_title = _normalize(item.get("title", ""))
+    item_user = _normalize(item.get("user", {}).get("username", ""))
+    combined = f"{item_user} {item_title}"
+    combined_tokens = set(combined.split())
+    words = norm_artist.split() + norm_title.split()
+    if not words:
+        return False
+    return all(_token_matches(w, combined, combined_tokens) for w in words)
+
+
 def search_soundcloud(
     artist: str, title: str, client_id: str
 ) -> Optional[Dict[str, Any]]:
@@ -394,7 +423,12 @@ def search_soundcloud(
     norm_artist = _normalize(artist)
     norm_title = _normalize(title)
 
-    def _query_sc(query_str: str) -> Optional[Dict[str, Any]]:
+    def _query_sc(
+        query_str: str, want_artist: str = None, want_title: str = None
+    ) -> Optional[Dict[str, Any]]:
+        want_artist = norm_artist if want_artist is None else want_artist
+        want_title = norm_title if want_title is None else want_title
+
         params = urllib.parse.urlencode({
             "q": query_str, "client_id": client_id, "limit": 5,
         })
@@ -420,14 +454,7 @@ def search_soundcloud(
             return None
 
         for item in data.get("collection", []):
-            item_title = _normalize(item.get("title", ""))
-            item_user = _normalize(item.get("user", {}).get("username", ""))
-            # Check that all words of artist and title appear in the result
-            combined = f"{item_user} {item_title}"
-            artist_words = norm_artist.split()
-            title_words = norm_title.split()
-            if (all(w in combined for w in artist_words) and
-                    all(w in combined for w in title_words)):
+            if sc_track_matches(item, want_artist, want_title):
                 artwork = item.get("artwork_url") or ""
                 # Upgrade to 500x500
                 if artwork:
@@ -449,7 +476,10 @@ def search_soundcloud(
     simple_artist = re.sub(r"\s*\([^)]*\)", "", artist).strip()
     if simple_title != title or simple_artist != artist:
         time.sleep(0.25)
-        return _query_sc(f"{simple_artist} {simple_title}")
+        return _query_sc(
+            f"{simple_artist} {simple_title}",
+            _normalize(simple_artist), _normalize(simple_title),
+        )
 
     return None
 
