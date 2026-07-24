@@ -662,6 +662,39 @@ document.addEventListener('DOMContentLoaded', async () => {
       // ── Phase 2: Create flyers ──
       // Only root card flies — crate neighbors rarely match carousel R1/R2 tracks
       const flyers = [];
+
+      // Fail-safe terminal state. The reveal below is a chain of setTimeouts +
+      // forced reflows with no guaranteed end state: if a timer is dropped or
+      // throttled, or the flyer setup throws, the carousel is left stranded
+      // (visibility:hidden, items at opacity 0, a lone fixed flyer floating over
+      // it). Desktop engines never hit this, but Firefox for Android does. This
+      // idempotent finisher forces the correct end state; it's scheduled up front
+      // (before the risky code) so a synchronous throw can't skip it, and it runs
+      // as the normal cleanup too — so on a healthy path it's a plain no-op.
+      let flyDone = false;
+      const finishFlyTransition = () => {
+        if (flyDone) return;
+        flyDone = true;
+        carousel.style.visibility = '';
+        carouselItems.forEach(item => {
+          item.style.animation = 'none';   // let the inline opacity win over any stuck fade-in
+          item.style.opacity = '1';
+          item.classList.remove('fly-text-hidden');
+          delete item._hasFlyer;
+        });
+        document.querySelectorAll('.mobile-flying-art').forEach(el => el.remove());
+        carousel.classList.remove('fly-transitioning');
+        shuffleArea.style.opacity = '';
+        shuffleArea.style.transition = '';
+        cratesView.classList.add('hidden');
+        cratesView.classList.remove('mobile-fading');
+        stackEl.style.opacity = '';
+        stackEl.style.animation = '';
+      };
+      // Comfortably past the normal completion (550 + 160 = 710ms). The healthy
+      // path calls finishFlyTransition() first, so this only fires if the chain
+      // stalled.
+      setTimeout(finishFlyTransition, 1200);
       for (let i = 0; i < destinations.length; i++) {
         const dst = destinations[i];
 
@@ -775,16 +808,8 @@ document.addEventListener('DOMContentLoaded', async () => {
           f.el.style.opacity = '0';
         });
 
-        // After crossfade, clean up
-        setTimeout(() => {
-          flyers.forEach(f => f.el.remove());
-          carousel.classList.remove('fly-transitioning');
-          shuffleArea.style.opacity = '1';
-          cratesView.classList.add('hidden');
-          cratesView.classList.remove('mobile-fading');
-          stackEl.style.opacity = '';
-          stackEl.style.animation = '';
-        }, 160);
+        // After crossfade, clean up (idempotent finisher — also the fail-safe path)
+        setTimeout(finishFlyTransition, 160);
       }, 550);
 
       return;
