@@ -1871,6 +1871,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Default to crates (Dig) mode — init crates on first load (unless URL says /shuffle)
   if (!startInShuffle && !nodeId) {
+    // Show the loading dots until the first page renders (hidden in addPageToDOM)
+    const cl = document.getElementById('crates-loading');
+    cl.classList.remove('hidden');
+    cl.style.visibility = 'visible';
     requestAnimationFrame(() => initCrates());
     showHelper(cratesHelperToast, 'b2b-crates-helper-dismissed');
   }
