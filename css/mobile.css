@@ -623,7 +623,7 @@
     position: absolute;
     top: 0;
     bottom: 0;
-    right: 100%;
+    right: calc(100% + 3px);
     width: 26px;
     display: flex;
     align-items: center;
