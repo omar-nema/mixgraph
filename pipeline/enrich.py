@@ -241,9 +241,11 @@ def lotradio_set_matches(item: Dict[str, Any], dj_name: str) -> bool:
     if "thelotradio" not in permalink.lower():
         return False
 
+    if not dj_name:
+        return False  # nothing to verify against — refuse rather than guess
     dj_tokens = _normalize(dj_name).split()
     if not dj_tokens:
-        return False  # nothing to verify against — refuse rather than guess
+        return False
 
     # Split the permalink on every non-alphanumeric run so slug words stay words
     slug_words = re.sub(r"[^a-zA-Z0-9]+", " ", permalink)
@@ -574,7 +576,7 @@ def main():
                     elif "thelotradio.com" in ep_url:
                         time.sleep(0.3)
                         set_url = get_lotradio_set_url(
-                            ep_url, ep_ctx.get("dj", artist), sc_client_id, episode_cache
+                            ep_url, ep_ctx.get("dj") or artist, sc_client_id, episode_cache
                         )
                         if set_url:
                             entry["setUrl"] = set_url
