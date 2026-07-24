@@ -1845,7 +1845,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 
   // Default to crates (Dig) mode — init crates on first load (unless URL says /shuffle)
-  if (!startInShuffle && !hashId) {
+  if (!startInShuffle && !nodeId) {
     requestAnimationFrame(() => initCrates());
     showHelper(cratesHelperToast, 'b2b-crates-helper-dismissed');
   }
