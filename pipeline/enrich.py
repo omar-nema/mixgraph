@@ -419,6 +419,10 @@ def main():
         "--fix-sets", action="store_true",
         help="Re-fetch NTS set URLs from API for all NTS soundcloud_set entries",
     )
+    parser.add_argument(
+        "--source", type=str, default=None, metavar="SOURCE",
+        help="Reprocess entries currently matched to a specific source. Supported: 'lot-radio'",
+    )
     args = parser.parse_args()
 
     # Load graph
@@ -475,6 +479,28 @@ def main():
             and "nts.live" in graph_nodes.get(nid, {}).get("first_episode_url", "")
         ]
         print(f"  Fixing set URLs for {len(to_enrich)} NTS SC set entries")
+    elif args.source == "lot-radio":
+        # Re-enrich tracks currently matched to a Lot Radio SC set.
+        # Clears the cached set URL so the enrichment loop re-runs the lookup
+        # with the new DJ-name validation logic (lotradio_set_matches).
+        to_enrich = [
+            nid for nid in all_ids
+            if "thelotradio" in (cache.get(nid, {}).get("setUrl") or "")
+        ]
+        for nid in to_enrich:
+            entry = cache[nid]
+            # Drop only the set fields — keep scTrackUrl/artUrl if we already
+            # have an individual track match (source == "soundcloud").
+            for field in ("setUrl", "setSource", "setTimestamp", "setOffsetSec", "setDj"):
+                entry.pop(field, None)
+            if entry.get("source") == "soundcloud_set":
+                entry["source"] = "not_found"
+        print(f"  Reprocessing {len(to_enrich)} Lot Radio set entries")
+        eta_min = len(to_enrich) * 0.3 / 60
+        print(f"  Estimated time: {eta_min:.0f} min ({eta_min / 60:.1f} h) at 0.3 s/track")
+    elif args.source is not None:
+        print(f"  ERROR: unknown --source value '{args.source}'. Supported: 'lot-radio'")
+        return 1
     else:
         to_enrich = [nid for nid in all_ids if nid not in cache]
         print(f"  To enrich: {len(to_enrich)} / {len(all_ids)}")
@@ -511,14 +537,17 @@ def main():
         artist = node["artist"]
         title = node["title"]
 
-        # Keep existing entry for modes that only update set URLs
-        if args.reprocess_mixcloud or args.fix_sets:
+        # Keep existing entry for modes that only update/revisit set URLs.
+        # --source lot-radio pre-cleared set fields but may have kept scTrackUrl.
+        if args.reprocess_mixcloud or args.fix_sets or args.source == "lot-radio":
             entry = cache.get(nid, {"source": "not_found"})
         else:
             entry: Dict[str, Any] = {"source": "not_found"}
 
         try:
             # --- Step 1: SoundCloud individual track ---
+            # Skip for modes that only touch set URLs, but run for lot-radio
+            # (it may have an individual SC track we never found before).
             if not args.reprocess_mixcloud and not args.fix_sets:
                 if i > 0:
                     time.sleep(0.3)
