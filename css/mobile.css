@@ -572,9 +572,22 @@
     scrollbar-width: none;
     /* Vertical padding gives the card's shadow/glow room to paint: overflow-x:auto
        forces overflow-y to clip, so without it the .playing halo is sheared off
-       top & bottom. margin-bottom trimmed to keep the vertical footprint stable. */
-    padding: 20px calc((100vw - 70vw) / 2 + 5vw) 32px calc((100vw - 70vw) / 2 - 5vw);
-    scroll-padding-inline: calc((100vw - 70vw) / 2 - 5vw) calc((100vw - 70vw) / 2 + 5vw);
+       top & bottom. margin-bottom trimmed to keep the vertical footprint stable.
+       Horizontal padding gives the first (70vw root) and last (60vw sibling)
+       card room to reach a genuinely centered snap position — each side's
+       inset is (available width - that card's own width) / 2, derived
+       directly from the real widths below, not a shared/fudged constant.
+       "Available width" is 100% (this element's own containing-block width),
+       not 100vw — body carries its own horizontal padding on mobile, so the
+       carousel never actually spans the full viewport; using vw here would
+       silently drift out of sync with whatever that inset is.
+       No scroll-padding-inline: it insets on top of (not instead of) this
+       padding, so setting it to the same formula double-counted the inset
+       and made the browser's own snap correction overshoot dead center by
+       a few px. Regular padding alone is enough — scroll-snap-align: center
+       already references the full padding box by default (scroll-padding
+       defaults to 0), which is exactly the reference frame we want. */
+    padding: 20px calc((100% - 60vw) / 2) 32px calc((100% - 70vw) / 2);
     flex-shrink: 0;
     margin-bottom: 0;
   }
@@ -883,13 +896,11 @@
   @media (max-height: 750px) {
     .mobile-carousel-item { width: 54vw; }
     .mobile-carousel-item[data-rank="root"] { width: 63vw; }
-    /* #mobile-carousel's padding/scroll-padding-inline center the root card by
-       assuming its default 70vw width — must be recalculated here against the
-       63vw root width above, or the centering math is off and the selected
-       card snaps to a visibly offset position on short-height phones. */
+    /* Recalculated against this breakpoint's own 63vw root / 54vw sibling
+       widths — same (100% - card width) / 2 formula as the base rule
+       above, just with the smaller short-phone widths plugged in. */
     #mobile-carousel {
-      padding: 20px calc((100vw - 63vw) / 2 + 5vw) 32px calc((100vw - 63vw) / 2 - 5vw);
-      scroll-padding-inline: calc((100vw - 63vw) / 2 - 5vw) calc((100vw - 63vw) / 2 + 5vw);
+      padding: 20px calc((100% - 54vw) / 2) 32px calc((100% - 63vw) / 2);
     }
   }
 
