@@ -1677,6 +1677,15 @@ document.addEventListener('DOMContentLoaded', async () => {
       updateVisible();
     };
 
+    // Whether the current filters differ from the pool last built for crates.
+    // Used to decide if returning to Dig needs a reset (which clears pan position)
+    // or can preserve where the user left the canvas.
+    window._cratesFiltersChanged = function() {
+      const params = buildFilterParams();
+      const key = [params.genres || '', params.artists || '', params.djs || ''].join('|');
+      return key !== cratesFilterKey;
+    };
+
     // Initial render
     updateVisible();
     console.log('Crates: initialized');
@@ -1737,8 +1746,12 @@ document.addEventListener('DOMContentLoaded', async () => {
           cl.style.visibility = 'visible';
         }
         requestAnimationFrame(() => initCrates());
-        // Reset crates with current filters (may have changed in Shuffle)
-        if (cratesInitialized && window._cratesResetFn) window._cratesResetFn();
+        // Reset crates only if filters changed in Shuffle — otherwise preserve
+        // the pan position so returning to Dig restores where the user left off.
+        if (cratesInitialized && window._cratesResetFn
+            && (!window._cratesFiltersChanged || window._cratesFiltersChanged())) {
+          window._cratesResetFn();
+        }
         showHelper(cratesHelperToast, 'b2b-crates-helper-dismissed');
         // Restore any faded-out crate stacks from a previous transition
         document.querySelectorAll('.crate-stack.fade-out').forEach(s => {
