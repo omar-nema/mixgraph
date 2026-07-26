@@ -212,6 +212,7 @@ function updateMobileSources(graphId) {
 // event is unreliable on mobile, so we can't drive .playing off events alone.
 let mobilePlayPoll = null;
 let mobileMuteGuard = null; // keeps the SC widget muted until the intro-skip seek lands
+let currentLoadId = 0;     // incremented on every scWidget.load(); handlers ignore stale IDs
 function stopMobilePlayPoll() {
   if (mobilePlayPoll) { clearInterval(mobilePlayPoll); mobilePlayPoll = null; }
 }
@@ -290,12 +291,14 @@ function selectMobileTrack(nodeId) {
   // For sets, jump past the intro (e.g. NTS sting) when the track starts at 0:00.
   const offsetSec = useMix ? (node.setOffsetSec > 0 ? node.setOffsetSec : 7) : 0;
   let didSeek = false;
-  let readyFired = false; // true once the new URL's READY fires; guards PAUSE against stale events
+  // Stamp this load so READY/PAUSE handlers from a prior load() call (stale async
+  // postMessage round-trips) are silently dropped rather than corrupting auto_play.
+  const loadId = ++currentLoadId;
 
   stopMobileMuteGuard();
 
   scWidget.bind(SC.Widget.Events.READY, () => {
-    readyFired = true;
+    if (loadId !== currentLoadId) return; // stale — a newer load() is already in flight
     scWidgetReady = true;
     if (card) card.classList.remove('loading');
     // Poll the widget's real play/pause state (mobile PAUSE events are flaky).
@@ -350,13 +353,14 @@ function selectMobileTrack(nodeId) {
     }, 100);
   }
   scWidget.bind(SC.Widget.Events.PAUSE, () => {
-    // Ignore PAUSE events that arrive before the new URL's READY fires. stopCurrentPlayback()
-    // calls scWidget.pause() synchronously, but the SC widget's PAUSE response is async
-    // (postMessage round-trip), so it arrives after the new handlers are already bound.
-    // Without this guard, that stale PAUSE sets didSeek=true before the mute guard even
-    // starts, causing the mix to play from t=0 instead of the correct track timestamp.
-    // Real user pauses only happen after READY (the mute guard starts on PLAY, after READY).
-    if (!readyFired) return;
+    // Ignore PAUSE events from a prior load(): stopCurrentPlayback() calls scWidget.pause()
+    // synchronously, but the widget's PAUSE response is async (postMessage round-trip), so
+    // it arrives after the new handlers are already bound. Without this guard that stale
+    // PAUSE sets didSeek=true before the mute guard even starts, causing the mix to play
+    // from t=0 instead of the correct timestamp. The loadId check also covers the case where
+    // the widget was already loaded (readyFired would be true immediately, letting the stale
+    // PAUSE slip through on the very first card selection).
+    if (loadId !== currentLoadId) return; // stale
     // A pause ends the intro-skip. Kill the guard and never seek again — otherwise
     // its next seekTo would un-pause the widget (Safari quirk) and steamroll the
     // user's pause. `isPaused` polling is too flaky to catch this reliably; the

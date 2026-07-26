@@ -1589,7 +1589,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     let velX = 0, velY = 0, momentumId = null;
 
     cratesView.addEventListener('touchmove', e => {
-      e.preventDefault();
+      // e.preventDefault() removed — touch-action: none in CSS handles scroll
+      // blocking, and keeping this as passive: true avoids the browser warning.
       if (e.touches.length === 2 && pinchActive) {
         const dist = Math.hypot(
           e.touches[1].clientX - e.touches[0].clientX,
@@ -1618,7 +1619,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           requestPanFrame();
         }
       }
-    }, { passive: false });
+    }, { passive: true });
 
     function momentumStep() {
       // Stop if crates view was hidden (e.g. user switched to Tracks mid-momentum)
