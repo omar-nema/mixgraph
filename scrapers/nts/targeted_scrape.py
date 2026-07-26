@@ -37,14 +37,15 @@ EPISODES_FILE = OUTPUT_DIR / "nts_episodes.json"
 # Target DJs: search terms matched against show_alias and episode_alias
 # Each entry is (display_name, [search_terms], desired_count)
 # High counts = grab everything available (dedup skips already-scraped).
+# Deep/minimal DJ request (all-time NTS). Only these 3 have real NTS episodes;
+# the rest of the requested list (Melchior, Zip, Rhadoo, Raresh, Petre Inspirescu,
+# Pronsato, Del Garda, Tozzi, Masda, Sonja Moonear, Mathew Jonson, Margaux Gazur,
+# DWIG, plus the Giegling "Edward"/Smallville "Lawrence"/Olivia Mendez, and Binh)
+# have zero tracklisted episodes on NTS per the full sitemap index. Verified 2026-07-24.
 TARGETS = [
-    ("Nick León", ["nick-leon"], 50),
-    ("Nihal", ["nihal"], 50),
-    ("Julmud", ["julmud"], 50),
-    ("Ben UFO", ["ben-ufo"], 50),
-    ("David August", ["david-august"], 50),
-    ("Nicolas Jaar", ["against-all-logic", "nicolas-jaar"], 50),  # A.A.L. alias
-    ("Arielle Lama", ["arielle-lana"], 50),  # NTS spells it "lana", not "lama"
+    ("Cassy", ["cassy"], 100),
+    ("Jane Fitz", ["jane-fitz"], 100),
+    ("Andrew Weatherall / ALFOS", ["weatherall"], 100),
 ]
 
 # Specific episodes to scrape by (show_alias, episode_alias) — for guests not in the slug
