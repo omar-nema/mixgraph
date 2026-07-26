@@ -219,9 +219,13 @@ function stopMobilePlayPoll() {
 function stopMobileMuteGuard() {
   if (mobileMuteGuard) { clearInterval(mobileMuteGuard); mobileMuteGuard = null; }
 }
-function startMobilePlayPoll(card) {
+// `isAudible` (optional) lets the caller veto the playing treatment while an
+// intro-skip seek is still pending — the guard only starts on PLAY, so between
+// load() and that event the widget can report "playing" without being audible.
+function startMobilePlayPoll(card, isAudible) {
   stopMobilePlayPoll();
   if (!card) return;
+  let lastPos = -1;
   mobilePlayPoll = setInterval(() => {
     // Card gone or superseded by another selection → stop tracking it.
     if (!card.isConnected || !card.classList.contains('selected') || !scWidget) {
@@ -229,7 +233,22 @@ function startMobilePlayPoll(card) {
       return;
     }
     scWidget.isPaused(paused => {
-      card.classList.toggle('playing', !paused);
+      // While the intro-skip mute guard runs (or its seek hasn't happened yet),
+      // the widget reports "playing" but is muted / at the wrong position —
+      // nothing audible yet, so keep the playing treatment off.
+      if (paused || mobileMuteGuard || (isAudible && !isAudible())) {
+        lastPos = -1;
+        card.classList.remove('playing');
+        return;
+      }
+      // Unpaused and unmuted: only light up once the position actually advances
+      // — "playing" while still buffering isn't audible either. Removal on
+      // stalls is handled above (pause/guard), not here, to avoid flicker.
+      scWidget.getPosition(pos => {
+        if (mobileMuteGuard) return; // guard may have started while in flight
+        if (lastPos >= 0 && pos > lastPos) card.classList.add('playing');
+        lastPos = pos;
+      });
     });
   }, 350);
 }
@@ -285,6 +304,7 @@ function selectMobileTrack(nodeId) {
   stopMobilePlayPoll();
   scWidget.unbind(SC.Widget.Events.READY);
   scWidget.unbind(SC.Widget.Events.PLAY);
+  scWidget.unbind(SC.Widget.Events.PLAY_PROGRESS); // desktop path binds this; drop it after a viewport switch
   scWidget.unbind(SC.Widget.Events.PAUSE);
 
   const url = useMix ? node.setUrl : node.scTrackUrl;
@@ -294,25 +314,99 @@ function selectMobileTrack(nodeId) {
   // Stamp this load so READY/PAUSE handlers from a prior load() call (stale async
   // postMessage round-trips) are silently dropped rather than corrupting auto_play.
   const loadId = ++currentLoadId;
+  // True once THIS load's sound is actually in, via load()'s per-load callback —
+  // the same mechanism the desktop path uses. The loadId stamp can't catch the
+  // async PAUSE echo of stopCurrentPlayback() pausing the PREVIOUS sound: that
+  // echo arrives after the new handlers are bound, so its loadId matches. Only
+  // the load callback reliably separates "old sound winding down" from "new
+  // sound playing" — and a real user pause can only happen after the latter.
+  let loadLanded = false;
 
   stopMobileMuteGuard();
 
+  // Dead-load recovery. Some tracks (removed / region-blocked / stream-refused)
+  // fire READY and even the load callback — some with healthy-looking metadata —
+  // yet silently ignore play(): the "play button does nothing" failure.
+  // Detection below: an ERROR event, getCurrentSound answering null / the wrong
+  // sound / not at all, the load callback never firing, or PLAY firing while the
+  // position stays pinned at 0 (the aliveness check). Recovery: clear the
+  // shimmer and mark the track option blocked on the toggle. sawProgress disarms
+  // all of it once audio provably rolled, so a transient mid-playback ERROR can
+  // never yank the state out from under the listener.
+  let readyTimeout = null;
+  let loadDead = false;
+  let sawProgress = false;
+  let alivenessTimer = null;
+  function failLoad() {
+    if (loadId !== currentLoadId || loadDead || sawProgress) return;
+    loadDead = true;
+    if (alivenessTimer) { clearInterval(alivenessTimer); alivenessTimer = null; }
+    if (readyTimeout) { clearTimeout(readyTimeout); readyTimeout = null; }
+    stopMobileMuteGuard();
+    if (card) card.classList.remove('loading');
+    // Mark the track option blocked so the user can see why it won't play and
+    // tap "mixed" themselves — their source choice is NEVER switched for them.
+    if (!useMix) markTrackDead(nodeId);
+  }
+  scWidget.unbind(SC.Widget.Events.ERROR);
+  scWidget.bind(SC.Widget.Events.ERROR, failLoad);
+
   scWidget.bind(SC.Widget.Events.READY, () => {
     if (loadId !== currentLoadId) return; // stale — a newer load() is already in flight
+    // NB: don't clear readyTimeout here — on an already-loaded widget this READY
+    // fires immediately against the PREVIOUS sound. The load callback (per-load,
+    // like the desktop path) is the only trustworthy completion signal.
     scWidgetReady = true;
     if (card) card.classList.remove('loading');
+    if (!useMix) checkScSnip(nodeId, url);
     // Poll the widget's real play/pause state (mobile PAUSE events are flaky).
-    startMobilePlayPoll(card);
+    // Audible only once the intro-skip seek has resolved (or none was needed).
+    startMobilePlayPoll(card, () => !offsetSec || didSeek);
   });
 
-  // Sync the .playing treatment (border + glow, title marquee) to the SC widget's
-  // own PLAY/PAUSE events so it flips the instant audio starts/stops. The 350ms
-  // poll above is a fallback for mobile Safari's unreliable PAUSE event.
+  // PLAY marks the start of playback, not of audible sound — the stream may
+  // still be buffering, and for sets the mute guard holds volume at 0 until the
+  // intro-skip seek lands. So PLAY only arms the guard / restores volume; the
+  // .playing treatment (border + glow, EQ badge, marquee) is added when audio is
+  // actually audible: by the guard the moment it unmutes, or by the poll once
+  // the position starts advancing. PAUSE (event + poll) removes it.
   scWidget.bind(SC.Widget.Events.PLAY, () => {
-    if (card && card.classList.contains('selected')) card.classList.add('playing');
-    if (offsetSec && !didSeek) startMobileMuteGuard();
-    else if (!offsetSec) { try { scWidget.setVolume(100); } catch (e) {} } // recover prior mute
+    if (offsetSec && !didSeek) { startMobileMuteGuard(); return; } // muted intro-skip: not audible yet
+    if (!offsetSec) {
+      try { scWidget.setVolume(100); } catch (e) {} // recover prior mute
+      // PLAY fired for this load (auto_play or the user's tap) — verify audio
+      // actually flows. Stream-refused tracks accept PLAY but never advance.
+      if (loadLanded) startAlivenessCheck();
+    }
   });
+
+  // After a play attempt, the position must start advancing within 5s — if it
+  // stays pinned at 0 while unpaused, the stream is dead and we fall back.
+  // (Offset loads don't need this: the mute guard's own 12s bail covers them.)
+  function startAlivenessCheck() {
+    if (alivenessTimer || sawProgress || loadDead) return;
+    const started = Date.now();
+    alivenessTimer = setInterval(() => {
+      if (loadId !== currentLoadId || sawProgress || loadDead) {
+        clearInterval(alivenessTimer); alivenessTimer = null;
+        return;
+      }
+      scWidget.getPosition(pos => {
+        if (sawProgress || loadDead) return;
+        if (pos > 0) {
+          sawProgress = true;
+          if (alivenessTimer) { clearInterval(alivenessTimer); alivenessTimer = null; }
+          return;
+        }
+        if (Date.now() - started > 5000) {
+          if (alivenessTimer) { clearInterval(alivenessTimer); alivenessTimer = null; }
+          // Respect a pause — only a widget that claims to be playing yet never
+          // moves is dead.
+          scWidget.isPaused(p => { if (!p) failLoad(); });
+        }
+      });
+    }, 500);
+  }
 
   // On mobile Safari, seekTo only works once the user presses play, and SC honors a
   // lone seek/volume call only intermittently — so keep the widget muted and re-assert
@@ -331,7 +425,14 @@ function selectMobileTrack(nodeId) {
     const BAIL_MS = 12000;     // deep seeks need more than the old 5s to land
     mobileMuteGuard = setInterval(() => {
       if (didSeek) { stopMobileMuteGuard(); return; }
-      if (Date.now() - started > BAIL_MS) { didSeek = true; try { scWidget.setVolume(100); } catch (e) {} stopMobileMuteGuard(); return; }
+      if (Date.now() - started > BAIL_MS) {
+        didSeek = true;
+        try { scWidget.setVolume(100); } catch (e) {}
+        stopMobileMuteGuard();
+        // Unmuted → audible now, wherever the position ended up.
+        if (card && card.classList.contains('selected')) card.classList.add('playing');
+        return;
+      }
       scWidget.isPaused(paused => {
         if (didSeek || paused) return;
         scWidget.getPosition(pos => {
@@ -340,8 +441,11 @@ function selectMobileTrack(nodeId) {
           if (didSeek) return;
           if (pos >= target - 500) {
             didSeek = true;
+            sawProgress = true; // audio provably rolled — disarm dead-load recovery
             try { scWidget.setVolume(100); } catch (e) {}
             stopMobileMuteGuard();
+            // Seek landed and volume restored — audio starts now.
+            if (card && card.classList.contains('selected')) card.classList.add('playing');
           } else if (Date.now() - lastSeekAt > RESEEK_GRACE) {
             lastSeekAt = Date.now();
             try { scWidget.setVolume(0); scWidget.seekTo(target); } catch (e) {}
@@ -353,14 +457,14 @@ function selectMobileTrack(nodeId) {
     }, 100);
   }
   scWidget.bind(SC.Widget.Events.PAUSE, () => {
-    // Ignore PAUSE events from a prior load(): stopCurrentPlayback() calls scWidget.pause()
-    // synchronously, but the widget's PAUSE response is async (postMessage round-trip), so
-    // it arrives after the new handlers are already bound. Without this guard that stale
-    // PAUSE sets didSeek=true before the mute guard even starts, causing the mix to play
-    // from t=0 instead of the correct timestamp. The loadId check also covers the case where
-    // the widget was already loaded (readyFired would be true immediately, letting the stale
-    // PAUSE slip through on the very first card selection).
-    if (loadId !== currentLoadId) return; // stale
+    // Two stale-PAUSE filters. loadId drops events reaching a superseded handler
+    // registration. loadLanded drops the async echo of stopCurrentPlayback()
+    // pausing the PREVIOUS sound: that echo arrives after these handlers are
+    // bound (so its loadId matches) and would set didSeek=true before the mute
+    // guard even starts — restoring volume and letting the mix play from t=0
+    // instead of the track's timestamp.
+    if (loadId !== currentLoadId) return; // stale registration
+    if (!loadLanded) return; // echo from stopping the previous sound — the new load isn't in yet
     // A pause ends the intro-skip. Kill the guard and never seek again — otherwise
     // its next seekTo would un-pause the widget (Safari quirk) and steamroll the
     // user's pause. `isPaused` polling is too flaky to catch this reliably; the
@@ -375,7 +479,41 @@ function selectMobileTrack(nodeId) {
     if (card) card.classList.remove('playing');
   });
 
-  scWidget.load(url, { auto_play: true, show_artwork: false, visual: false, show_teaser: false, sharing: false, buying: false, show_user: true, color: 'B5705A' });
+  // Mute before load for offset sets: playback starts at 0:00 before the PLAY
+  // event arrives and the guard can mute, so without this the set's opening
+  // leaks at full volume through that window. Every later path restores volume
+  // (guard land/bail, the PAUSE handler, or PLAY on a no-offset load).
+  if (offsetSec) { try { scWidget.setVolume(0); } catch (e) {} }
+  readyTimeout = setTimeout(failLoad, 12000);
+  scWidget.load(url, {
+    auto_play: true, show_artwork: false, visual: false, show_teaser: false,
+    sharing: false, buying: false, show_user: true, color: 'B5705A',
+    callback: () => {
+      if (loadId !== currentLoadId) return;
+      loadLanded = true;
+      if (readyTimeout) { clearTimeout(readyTimeout); readyTimeout = null; }
+      // Verify the sound is actually playable — dead tracks reach this callback
+      // too. Checked after a settle delay: right at the callback the sound can
+      // still report playable=true (or be the previous sound); by ~1.5s the
+      // widget has discovered stream refusals and playable flips to false
+      // (geo/label blocks vary by IP, hence "worked yesterday, not today").
+      // Dead signatures: null sound, playable === false, a permalink that isn't
+      // what we loaded, or getCurrentSound not answering at all.
+      setTimeout(() => {
+        if (loadId !== currentLoadId || loadDead || sawProgress) return;
+        let answered = false;
+        const deadTimer = setTimeout(() => { if (!answered) failLoad(); }, 2500);
+        try {
+          scWidget.getCurrentSound(s => {
+            answered = true;
+            clearTimeout(deadTimer);
+            if (!s || s.playable === false ||
+                (s.permalink_url && scUrlKey(s.permalink_url) !== scUrlKey(url))) failLoad();
+          });
+        } catch (e) { clearTimeout(deadTimer); }
+      }, 1500);
+    },
+  });
 }
 
 // Mobile titles are already single-line + ellipsis. If cut off, record the
@@ -397,12 +535,14 @@ function makeCarouselCard(node) {
   card.dataset.nodeId = node.id;
   card.dataset.rank = node.rank || '';
   const hasAudio = !!(node.scTrackUrl || node.setUrl);
+  if (node.scTrackUrl && scSnipCache[node.scTrackUrl]) card.classList.add('snipped');
 
   card.innerHTML = `
     <div class="mc-art-wrap">
       ${mobileArtHtml(node)}
       ${renderSourceToggle(node)}
       ${hasAudio ? `<span class="source-badge">${EQ_BARS_HTML}</span>` : ''}
+      ${node.scTrackUrl ? `<span class="preview-badge">preview, soundcloud premium</span>` : ''}
     </div>
     <div class="mc-info-row">
       <div class="mc-info-text">

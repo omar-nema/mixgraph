@@ -743,6 +743,15 @@
     z-index: 6;
   }
   .mobile-carousel-card.playing .source-badge { opacity: 1; }
+  /* Go+ preview pill — mirrors the eq badge's placement on the opposite corner.
+     Shown for the selected card once the track is known snipped, but not when
+     the user has switched that card to mix playback. */
+  .mobile-carousel-card .preview-badge {
+    bottom: 8px;
+    left: 8px;
+    z-index: 6;
+  }
+  .mobile-carousel-card.selected.snipped[data-selected-source="track"] .preview-badge { opacity: 1; }
   .mobile-carousel-card.playing .source-badge .eq-bar {
     animation: eq-bounce var(--eq-dur, 0.9s) ease-in-out infinite;
   }

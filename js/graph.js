@@ -101,6 +101,10 @@ function renderCards() {
     // SoundCloud badge — matches the eq-badge style, only surfaces on the playing
     // card when audio is coming from SoundCloud (CSS gates it via data-source).
     const scBadge = `<span class="sc-badge">${SOUNDCLOUD_ICON}</span>`;
+    // Go+ preview pill, bottom-left — surfaces when the loaded SC track is a
+    // 30s snippet (detected via checkScSnip, or already cached).
+    const previewBadge = node.scTrackUrl ? `<span class="preview-badge">preview<span class="pb-long">, soundcloud premium</span></span>` : '';
+    if (node.scTrackUrl && scSnipCache[node.scTrackUrl]) card.classList.add('snipped');
 
     const rootTitle = nodes.find(n => n.rank === 'root')?.title || '';
     let rankLabel;
@@ -178,6 +182,7 @@ function renderCards() {
         ${playBtn}
         ${sourceBadge}
         ${scBadge}
+        ${previewBadge}
         ${renderSourceToggle(node)}
         <div class="progress-bar"><div class="bar-track"><div class="bar-fill"></div></div></div>
       </div>

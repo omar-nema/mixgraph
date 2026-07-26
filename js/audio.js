@@ -14,6 +14,39 @@ let isSeeking = false;
 let playingSetOffset = 0;   // track start offset in set (ms)
 let scPlayTimeout = null;
 let scMuteGuard = null; // interval that keeps the SC widget muted until the intro-skip seek lands
+let scAudibleTimer = null; // fallback timer that flips the card to "playing" if PLAY_PROGRESS never fires
+let scSetupSeq = 0; // bumped per setupScWidget so stale closures (same node re-setup) can self-disarm
+
+// Loose URL identity for comparing a widget sound's permalink to the URL we
+// asked it to load — dead loads leave the PREVIOUS sound in the widget, so
+// getCurrentSound answering is only meaningful if it answers the right sound.
+function scUrlKey(u) {
+  return (u || '').toLowerCase().replace(/^https?:\/\/(www\.)?/, '').replace(/[?#].*$/, '').replace(/\/$/, '');
+}
+
+// SoundCloud sometimes refuses to STREAM a track while happily serving its
+// metadata (geo/label blocks — they vary by IP and day, so a track can work one
+// day and not the next). When playback detects this, we mark the track option
+// as blocked on every rendered toggle for the node so the user can see why it
+// won't play and tap "mixed" themselves. The user's source choice is NEVER
+// switched automatically.
+function markTrackDead(nodeId) {
+  const node = nodeMap[nodeId];
+  if (!node) return;
+  node.scTrackDead = true;
+  const tip = 'SoundCloud can’t stream this track right now — try mixed';
+  document.querySelectorAll('.source-toggle').forEach(toggle => {
+    if (toggle.dataset.nodeId !== String(nodeId)) return;
+    toggle.setAttribute('data-disabled-tip', tip);
+    const opt = toggle.querySelector('.src-opt[data-source="track"]');
+    if (opt) {
+      opt.classList.add('disabled');
+      opt.setAttribute('aria-disabled', 'true');
+      opt.setAttribute('data-tip', tip);
+      opt.innerHTML = `${BLOCKED_ICON}<span class="src-label">track</span>`;
+    }
+  });
+}
 // Tracks whether the user has paused/stopped the current playback. A backend's
 // load is async: it fires READY (and auto_play) some time after we call load().
 // Without this flag, a pause issued during that window is silently overridden
@@ -119,6 +152,7 @@ function hideScPlayer() {
 function stopCurrentPlayback() {
   clearPlayTimeout();
   if (scMuteGuard) { clearInterval(scMuteGuard); scMuteGuard = null; }
+  if (scAudibleTimer) { clearTimeout(scAudibleTimer); scAudibleTimer = null; }
   // Suppress any in-flight load from auto-playing after this stop. A fresh
   // play() (playSC/playSCSet/playMixcloud) clears the flag again.
   userPaused = true;
@@ -223,6 +257,9 @@ function initProgressBarInteraction(card) {
   bar.addEventListener('pointerdown', e => {
     const nodeId = card.getAttribute('data-node-id');
     if (nodeId !== currentlyPlayingId) return;
+    // Go+ snippets reject seeks (SC restarts the 30s preview instead) — the bar
+    // shows a not-allowed cursor + tooltip, so swallow the gesture entirely.
+    if (card.classList.contains('snipped') && card.getAttribute('data-source') === 'soundcloud') return;
     e.preventDefault();
     e.stopPropagation();
     isSeeking = true;
@@ -286,6 +323,31 @@ function setupScWidget(nodeId, card, offsetSec, onError) {
   // gates every PLAY handler action on the new sound being loaded.
   let loadReady = false;
   if (scMuteGuard) { clearInterval(scMuteGuard); scMuteGuard = null; }
+  if (scAudibleTimer) { clearTimeout(scAudibleTimer); scAudibleTimer = null; }
+
+  // Flip the card from "loading" (shimmer) to "playing" (EQ badge + glow) only
+  // once audio is actually audible. The PLAY event alone leads the sound by
+  // 1-2s: the stream is still buffering, and for sets the widget is muted while
+  // the intro-skip seek lands. Callers: the mute guard at the moment it unmutes
+  // (sets), PLAY_PROGRESS once the position is advancing (tracks), and a
+  // fallback timer so the card can never stick on shimmer. Idempotent.
+  const mySeq = ++scSetupSeq;
+  let audibleShown = false;
+  function showAudible() {
+    if (audibleShown || userPaused || currentlyPlayingId !== nodeId) return;
+    if (mySeq !== scSetupSeq) return; // superseded setup (e.g. fallback re-play of the same node)
+    audibleShown = true;
+    clearPlayTimeout(); // audio confirmed — stand down the stuck-load safety net
+    if (card) {
+      hideLoading(card);
+      card.classList.add('playing');
+      applyGlow(card);
+      // Button state is authoritative here — otherwise a source switch
+      // (track → mix) can leave "play" showing while audio plays.
+      const btn = card.querySelector('.play-btn');
+      if (btn) btn.innerHTML = PAUSE_SVG;
+    }
+  }
 
   // Seek to the track's offset within the set (usually deep — median ~35 min).
   // SC swallows a seek issued before playback truly begins, so we keep the widget
@@ -307,6 +369,7 @@ function setupScWidget(nodeId, card, offsetSec, onError) {
         seekLanded = true;
         try { scWidget.setVolume(100); } catch (e) {}
         clearInterval(scMuteGuard); scMuteGuard = null;
+        showAudible(); // unmuted → audible now, wherever the position ended up
         return;
       }
       if (userPaused) return; // hold muted; don't fight a user pause with seek/play
@@ -318,6 +381,7 @@ function setupScWidget(nodeId, card, offsetSec, onError) {
           seekLanded = true;
           try { scWidget.setVolume(100); } catch (e) {}
           if (scMuteGuard) { clearInterval(scMuteGuard); scMuteGuard = null; }
+          showAudible(); // seek landed and volume restored — audio starts now
         } else if (Date.now() - lastSeekAt > RESEEK_GRACE) {
           // Not there yet and the last seek has had time to land — (re)issue it.
           lastSeekAt = Date.now();
@@ -354,33 +418,82 @@ function setupScWidget(nodeId, card, offsetSec, onError) {
     // load swapped in — acting on it would start the mute guard against the wrong
     // sound's position and let the new set unmute at 0:00.
     if (!loadReady) return;
-    clearPlayTimeout();
     showScPlayer();
-    if (seekMs && !seekLanded) startScMuteGuard();
-    else { try { scWidget.setVolume(100); } catch (e) {} } // recover if a prior set left it muted
-    if (card) {
-      hideLoading(card);
-      card.classList.add('playing');
-      applyGlow(card);
-      // Button state is authoritative from the actual PLAY event — otherwise a
-      // source switch (track → mix) can leave "play" showing while audio plays.
-      const btn = card.querySelector('.play-btn');
-      if (btn) btn.innerHTML = PAUSE_SVG;
+    if (seekMs && !seekLanded) {
+      // The guard owns recovery from here (12s bail) — stand down the play
+      // timeout so its 10s reset can't fire mid-seek. Card stays on shimmer;
+      // the guard calls showAudible() when it unmutes.
+      clearPlayTimeout();
+      startScMuteGuard();
+    } else {
+      // NB: the play timeout stays armed here — PLAY alone doesn't prove audio.
+      // A stale PLAY (old sound resuming pre-swap) or a stream-blocked track
+      // fires PLAY with the position pinned at 0; if audio never rolls, the
+      // timeout's 10s stage recovers (fallback to mix / reset). showAudible()
+      // stands it down once audio is confirmed.
+      try { scWidget.setVolume(100); } catch (e) {} // recover if a prior set left it muted
+      // The audible flip comes from PLAY_PROGRESS (position actually advancing).
+      // Fallback: if that event never fires, flip only if the position really
+      // moved — a dead stream must keep the shimmer so the timeout can recover.
+      if (!audibleShown && !scAudibleTimer) scAudibleTimer = setTimeout(() => {
+        scAudibleTimer = null;
+        try { scWidget.getPosition(p => { if (p > 0) showAudible(); }); } catch (e) {}
+      }, 3000);
     }
     startProgressPolling();
+  });
+  scWidget.bind(SC.Widget.Events.PLAY_PROGRESS, e => {
+    if (!loadReady || userPaused) return;
+    if (seekMs && !seekLanded) return; // muted intro-skip still in flight — not audible
+    if (e && e.currentPosition > 0) showAudible();
   });
   scWidget.bind(SC.Widget.Events.FINISH, onPlaybackEnded);
   scWidget.bind(SC.Widget.Events.ERROR, onError);
   return onLoadReady;
 }
 
-function playSC(nodeId, trackUrl) {
-  if (AUDIO_SUPPRESSED) return;
-  if (!initSCWidget()) {
-    const node = nodeMap[nodeId];
-    if (node && node.setUrl) { setSelectedAudioSource(nodeId, 'mix'); playSet(nodeId); }
+// ── SoundCloud Go+ snippet detection ──
+// Go+-only tracks stream as 30s previews for anonymous listeners. The widget's
+// sound object exposes this upfront (policy "SNIP", duration capped at 30000 vs
+// full_duration) — getDuration() does NOT, it reports the full length. Verdicts
+// are cached in localStorage so known tracks show the badge on future loads.
+let scSnipCache = {};
+try { scSnipCache = JSON.parse(localStorage.getItem('scSnipCache') || '{}'); } catch (e) {}
+
+function markSnipped(nodeId) {
+  const card = findCardForNode(nodeId);
+  if (card) card.classList.add('snipped');
+}
+
+function checkScSnip(nodeId, trackUrl, attempt = 0) {
+  if (!trackUrl || !scWidget) return;
+  if (trackUrl in scSnipCache) {
+    if (scSnipCache[trackUrl]) markSnipped(nodeId);
     return;
   }
+  try {
+    scWidget.getCurrentSound(sound => {
+      if (currentlyPlayingId !== nodeId) return;
+      // Sound metadata can lag READY/load by several seconds on slow loads —
+      // keep retrying while this node is still the current one (~9s total).
+      if (!sound || !sound.duration) {
+        if (attempt < 15) setTimeout(() => checkScSnip(nodeId, trackUrl, attempt + 1), 600);
+        return;
+      }
+      const snipped = sound.policy === 'SNIP' ||
+        (sound.full_duration > 0 && sound.full_duration - sound.duration > 1000);
+      scSnipCache[trackUrl] = snipped;
+      try { localStorage.setItem('scSnipCache', JSON.stringify(scSnipCache)); } catch (e) {}
+      if (snipped) markSnipped(nodeId);
+    });
+  } catch (e) {}
+}
+
+function playSC(nodeId, trackUrl) {
+  if (AUDIO_SUPPRESSED) return;
+  // If the SC widget API isn't available nothing SC-hosted can play — bail
+  // without touching the user's source choice.
+  if (!initSCWidget()) return;
 
   const { card } = prepareCardForPlayback(nodeId, 'soundcloud');
   currentlyPlayingId = nodeId;
@@ -388,14 +501,21 @@ function playSC(nodeId, trackUrl) {
   playingSetOffset = 0;
   userPaused = false;
 
-  const onLoadReady = setupScWidget(nodeId, card, 0, () => {
+  // The track can't play (stream refused / removed / widget error): stop the
+  // shimmer, reset the card, and mark the track option as blocked so the user
+  // can see why and choose "mixed" themselves. NEVER auto-switch their source.
+  const abandonDeadTrack = () => {
     hideScPlayer();
     resetCardUI(nodeId);
     currentlyPlayingId = null;
     currentBackend = null;
-    const node = nodeMap[nodeId];
-    if (node && node.setUrl) { setSelectedAudioSource(nodeId, 'mix'); playSet(nodeId); }
-  });
+    markTrackDead(nodeId);
+  };
+  const onLoadReady = setupScWidget(nodeId, card, 0, abandonDeadTrack);
+  // Identifies THIS track load. A later playSCSet/playSC (e.g. the user
+  // switching to mixed mid-load) bumps the seq — any still-pending dead-check
+  // for this load must then stand down instead of clobbering the new playback.
+  const myLoadSeq = scSetupSeq;
 
   showScPlayer();
   // Call play() synchronously in the user gesture so Safari unlocks iframe audio.
@@ -403,8 +523,39 @@ function playSC(nodeId, trackUrl) {
   // the previously-loaded (paused) track until load() swaps in the new one. Muting
   // keeps that ~0.5s leak silent; the PLAY handler restores volume for the new track.
   try { scWidget.setVolume(0); scWidget.play(); } catch (e) {}
-  scWidget.load(trackUrl, { ...getScLoadOpts(), callback: onLoadReady });
-  startPlayTimeout(nodeId, true);
+  scWidget.load(trackUrl, { ...getScLoadOpts(), callback: () => {
+    onLoadReady();
+    checkScSnip(nodeId, trackUrl);
+    // Dead-track detection: removed / region-blocked tracks reach this callback
+    // and fire READY, but never stream — play() is silently ignored, leaving a
+    // dead play button. Verified after a settle delay: right at the callback the
+    // sound can still report playable=true (or be the previous sound); by ~1.5s
+    // the widget has discovered stream refusals and playable flips to false
+    // (geo/label blocks vary by IP, hence "worked yesterday, not today"). Dead
+    // signatures: null sound, playable === false, a permalink that isn't what we
+    // loaded, or getCurrentSound not answering at all. Resolves in ~1.5-4s
+    // instead of the 10s play-timeout; skipped once the card left "loading"
+    // (audio flowing) or the user cancelled/switched away.
+    const stillMine = () => scSetupSeq === myLoadSeq && currentlyPlayingId === nodeId && !userPaused &&
+      (c => c && c.classList.contains('loading'))(findCardForNode(nodeId));
+    setTimeout(() => {
+      if (!stillMine()) return;
+      let answered = false;
+      const deadTimer = setTimeout(() => { if (!answered && stillMine()) abandonDeadTrack(); }, 2500);
+      try {
+        scWidget.getCurrentSound(s => {
+          answered = true;
+          clearTimeout(deadTimer);
+          const dead = !s || s.playable === false ||
+            (s.permalink_url && scUrlKey(s.permalink_url) !== scUrlKey(trackUrl));
+          if (dead && stillMine()) abandonDeadTrack();
+        });
+      } catch (e) { clearTimeout(deadTimer); }
+    }, 1500);
+  } });
+  // No fallbackToSet: if audio still hasn't started after 10s the card resets,
+  // but the user's track/mixed choice is left alone.
+  startPlayTimeout(nodeId, false);
 }
 
 function playSCSet(nodeId, setUrl, offsetSec) {

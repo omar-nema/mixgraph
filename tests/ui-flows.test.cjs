@@ -243,7 +243,11 @@ async function testStalePlayIgnoredOnSourceSwitch(browser) {
             loading: card.classList.contains('loading'),
             guardRunning: typeof scMuteGuard !== 'undefined' && scMuteGuard !== null,
           };
-          await sleep(2500); // past the delayed load → set truly plays
+          // Past the delayed load, the set truly plays — but the card flips to
+          // .playing only when audio is audible (intro-skip seek landed and the
+          // widget unmuted), so poll for the flip instead of a fixed sleep.
+          const t0 = Date.now();
+          while (!card.classList.contains('playing') && Date.now() - t0 < 20000) await sleep(250);
           const after = {
             playing: card.classList.contains('playing'),
             setMode: typeof playingSetOffset !== 'undefined' && playingSetOffset > 0,
