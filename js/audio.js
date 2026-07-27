@@ -457,8 +457,15 @@ function setupScWidget(nodeId, card, offsetSec, onError) {
 // sound object exposes this upfront (policy "SNIP", duration capped at 30000 vs
 // full_duration) — getDuration() does NOT, it reports the full length. Verdicts
 // are cached in localStorage so known tracks show the badge on future loads.
+// Bump the version suffix to invalidate every cached verdict on deploy — use it
+// whenever the detection logic changes so stale/false positives can't linger.
+// v2: added the permalink guard below + reset misfires cached under the old key.
+const SNIP_CACHE_KEY = 'scSnipCache:v2';
 let scSnipCache = {};
-try { scSnipCache = JSON.parse(localStorage.getItem('scSnipCache') || '{}'); } catch (e) {}
+try { scSnipCache = JSON.parse(localStorage.getItem(SNIP_CACHE_KEY) || '{}'); } catch (e) {}
+// Drop the pre-versioning cache so old false positives (e.g. a full track
+// mis-flagged from a stale sound read) don't survive this fix.
+try { localStorage.removeItem('scSnipCache'); } catch (e) {}
 
 function markSnipped(nodeId) {
   const card = findCardForNode(nodeId);
@@ -480,10 +487,19 @@ function checkScSnip(nodeId, trackUrl, attempt = 0) {
         if (attempt < 15) setTimeout(() => checkScSnip(nodeId, trackUrl, attempt + 1), 600);
         return;
       }
+      // The SC widget is shared: right after load() getCurrentSound can still
+      // report the PREVIOUS track's sound. Never cache a verdict read from a
+      // different sound than the one we're evaluating — that's how a full track
+      // gets a stale snippet's SNIP verdict pinned to its URL. Retry until the
+      // widget reports the track we asked for (mirrors the dead-track guard).
+      if (sound.permalink_url && scUrlKey(sound.permalink_url) !== scUrlKey(trackUrl)) {
+        if (attempt < 15) setTimeout(() => checkScSnip(nodeId, trackUrl, attempt + 1), 600);
+        return;
+      }
       const snipped = sound.policy === 'SNIP' ||
         (sound.full_duration > 0 && sound.full_duration - sound.duration > 1000);
       scSnipCache[trackUrl] = snipped;
-      try { localStorage.setItem('scSnipCache', JSON.stringify(scSnipCache)); } catch (e) {}
+      try { localStorage.setItem(SNIP_CACHE_KEY, JSON.stringify(scSnipCache)); } catch (e) {}
       if (snipped) markSnipped(nodeId);
     });
   } catch (e) {}
