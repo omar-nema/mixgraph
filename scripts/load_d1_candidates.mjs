@@ -91,11 +91,13 @@ for (let f = 0; f < cands.length; f += ROWS_PER_FILE) {
 
 // _new-suffixed index names so they never collide with the live table's indexes.
 writeFileSync(`${OUT}/99_index_meta.sql`,
-  `CREATE INDEX idx_new_a  ON candidates_new(a);
-CREATE INDEX idx_new_s  ON candidates_new(s);
-CREATE INDEX idx_new_st ON candidates_new(st);
-CREATE INDEX idx_new_e  ON candidates_new(e);
-CREATE INDEX idx_new_cw ON candidates_new(cw);
+  // IF NOT EXISTS so a retry after a partial failure doesn't wedge on
+  // "index already exists" (the shadow table's indexes may survive a crash).
+  `CREATE INDEX IF NOT EXISTS idx_new_a  ON candidates_new(a);
+CREATE INDEX IF NOT EXISTS idx_new_s  ON candidates_new(s);
+CREATE INDEX IF NOT EXISTS idx_new_st ON candidates_new(st);
+CREATE INDEX IF NOT EXISTS idx_new_e  ON candidates_new(e);
+CREATE INDEX IF NOT EXISTS idx_new_cw ON candidates_new(cw);
 DROP TABLE IF EXISTS meta_new;
 CREATE TABLE meta_new (k TEXT PRIMARY KEY, v REAL);
 INSERT INTO meta_new (k,v) VALUES ('total_count',${totalCount}),('total_weight',${totalWeight});
