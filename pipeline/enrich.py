@@ -23,6 +23,7 @@ import json
 import re
 import sys
 import time
+import shutil
 import atexit
 import signal
 import socket
@@ -391,6 +392,99 @@ def save_cache(cache: Dict[str, Any], cache_path: Path):
         json.dump(cache, f, ensure_ascii=False)
 
 
+def upgrade_nts_mixcloud_sc(
+    graph_nodes: Dict[str, Any],
+    cache_path: Path,
+    dry_run: bool = False,
+) -> int:
+    """Opt-in, additive: upgrade NTS tracks whose set fell back to Mixcloud to the
+    real SoundCloud set when the NTS API now exposes one.
+
+    Self-contained — it does NOT touch the enrichment waterfall or any other mode.
+    Scope: cache entries with setSource == "mixcloud" whose node maps to an
+    nts.live episode. For each such episode we re-query the NTS API (via the shared
+    per-episode cache, so calls ~= distinct episodes). Only entries that actually
+    gain a SoundCloud set are mutated, and only their set-identity fields:
+    setUrl -> the SC set, setSource -> "soundcloud" (and source -> "soundcloud_set"
+    only where it was "mixcloud_set"/"not_found", mirroring the waterfall). Timing
+    fields (setTimestamp/setOffsetSec/setDj), scTrackUrl, artUrl and everything else
+    are preserved. Entries with no SC set available are left byte-for-byte unchanged.
+    """
+    if not cache_path.exists():
+        print(f"ERROR: no cache at {cache_path} — nothing to upgrade.")
+        return 1
+    with open(cache_path, "r", encoding="utf-8") as f:
+        cache = json.load(f)
+    print(f"  Existing cache: {len(cache)} entries")
+
+    # Scope selection: setSource == mixcloud AND episode is nts.live
+    candidates = []  # (nid, entry, ep_ctx)
+    for nid, entry in cache.items():
+        if entry.get("setSource") != "mixcloud":
+            continue
+        node = graph_nodes.get(nid)
+        if not node:
+            continue
+        ep_ctx = get_episode_context(node)
+        ep_url = (ep_ctx or {}).get("episode_url") or ""
+        if not ep_ctx or "nts.live" not in ep_url:
+            continue
+        candidates.append((nid, entry, ep_ctx))
+
+    distinct_eps = {c[2]["episode_url"] for c in candidates}
+    print(f"  Candidates (setSource=mixcloud, NTS episode): {len(candidates)}")
+    print(f"  Distinct NTS episodes to query: {len(distinct_eps)}")
+
+    # Per-episode API cache so we hit the NTS API ~once per distinct episode.
+    episode_cache: Dict[str, Any] = {}
+    upgrades = []   # (nid, entry, sc_set_url)
+    no_sc = 0       # candidates whose episode still has no SC set on the API
+    for idx, (nid, entry, ep_ctx) in enumerate(candidates):
+        nts_urls = get_nts_episode_urls(ep_ctx["episode_url"], episode_cache)
+        sc_set_url = nts_urls.get("soundcloud")
+        if sc_set_url:
+            upgrades.append((nid, entry, sc_set_url))
+        else:
+            no_sc += 1
+        if (idx + 1) % 500 == 0:
+            print(f"    queried {idx + 1}/{len(candidates)} candidates...")
+
+    print(f"\n  WOULD upgrade to SoundCloud set: {len(upgrades)}")
+    print(f"  No SC set on API — left unchanged: {no_sc}")
+    print(f"  NTS API calls made: {len(episode_cache)}")
+
+    # Preview a few concrete upgrades
+    for nid, entry, sc_set_url in upgrades[:8]:
+        print(f"    {nid}\n      {entry.get('setUrl')}  ->  {sc_set_url}")
+
+    if dry_run:
+        print("\n  DRY RUN — no files written.")
+        return 0
+
+    if not upgrades:
+        print("\n  Nothing to upgrade — cache left untouched.")
+        return 0
+
+    # Back up before any write
+    backup_path = cache_path.with_name(
+        f"{cache_path.stem}.bak-{time.strftime('%Y%m%d-%H%M%S')}{cache_path.suffix}"
+    )
+    shutil.copy2(cache_path, backup_path)
+    print(f"\n  Backed up cache to {backup_path}")
+
+    # Apply upgrades in place. Only set-identity fields change; the new value is
+    # already in hand (no drop-then-hope). All other fields are preserved.
+    for nid, entry, sc_set_url in upgrades:
+        entry["setUrl"] = sc_set_url
+        entry["setSource"] = "soundcloud"
+        if entry.get("setOffsetSec") is not None and entry.get("source") in ("not_found", "mixcloud_set"):
+            entry["source"] = "soundcloud_set"
+
+    save_cache(cache, cache_path)
+    print(f"  Upgraded {len(upgrades)} entries and saved {cache_path}")
+    return 0
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Build audio cache: SC track -> SC set -> Mixcloud set"
@@ -423,6 +517,17 @@ def main():
         "--source", type=str, default=None, metavar="SOURCE",
         help="Reprocess entries currently matched to a specific source. Supported: 'lot-radio'",
     )
+    parser.add_argument(
+        "--upgrade-nts-mixcloud-sc", action="store_true",
+        help="Opt-in: upgrade NTS tracks whose set fell back to Mixcloud to the "
+             "SoundCloud set when the NTS API now exposes one. Only upgraded "
+             "entries are touched; others are left unchanged.",
+    )
+    parser.add_argument(
+        "--dry-run", action="store_true",
+        help="With --upgrade-nts-mixcloud-sc: report how many entries would "
+             "upgrade without writing anything.",
+    )
     args = parser.parse_args()
 
     # Load graph
@@ -438,6 +543,11 @@ def main():
     # Guard against concurrent runs — overlapping writes corrupt the cache
     if not acquire_lock(cache_path):
         return 1
+
+    # Opt-in additive mode — dormant unless explicitly invoked. Self-contained:
+    # returns before the standard cache-load/cleanup/waterfall path below.
+    if args.upgrade_nts_mixcloud_sc:
+        return upgrade_nts_mixcloud_sc(graph_nodes, cache_path, dry_run=args.dry_run)
 
     if cache_path.exists():
         with open(cache_path, "r", encoding="utf-8") as f:
