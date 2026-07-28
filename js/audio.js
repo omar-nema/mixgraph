@@ -109,18 +109,28 @@ function initSCWidget() {
 }
 
 
-// ── Safari desktop cold-start priming (wasted-gesture workaround) ──
-// Desktop Safari silently refuses the FIRST gesture-driven play() of every page
-// load (its autoplay policy vs the cross-origin SoundCloud iframe); the SECOND
-// user gesture works. Root cause unknown, but the only reliably-verified primer
-// (real Safari 18.6, safaridriver) is a full load()+play() cycle driven by a
-// real user gesture — a same-gesture retry does NOT work. So on desktop Safari
-// we spend the user's FIRST click anywhere on a muted throwaway load+play,
-// making their first real Play click the honoured second gesture. Invisible:
-// the widget stays hidden and muted, and nothing plays audibly.
+// ── Safari desktop cold-start priming ──
+// Desktop Safari silently refuses the FIRST play attempt of every page load (its
+// autoplay policy vs the cross-origin SoundCloud iframe); the second attempt
+// works. Root cause: WebKit stamps every new HTMLMediaElement with a
+// user-gesture requirement at creation, and SC.Widget.load() RE-NAVIGATES the
+// iframe, so each attempt gets a fresh restricted element. The widget creates
+// that element lazily (~1s, at first playback), so the first attempt's gesture
+// arrives with nothing to act on and is wasted; the second attempt succeeds
+// because the first left an initialized element behind, and unlocking it trips a
+// page-lifetime sticky bit.
+//
+// The gesture was never the active ingredient — an initialized element is, and
+// load(..., auto_play:true) creates one with or without a gesture (Safari just
+// denies the playback silently). So we prime once at setup instead of spending
+// the user's first click. That also covers the two flows a click-driven primer
+// missed: landing straight on /shuffle and pressing Play first, and the default
+// Dig → Shuffle → Play journey, where no seed exists yet at the tab click so the
+// Play click itself got consumed.
 //
 // Gated to desktop Safari ONLY. Every other browser — and mobile Safari, which
-// already works via its visible widget — never arms this and is untouched.
+// already works via its visible widget — never primes and is untouched. The gate
+// matters: on an autoplay-permissive browser this load could actually play.
 const IS_DESKTOP_SAFARI = (() => {
   const ua = navigator.userAgent || '';
   const isSafari = /Safari\//.test(ua) && !/Chrom(e|ium)|CriOS|FxiOS|Edg|OPR|OPiOS|Android/i.test(ua);
@@ -130,38 +140,48 @@ const IS_DESKTOP_SAFARI = (() => {
 })();
 
 let safariPrimed = false;
+let safariPrimePoll = null;
 function armSafariAudioPrime() {
   if (!IS_DESKTOP_SAFARI) return; // no-op on every other browser
-  const primer = (e) => {
-    if (safariPrimed) { document.removeEventListener('click', primer, true); return; }
-    // Only a genuine user gesture grants Safari's autoplay activation — a
-    // synthetic/programmatic .click() (isTrusted false) would waste the primer.
-    if (!e || !e.isTrusted) return;
-    if (!initSCWidget()) return; // SC API not ready yet — stay armed for the next click
-    // A real SoundCloud URL to prime the widget with: any individual track
-    // (fast) or a SC set from the loaded graph. If none yet, stay armed.
+
+  const tryPrime = () => {
+    if (safariPrimed) return true;
+    // Never prime over real playback — the user got there first, and the widget
+    // is already unlocked by definition.
+    if (currentlyPlayingId != null) { safariPrimed = true; return true; }
+    if (!initSCWidget()) return false; // SC API not ready yet — keep waiting
+    // Any real SoundCloud URL will do; all we need is for the widget to build a
+    // media element. Prefer an individual track (fastest to resolve).
     let seed = null;
-    for (const k in nodeMap) { const n = nodeMap[k]; if (n && n.scTrackUrl) { seed = n.scTrackUrl; break; } }
-    if (!seed) for (const k in nodeMap) {
-      const n = nodeMap[k]; if (n && n.setUrl && /soundcloud\.com/.test(n.setUrl)) { seed = n.setUrl; break; }
+    if (typeof nodeMap !== 'undefined' && nodeMap) {
+      for (const k in nodeMap) { const n = nodeMap[k]; if (n && n.scTrackUrl) { seed = n.scTrackUrl; break; } }
+      if (!seed) for (const k in nodeMap) {
+        const n = nodeMap[k]; if (n && n.setUrl && /soundcloud\.com/.test(n.setUrl)) { seed = n.setUrl; break; }
+      }
     }
-    if (!seed) return; // graph not loaded yet — try again on the next click
+    if (!seed) return false; // graph not loaded yet (e.g. still on Dig) — keep waiting
     safariPrimed = true;
-    document.removeEventListener('click', primer, true);
     try {
       scWidget.setVolume(0);
-      scWidget.play();
       scWidget.load(seed, { auto_play: true, show_artwork: false, visual: false,
         callback: () => { try { scWidget.setVolume(0); scWidget.play(); } catch (e) {} } });
-      // Silence the throwaway once it has primed the widget — but never touch a
-      // real playback the user may have started in the meantime.
+      // Silence the throwaway once it has done its job — but never touch a real
+      // playback the user may have started in the meantime.
       setTimeout(() => {
         if (currentlyPlayingId != null) return;
         try { scWidget.pause(); scWidget.seekTo(0); } catch (e) {}
-      }, 1000);
+      }, 1500);
     } catch (e) {}
+    return true;
   };
-  document.addEventListener('click', primer, true);
+
+  // The seed lives in the graph, which isn't loaded on the Dig landing page, so
+  // poll until it appears rather than hanging the primer off a user click.
+  if (tryPrime()) return;
+  let tries = 0;
+  safariPrimePoll = setInterval(() => {
+    if (tryPrime() || ++tries > 120) { clearInterval(safariPrimePoll); safariPrimePoll = null; }
+  }, 500);
 }
 if (typeof document !== 'undefined') armSafariAudioPrime();
 
@@ -351,6 +371,16 @@ function prepareCardForPlayback(nodeId, source) {
   if (card) {
     showLoading(card);
     card.setAttribute('data-source', source);
+    // Point the SoundCloud badge at whatever is actually playing — the isolated
+    // track, or the set at its timestamp when playing mixed. No href for
+    // Mixcloud playback (the badge stays hidden there anyway).
+    const scBadge = card.querySelector('.sc-badge');
+    if (scBadge) {
+      const href = source === 'set' ? scBadge.dataset.scSet
+                 : source === 'soundcloud' ? scBadge.dataset.scTrack : '';
+      if (href) scBadge.setAttribute('href', href);
+      else scBadge.removeAttribute('href');
+    }
   }
   return { card, btn };
 }

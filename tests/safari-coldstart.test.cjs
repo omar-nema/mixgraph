@@ -1,18 +1,27 @@
 /**
  * Safari desktop cold-start playback — REAL Safari via safaridriver.
  *
- * The desktop-Safari "first play is silent" bug and its wasted-gesture fix
- * CANNOT be tested in Playwright/WebKit — WebKit is stricter than real Safari
- * and gives false verdicts (a fix that works in real Safari looks broken there,
- * and vice-versa). This suite drives REAL Safari over the W3C WebDriver protocol
- * (safaridriver), where WebDriver clicks count as genuine user gestures.
+ * Desktop Safari silently refuses the FIRST playback attempt of every page load.
+ * Cause: WebKit stamps each new HTMLMediaElement with a user-gesture requirement
+ * at creation, SC.Widget.load() re-navigates the iframe (so every attempt gets a
+ * fresh restricted element), and the widget builds that element lazily ~1s in —
+ * so the first attempt's gesture lands with nothing to act on. The fix
+ * (armSafariAudioPrime in js/audio.js) does a muted throwaway load at setup so an
+ * initialized element already exists when the user first presses Play. It needs
+ * no user gesture, which is what lets it cover the flows below.
  *
- * Two cases against the app (which ships the fix):
- *   A. NEGATIVE CONTROL — play as the very FIRST gesture (no preceding gesture):
- *      same-gesture priming can't help, so it stays SILENT. Proves the bug is
- *      real and the position-advance detector actually detects silence.
- *   B. THE FIX — one ordinary gesture (click the search box) BEFORE the play
- *      click, so the in-app primer has spent the first gesture: cold play PLAYS.
+ * This CANNOT be tested in Playwright/WebKit — WebKit is stricter than real
+ * Safari and gives false verdicts in both directions. This suite drives REAL
+ * Safari over W3C WebDriver, where WebDriver clicks are genuine user gestures.
+ *
+ *   A. NEGATIVE CONTROL — primer disabled before it can run, then play as the
+ *      first gesture: SILENT. Proves the bug is real, that the position-advance
+ *      detector actually detects silence, and that the primer is what fixes it.
+ *   B. DEFAULT JOURNEY — Dig → Shuffle tab → Play: PLAYS. This is the flow the
+ *      earlier click-driven primer missed (no seed existed at the tab click, so
+ *      the Play click itself got consumed).
+ *   C. PLAY IS THE ONLY CLICK — e.g. landing straight on a shared /shuffle link:
+ *      PLAYS, because priming no longer depends on a preceding gesture.
  *
  * Verdict = SC widget position ADVANCING (never a PLAY event or a landed seek).
  *
@@ -24,7 +33,6 @@
  *           SITE defaults to http://127.0.0.1:8000/ (scripts/serve.py).
  */
 const { execSync, spawn } = require('child_process');
-const fs = require('fs');
 
 const SITE = process.argv[2] || process.env.SAFARI_SITE || 'http://127.0.0.1:8000/';
 const WD = 'http://localhost:4444';
@@ -47,7 +55,8 @@ const PROBE = `
     scWidget.getPosition(function(p){ window.__tl.push({t:Date.now()-window.__t0,p:Math.round(p)}); }); }}catch(e){}
   },300); return 1;`;
 
-async function runCase(label, primeGesture) {
+// mode: 'control' | 'journey' | 'only-click'
+async function runCase(label, mode) {
   const s = await wd('POST', '/session', { capabilities: { alwaysMatch: { browserName: 'safari' } } });
   const S = (p) => `/session/${s.sessionId}${p}`;
   const js = (script) => wd('POST', S('/execute/sync'), { script, args: [] });
@@ -57,10 +66,19 @@ async function runCase(label, primeGesture) {
     await wd('POST', S('/timeouts'), { script: 30000, pageLoad: 60000, implicit: 0 });
     await wd('POST', S('/window/rect'), { width: 1440, height: 900 });
     await wd('POST', S('/url'), { url: SITE });
-    await sleep(6000);
-    // programmatic setup (isTrusted:false — does NOT count as a gesture / does not prime)
-    await js(`var x=document.querySelector('#onboarding-overlay .ob-close, #onboarding-overlay button'); if(x)x.click();
-              var t=document.querySelector('#mode-tabs .mode-tab[data-mode="tracks"]'); if(t)t.click(); return 1;`).catch(() => {});
+    await sleep(3000);
+
+    // Neutralise the fix for the control, before the graph (and thus a seed) exists.
+    if (mode === 'control') await js('safariPrimed = true; return 1;').catch(() => {});
+
+    // Programmatic setup clicks are isTrusted:false, so they are NOT user gestures.
+    await js(`var x=document.querySelector('#onboarding-overlay .ob-close, #onboarding-overlay button'); if(x)x.click(); return 1;`).catch(() => {});
+    if (mode === 'journey') {
+      await click('#mode-tabs .mode-tab[data-mode="tracks"]'); // the one genuine gesture
+    } else {
+      await js(`var t=document.querySelector('#mode-tabs .mode-tab[data-mode="tracks"]'); if(t)t.click(); return 1;`).catch(() => {});
+    }
+
     for (let i = 0; i < 100; i++) {
       const n = await js('return document.querySelectorAll(\'.node-card[data-rank="root"] .play-btn\').length');
       if (n > 0) break;
@@ -68,6 +86,18 @@ async function runCase(label, primeGesture) {
               var b=document.getElementById('filter-shuffle-btn'); if(b)b.click(); return 1;`).catch(() => {});
       await sleep(500);
     }
+
+    // Let the primer complete (it fires as soon as the graph yields a seed). The
+    // widget builds its media element lazily, so give that a moment to settle —
+    // a Play click inside ~2s of the graph appearing can still lose the race.
+    if (mode !== 'control') {
+      for (let i = 0; i < 40; i++) {
+        if (await js('return typeof safariPrimed !== "undefined" && safariPrimed')) break;
+        await sleep(500);
+      }
+      await sleep(4000);
+    }
+
     const pick = () => js(`
       var el=Array.from(document.querySelectorAll('.node-card')).find(function(c){ var n=nodeMap[c.getAttribute('data-node-id')];
         return n && n.setUrl && (typeof mixPlayable!=='function'||mixPlayable(n)) && c.querySelector('.play-btn'); });
@@ -76,19 +106,8 @@ async function runCase(label, primeGesture) {
     const t = await pick();
     if (!t) { console.log(`  [${label}] no mix card — inconclusive`); return null; }
 
-    if (primeGesture) {
-      // one ordinary user gesture BEFORE play — native click = genuine gesture
-      let did = false;
-      for (const sel of ['#filter-search', 'input[type="text"]', '#site-title', '#theme-toggle']) {
-        try { await click(sel); did = true; break; } catch (e) {}
-      }
-      if (!did) { console.log(`  [${label}] no neutral element to click — inconclusive`); return null; }
-      await sleep(6000); // let the priming load settle
-      await pick(); // re-select in case of re-render
-    }
-
     await js(PROBE);
-    await click('.node-card[data-target] .play-btn'); // the cold play gesture
+    await click('.node-card[data-target] .play-btn');
     await sleep(15000);
     const tl = await js('clearInterval(window.__iv); return window.__tl;');
     const ok = rolled(tl);
@@ -102,7 +121,6 @@ async function runCase(label, primeGesture) {
   try { execSync('/usr/bin/safaridriver --version', { stdio: 'ignore' }); } catch { skip('safaridriver not available'); }
   try { const r = await fetch(SITE, { method: 'HEAD' }).catch(() => null); if (!r) skip(`site not reachable: ${SITE}`); } catch { skip(`site not reachable: ${SITE}`); }
 
-  // Start safaridriver if nothing is listening on 4444.
   let started = null;
   try { await fetch(WD + '/status'); }
   catch {
@@ -114,18 +132,22 @@ async function runCase(label, primeGesture) {
   console.log(`\n[Safari cold-start] real Safari via safaridriver — ${SITE}`);
   let failed = 0;
   try {
-    console.log('\nA. NEGATIVE CONTROL — play as the first gesture (expect SILENT):');
-    const a = await runCase('control', false);
-    console.log('\nB. THE FIX — one neutral gesture before play (expect PLAYED):');
-    const b = await runCase('fixed', true);
+    console.log('\nA. NEGATIVE CONTROL — primer disabled, play as first gesture (expect SILENT):');
+    const a = await runCase('control', 'control');
+    console.log('\nB. DEFAULT JOURNEY — Dig → Shuffle tab → Play (expect PLAYED):');
+    const b = await runCase('journey', 'journey');
+    console.log('\nC. PLAY IS THE ONLY CLICK — no preceding gesture (expect PLAYED):');
+    const c = await runCase('only-click', 'only-click');
 
     console.log('\n════════ RESULT ════════');
-    if (a === null || b === null) { console.log('inconclusive — no playable mix card surfaced; rerun'); }
+    if (a === null || b === null || c === null) { console.log('inconclusive — no playable mix card surfaced; rerun'); }
     else {
-      if (a === false) console.log('  ✓ control is SILENT (bug reproduced; detector works)');
+      if (a === false) console.log('  ✓ control is SILENT (bug reproduced; detector works; primer is what fixes it)');
       else { console.log('  ✗ control unexpectedly PLAYED — detector or scenario suspect'); failed = 1; }
-      if (b === true) console.log('  ✓ fixed path PLAYS (wasted-gesture fix works in real Safari)');
-      else { console.log('  ✗ fixed path is SILENT — the fix did NOT prime real Safari'); failed = 1; }
+      if (b === true) console.log('  ✓ default journey PLAYS');
+      else { console.log('  ✗ default journey SILENT — the primer did not cover Dig → Shuffle → Play'); failed = 1; }
+      if (c === true) console.log('  ✓ play-as-only-click PLAYS (priming needs no preceding gesture)');
+      else { console.log('  ✗ play-as-only-click SILENT — priming still depends on a gesture'); failed = 1; }
     }
   } finally {
     if (started) { try { process.kill(-started.pid); } catch (e) {} }
