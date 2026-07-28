@@ -75,9 +75,17 @@ if [ "$MODE" = "all" ] || [ "$MODE" = "ui" ]; then
   node tests/ui-flows.test.cjs || FAIL=1
 
   echo
+  echo "================ playback.test.cjs ================"
+  node tests/playback.test.cjs || FAIL=1
+
+  echo
   echo "================ filters.test.cjs ================"
   node tests/filters.test.cjs || FAIL=1
 fi
+
+# Note: tests/safari-coldstart.test.cjs (real Safari via safaridriver) is opt-in
+# — it needs macOS + Safari "Allow Remote Automation" and opens a real browser,
+# so it is NOT run here. Run it directly: node tests/safari-coldstart.test.cjs
 
 if [ "$FAIL" -ne 0 ]; then
   echo

@@ -109,6 +109,62 @@ function initSCWidget() {
 }
 
 
+// ── Safari desktop cold-start priming (wasted-gesture workaround) ──
+// Desktop Safari silently refuses the FIRST gesture-driven play() of every page
+// load (its autoplay policy vs the cross-origin SoundCloud iframe); the SECOND
+// user gesture works. Root cause unknown, but the only reliably-verified primer
+// (real Safari 18.6, safaridriver) is a full load()+play() cycle driven by a
+// real user gesture — a same-gesture retry does NOT work. So on desktop Safari
+// we spend the user's FIRST click anywhere on a muted throwaway load+play,
+// making their first real Play click the honoured second gesture. Invisible:
+// the widget stays hidden and muted, and nothing plays audibly.
+//
+// Gated to desktop Safari ONLY. Every other browser — and mobile Safari, which
+// already works via its visible widget — never arms this and is untouched.
+const IS_DESKTOP_SAFARI = (() => {
+  const ua = navigator.userAgent || '';
+  const isSafari = /Safari\//.test(ua) && !/Chrom(e|ium)|CriOS|FxiOS|Edg|OPR|OPiOS|Android/i.test(ua);
+  const isIOS = /iPhone|iPad|iPod/i.test(ua) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1); // iPadOS reports as Mac
+  return isSafari && !isIOS;
+})();
+
+let safariPrimed = false;
+function armSafariAudioPrime() {
+  if (!IS_DESKTOP_SAFARI) return; // no-op on every other browser
+  const primer = (e) => {
+    if (safariPrimed) { document.removeEventListener('click', primer, true); return; }
+    // Only a genuine user gesture grants Safari's autoplay activation — a
+    // synthetic/programmatic .click() (isTrusted false) would waste the primer.
+    if (!e || !e.isTrusted) return;
+    if (!initSCWidget()) return; // SC API not ready yet — stay armed for the next click
+    // A real SoundCloud URL to prime the widget with: any individual track
+    // (fast) or a SC set from the loaded graph. If none yet, stay armed.
+    let seed = null;
+    for (const k in nodeMap) { const n = nodeMap[k]; if (n && n.scTrackUrl) { seed = n.scTrackUrl; break; } }
+    if (!seed) for (const k in nodeMap) {
+      const n = nodeMap[k]; if (n && n.setUrl && /soundcloud\.com/.test(n.setUrl)) { seed = n.setUrl; break; }
+    }
+    if (!seed) return; // graph not loaded yet — try again on the next click
+    safariPrimed = true;
+    document.removeEventListener('click', primer, true);
+    try {
+      scWidget.setVolume(0);
+      scWidget.play();
+      scWidget.load(seed, { auto_play: true, show_artwork: false, visual: false,
+        callback: () => { try { scWidget.setVolume(0); scWidget.play(); } catch (e) {} } });
+      // Silence the throwaway once it has primed the widget — but never touch a
+      // real playback the user may have started in the meantime.
+      setTimeout(() => {
+        if (currentlyPlayingId != null) return;
+        try { scWidget.pause(); scWidget.seekTo(0); } catch (e) {}
+      }, 1000);
+    } catch (e) {}
+  };
+  document.addEventListener('click', primer, true);
+}
+if (typeof document !== 'undefined') armSafariAudioPrime();
+
 function showLoading(card) {
   if (!card) return;
   card.classList.add('loading');
