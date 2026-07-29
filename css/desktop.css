@@ -1168,14 +1168,26 @@ body.night #path-tooltip { background: #1a1a1a; color: #fff; }
   -webkit-backdrop-filter: blur(8px);
   border-radius: 6px;
   color: #fff;
+  text-decoration: none;
   opacity: 0;
   pointer-events: none;
-  transition: opacity 0.3s ease;
+  /* Above .play-btn (z-index 3), which covers the whole art — matches the
+     progress bar and source toggle so the badge stays clickable. */
+  z-index: 5;
+  transition: opacity 0.3s ease, background 0.15s ease, transform 0.15s ease;
 }
 .sc-badge svg { width: 100%; height: 100%; display: block; }
+/* Clickable only while it's actually visible — opens the playing track (or the
+   set at its timestamp in mixed mode) on SoundCloud. */
 .node-card.playing[data-source="soundcloud"] .sc-badge,
 .node-card.playing[data-source="set"] .sc-badge {
   opacity: 1;
+  pointer-events: auto;
+  cursor: pointer;
+}
+.sc-badge:hover {
+  background: rgba(0, 0, 0, 0.82);
+  transform: scale(1.12);
 }
 /* Go+ preview pill — bottom-left counterpart to the sc/eq badges. Shown once
    the loaded SC track is known to be a 30s snippet (.snipped, see checkScSnip);

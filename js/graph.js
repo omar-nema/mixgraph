@@ -98,9 +98,20 @@ function renderCards() {
       : '';
 
     const sourceBadge = `<span class="source-badge">${EQ_BARS_HTML}</span>`;
+    // SC set link (with timestamp) — used by the SoundCloud badge in mixed mode
+    // and by the DJ line below.
+    let scSetLink = null;
+    if (mixPlayable(node)) {
+      scSetLink = node.setUrl;
+      if (node.setOffsetSec) {
+        scSetLink += `#t=${Math.floor(node.setOffsetSec / 60)}m${node.setOffsetSec % 60}s`;
+      }
+    }
     // SoundCloud badge — matches the eq-badge style, only surfaces on the playing
     // card when audio is coming from SoundCloud (CSS gates it via data-source).
-    const scBadge = `<span class="sc-badge">${SOUNDCLOUD_ICON}</span>`;
+    // Clicking it opens whatever is actually playing: the isolated track, or the
+    // set at its timestamp in mixed mode (href is set in prepareCardForPlayback).
+    const scBadge = `<a class="sc-badge" target="_blank" rel="noopener" aria-label="Open on SoundCloud" title="Open on SoundCloud" data-sc-track="${node.scTrackUrl || ''}" data-sc-set="${scSetLink || ''}">${SOUNDCLOUD_ICON}</a>`;
     // Go+ preview pill, bottom-left — surfaces when the loaded SC track is a
     // 30s snippet (detected via checkScSnip, or already cached).
     const previewBadge = node.scTrackUrl ? `<span class="preview-badge">preview<span class="pb-long">, soundcloud premium</span></span>` : '';
@@ -129,15 +140,7 @@ function renderCards() {
     const allDjs = node.djs || [];
     let djLine = '';
     if (allDjs.length > 0) {
-      let setLink = null;
-      if (node.setUrl && node.setSource !== 'mixcloud') {
-        setLink = node.setUrl;
-        if (node.setOffsetSec) {
-          const m = Math.floor(node.setOffsetSec / 60);
-          const s = node.setOffsetSec % 60;
-          setLink += `#t=${m}m${s}s`;
-        }
-      }
+      const setLink = scSetLink;
       const links = allDjs.map(d => {
         // setLink is a single resolved set tied to node.setDj (the one DJ
         // enrichment actually matched a playable set for) — only that DJ gets
