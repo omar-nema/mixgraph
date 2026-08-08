@@ -25,6 +25,24 @@ const root = resolve(__dirname, '..', 'pipeline', 'output');
 const DB = 'b2b-candidates';
 const SWAP = process.argv.includes('--swap');
 
+// Secondary indexes the LIVE `candidates` table must always carry. These are
+// (re)built on the live table during --swap (see below), NOT during load —
+// SQLite index names are global to the schema, so an index created on
+// candidates_new survives the rename to `candidates` and then silently collides
+// (via CREATE INDEX IF NOT EXISTS) with the next load, leaving the freshly-
+// swapped table with no secondary indexes at all. Covering `(col, id)` lets the
+// id be read straight from the index with no primary-key hop.
+// NB: artist (`a`) is intentionally NOT indexed — the only query on it is
+// `a LIKE '%...%'`, which a B-tree index can't serve; that path needs a
+// normalized join table / FTS instead (separate follow-up).
+const CAND_INDEXES = [
+  ['idx_cand_cw', 'candidates(cw, id)'], // shuffle weighted-random seed seek
+  ['idx_cand_e',  'candidates(e, id)'],  // crates minEdges + e>=4 pool
+  ['idx_cand_s',  'candidates(s)'],      // source filter
+  ['idx_cand_st', 'candidates(st)'],     // source-type filter
+  ['idx_cand_t',  'candidates(t)'],      // exact-title filter
+];
+
 // Run a SQL command or file against the remote D1. Returns parsed JSON when json=true.
 function d1(arg, { file = false, json = false } = {}) {
   const a = file ? `--file "${arg}"` : `--command "${arg.replace(/"/g, '\\"')}"`;
@@ -44,8 +62,33 @@ if (SWAP) {
       ALTER TABLE candidates_new RENAME TO candidates;
       ALTER TABLE meta RENAME TO meta_old;
       ALTER TABLE meta_new RENAME TO meta;`);
+
+  // Build the secondary indexes on the now-live `candidates`. This MUST run
+  // after the rename, not during load: the fresh candidates_new has no indexes,
+  // so we create them here where the name is guaranteed free. DROP INDEX first
+  // clears the name — after the rename above it's attached to candidates_old (or
+  // a legacy idx_new_* on a dropped table) — then CREATE builds it on the live
+  // table. This is the fix for indexes silently vanishing on every swap.
+  console.log('Rebuilding indexes on live candidates...');
+  d1(CAND_INDEXES
+    .map(([name, def]) => `DROP INDEX IF EXISTS ${name};\nCREATE INDEX ${name} ON ${def};`)
+    .join('\n'));
+
+  // Verify every index is present on the LIVE table and fail loudly if not, so
+  // a broken swap can never silently ship an unindexed (slow, expensive) table.
+  const idxRows = d1(
+    "SELECT name FROM sqlite_master WHERE type='index' AND tbl_name='candidates'",
+    { json: true })?.[0]?.results ?? [];
+  const have = new Set(idxRows.map(r => r.name));
+  const missing = CAND_INDEXES.map(([n]) => n).filter(n => !have.has(n));
+  if (missing.length) {
+    console.error(`❌ Missing indexes on live candidates after swap: ${missing.join(', ')}`);
+    console.error('   The table is live but unindexed — rerun --swap or create them by hand.');
+    process.exit(1);
+  }
+
   const { n } = firstRow(d1('SELECT COUNT(*) AS n FROM candidates', { json: true }));
-  console.log(`Swap complete. Live candidates: ${n}`);
+  console.log(`Swap complete. Live candidates: ${n}. Indexes verified: ${CAND_INDEXES.map(([n]) => n).join(', ')}`);
   process.exit(0);
 }
 
@@ -89,16 +132,12 @@ for (let f = 0; f < cands.length; f += ROWS_PER_FILE) {
   nfiles++;
 }
 
-// _new-suffixed index names so they never collide with the live table's indexes.
-writeFileSync(`${OUT}/99_index_meta.sql`,
-  // IF NOT EXISTS so a retry after a partial failure doesn't wedge on
-  // "index already exists" (the shadow table's indexes may survive a crash).
-  `CREATE INDEX IF NOT EXISTS idx_new_a  ON candidates_new(a);
-CREATE INDEX IF NOT EXISTS idx_new_s  ON candidates_new(s);
-CREATE INDEX IF NOT EXISTS idx_new_st ON candidates_new(st);
-CREATE INDEX IF NOT EXISTS idx_new_e  ON candidates_new(e);
-CREATE INDEX IF NOT EXISTS idx_new_cw ON candidates_new(cw);
-DROP TABLE IF EXISTS meta_new;
+// Only meta is set up here. Secondary indexes are deliberately NOT created on
+// candidates_new — they're built on the live table during --swap (see
+// CAND_INDEXES) to avoid SQLite's global index-name collision. Building indexes
+// pre-swap here is exactly what left every post-first generation unindexed.
+writeFileSync(`${OUT}/99_meta.sql`,
+  `DROP TABLE IF EXISTS meta_new;
 CREATE TABLE meta_new (k TEXT PRIMARY KEY, v REAL);
 INSERT INTO meta_new (k,v) VALUES ('total_count',${totalCount}),('total_weight',${totalWeight});
 `);
@@ -110,7 +149,7 @@ for (let i = 0; i < nfiles; i++) {
   process.stdout.write(`\r  loaded ${i + 1}/${nfiles} data files`);
 }
 process.stdout.write('\n');
-d1(`${OUT}/99_index_meta.sql`, { file: true });
+d1(`${OUT}/99_meta.sql`, { file: true });
 
 const { n, cwn } = firstRow(d1(
   'SELECT (SELECT COUNT(*) FROM candidates_new) AS n, (SELECT COUNT(*) FROM candidates_new WHERE cw IS NOT NULL) AS cwn',
